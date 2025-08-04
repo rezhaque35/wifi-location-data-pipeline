@@ -58,6 +58,7 @@ sleep 5
 
 # Step 7: Create the wifi_access_points table
 echo "Creating wifi_access_points table..."
+cd "$(dirname "$0")"  # Change to script directory
 ./create-and-load.sh
 
 # Step 8: Verify table creation
@@ -66,4 +67,3 @@ aws dynamodb list-tables --endpoint-url http://localhost:8000 --profile dynamodb
 ./verify-dynamodb-data.sh
 
 echo "Setup complete! DynamoDB Local is running on port 8000"
-echo "You can now run the load-test-data.sh script" 
