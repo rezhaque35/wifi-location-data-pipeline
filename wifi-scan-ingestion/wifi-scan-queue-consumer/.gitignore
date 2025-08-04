@@ -1,0 +1,160 @@
+# wifi-database/wifi-scan-collection/wifi-scan-queue-consumer/.gitignore
+# Comprehensive .gitignore for Spring Boot Maven project
+
+# IDE Files
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IntelliJ IDEA
+.idea/
+out/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Eclipse
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.settings/
+.loadpath
+.recommenders
+.project
+.classpath
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle
+/build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Spring Boot
+spring-boot-starter-parent/
+
+# Application Logs
+logs/
+*.log
+*.log.*
+log/
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary Files
+*.tmp
+*.temp
+*~
+
+# JVM Crash Logs
+hs_err_pid*
+replay_pid*
+
+# Java Compiled Classes
+*.class
+
+# Package Files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Virtual Machine Crash Logs
+hs_err_pid*
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Security & Secrets
+application-local.yml
+application-local.properties
+application-secrets.yml
+application-secrets.properties
+
+
+# Test Reports
+/test-results/
+/test-output/
+
+# Coverage Reports
+.jacoco/
+jacoco.exec
+
+# SonarQube
+.sonar/
+.scannerwork/
+
+# Node.js (if using frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore
+
+# Kubernetes
+*.kubeconfig
+
+# Local Development
+local/
+dev/
+development/
+
+# Backup Files
+*.backup
+*.bak
+
+# Cache Directories
+.cache/
+
+# Runtime Data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Generated Docker Compose files
+scripts/docker-compose.yml
+
+# SSL certificates and secrets (local development only)
+scripts/kafka/secrets/
+secrets/ 

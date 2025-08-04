@@ -1,0 +1,53 @@
+---
+description: "Core Python quality standards, including formatting, linting, typing, documentation, and testing." [cite: 158]
+globs: ["*.py"] 
+alwaysApply: false 
+---
+
+# Python Code Quality Mandate
+
+## 1. Formatting and Linting (ruff)
+- All generated Python code MUST be formatted according to the `black` style. 
+- The code must pass all checks from `ruff check --select ALL` with no errors. 
+- Line length is strictly limited to 88 characters. [cite: 161]
+- Use double quotes `"` for strings, unless single quotes `'` are required for clarity within the string. 
+
+## 2. Modern Python Syntax and Idioms
+- **File Paths:** ALWAYS use the `pathlib.Path` object-oriented API for all filesystem path manipulations. Do not use the `os.path` module. 
+- **String Formatting:** ALWAYS use f-strings for string formatting. Do not use `%-formatting` or `.format()`. 
+- **Type Hinting Syntax (Python 3.10+):** Use built-in generic types (e.g., `list[int]`, `dict[str, bool]`). For unions, use the `|` operator (e.g., `int | str`). Do not import `List`, `Dict`, `Union`, or `Optional` from the `typing` module unless supporting older Python versions. 
+
+## 3. Static Typing (PEP 484 & mypy)
+- All new code MUST be fully type-hinted. This includes all function/method arguments and return values. 
+- Strive for maximum type specificity. Avoid generic types like `list` or `dict` when the contents are known. 
+- The use of `typing.Any` is strongly discouraged. If it is absolutely necessary, you MUST add an inline comment explaining the justification. 
+- For data models representing external data (e.g., API request/response bodies, configuration files), ALWAYS use `pydantic.BaseModel` to leverage its runtime validation. 
+- For purely internal data containers, prefer the standard library's `dataclasses.dataclass`. 
+
+## 4. Documentation (Google Style)
+- All public modules, functions, classes, and methods MUST have a complete Google-style docstring. 
+- Docstrings must include `Args:`, `Returns:`, and `Raises:` sections as appropriate. 
+- **IMPORTANT:** If a function signature uses PEP 484 type hints, DO NOT repeat the type in the docstring. The docstring description is for explaining purpose and behavior. 
+
+### Docstring Template Example:
+```python
+def example_function(param1: int, param2: str) -> bool:
+    """A brief, one-line summary of the function. 
+
+    An extended description of the function's purpose, behavior, and any
+    notable implementation details. 
+
+    Args:
+        param1: Description of the first parameter. 
+        param2: Description of the second parameter. 
+
+    Returns:
+        A description of the return value, explaining what True or False
+        signifies. [cite: 168, 169]
+
+    Raises:
+        ValueError: If `param1` is negative. 
+    """
+    if param1 < 0:
+        raise ValueError("param1 cannot be negative") 
+    return len(param2) > param1 

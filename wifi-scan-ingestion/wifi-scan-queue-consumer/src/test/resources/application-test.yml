@@ -1,0 +1,92 @@
+# Test profile configuration that uses embedded Kafka for integration tests
+spring:
+  application:
+    name: wifi-scan-queue-consumer-test
+
+server:
+  host: localhost
+  port: 0  # Use random port for tests
+
+# Kafka configuration for embedded test broker
+kafka:
+  bootstrap-servers: ${spring.embedded.kafka.brokers}
+  consumer:
+    group-id: wifi-scan-consumer-test
+    auto-offset-reset: earliest
+    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    enable-auto-commit: false
+    max-poll-records: 100
+    session-timeout: 30000ms
+    heartbeat-interval: 3000ms
+  topic:
+    name: test-topic
+    partitions: 1
+    replication-factor: 1
+  ssl:
+    enabled: false
+
+# Health indicator configuration for tests
+health:
+  indicator:
+    timeout-seconds: 10
+    memory-threshold-percentage: 95
+    consumption-timeout-minutes: 10
+    minimum-consumption-rate: 0.0
+    retry-attempts: 1
+    enable-caching: false
+    cache-ttl-seconds: 5
+
+# Logging configuration for tests
+logging:
+  level:
+    com.wifi.scan.consume: DEBUG
+    org.springframework.kafka: INFO
+    org.apache.kafka: WARN
+    org.springframework.kafka.test: INFO
+    kafka.embedded: INFO
+    org.apache.kafka.clients.consumer.ConsumerConfig: WARN
+    org.apache.kafka.clients.producer.ProducerConfig: WARN
+    org.apache.kafka.clients.admin.AdminClientConfig: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# AWS Firehose Configuration for tests with smaller limits for easier testing
+aws:
+  region: us-east-1
+  endpoint-url: http://localhost:4566  # LocalStack for tests
+  credentials:
+    access-key: test
+    secret-key: test
+  firehose:
+    delivery-stream-name: test-stream
+    # Test-friendly Firehose Batch Constraints - Smaller values for easier testing
+    batch-constraints:
+      max-batch-size: 10                     # Small batch size for tests (vs 500 in prod)
+      max-batch-size-bytes: 1024             # 1KB max per batch for tests (vs 4MB in prod)
+      max-record-size-bytes: 512             # 512 bytes max per record for tests (vs 1MB in prod)
+
+management:
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      group:
+        readiness:
+          include: kafkaConsumerGroup,kafkaTopicAccessibility,sslCertificate,messageProcessingReadiness
+        liveness:
+          include: messageConsumptionActivity,jvmMemory
+  health:
+    kafka:
+      enabled: true
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+    message-consumption:
+      message-timeout-threshold: 5  # 5 minutes for tests
+      consumption-rate-threshold: 0.1 

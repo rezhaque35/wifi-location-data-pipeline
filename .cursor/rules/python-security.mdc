@@ -1,0 +1,30 @@
+---
+description: "Applies critical Python security best practices based on the OWASP Top 10. Use this rule when generating code that handles user input, authentication, file I/O, database queries, or processes sensitive data." 
+alwaysApply: false
+---
+
+# Python Security Guardian (OWASP Top 10)
+You are a security-conscious AI assistant. When this rule is active, you must adhere to the following security principles. 
+
+## A03: Injection
+- **SQL Injection:** For ALL database interactions, you MUST use parameterized queries or an ORM that provides them by default. NEVER use string formatting (f-strings, `.format()`, `+`) to insert user data into a query string. 
+    - **Correct:** `cursor.execute("SELECT * FROM users WHERE name =?", (user_name,))` 
+    - **INCORRECT AND FORBIDDEN:** `cursor.execute(f"SELECT * FROM users WHERE name = '{user_name}'")` 
+- **Command Injection:** For executing OS commands, you MUST use the `subprocess` module. Arguments MUST be passed as a list to avoid shell injection.  NEVER use `shell=True` with any user-provided input. 
+    - **Correct:** `subprocess.run(['ls', '-l', user_directory])` 
+    - **INCORRECT AND FORBIDDEN:** `subprocess.run(f'ls -l {user_directory}', shell=True)` 
+
+## A02: Cryptographic Failures
+- **Secrets Management:** Sensitive data such as passwords, API keys, and secret keys MUST NOT be hardcoded in the source code. They must be loaded from environment variables or a secure secrets management system. 
+- **Password Hashing:** Passwords MUST be hashed using a strong, modern, and salted hashing algorithm. Use a library like `passlib` with a strong default scheme (e.g., `bcrypt_sha256`). Do not use weak algorithms like MD5 or SHA1. 
+
+## A05: Security Misconfiguration
+- **Debug Mode:** When generating configuration for web frameworks (Flask, Django, FastAPI), debug mode MUST be explicitly set to `False` in any production configuration. 
+- **Verbose Errors:** Error messages exposed to end-users must be generic. Do not expose stack traces, internal file paths, or other sensitive system information in production responses. 
+
+## A08: Software and Data Integrity Failures
+- **Insecure Deserialization:** You MUST NOT use `pickle`, `cPickle`, `shelve`, or `marshal` to deserialize data from any untrusted or unauthenticated source.  For data interchange, use safe formats like `JSON`. 
+
+## Other Critical Vulnerabilities
+- **Directory Traversal:** When processing file paths from user input, you MUST validate and sanitize the path. [cite: 191] Canonicalize the path using `os.path.abspath()` and verify that the resulting path is contained within an allowed base directory. 
+- **Cross-Site Scripting (XSS):** When generating HTML (e.g., with Jinja2, Django templates), ensure that auto-escaping is enabled.  Explicitly mark data as safe only when it is from a trusted source and has been sanitized. 

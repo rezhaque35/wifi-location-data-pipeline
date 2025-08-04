@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: wifi-positioning-service-test
+
+server:
+  port: 0
+
+aws:
+  dynamodb:
+    endpoint: http://localhost:8000
+    region: us-west-2
+    table-name: wifi_access_points
+
+logging:
+  level:
+    com.wifi.positioning: DEBUG
+    org.springframework: INFO
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false 

@@ -1,0 +1,112 @@
+# Test Profile Configuration
+# Minimal configuration for unit and integration tests
+
+# AWS Configuration for test environment
+aws:
+  region: us-east-1
+  endpoint-url: http://localhost:4566
+  credentials:
+    access-key: test
+    secret-key: test
+  s3:
+    use-path-style: true
+    skip-credentials-validation: true
+    skip-metadata-api-check: true
+    skip-requesting-account-id: true
+
+# Test-specific overrides - queue URL will be overridden by @DynamicPropertySource
+sqs:
+  queue-url: http://localhost:4566/000000000000/fallback-queue  # Will be overridden
+  max-messages: 5
+  wait-time-seconds: 1
+  visibility-timeout-seconds: 30
+  max-concurrent-batches: 2
+  max-retries: 2
+
+s3:
+  region: us-east-1
+  bucket-name: test-bucket
+  max-file-size: 1048576  # 1MB for tests
+  connection-timeout-seconds: 5
+  read-timeout-seconds: 10
+
+# AWS Configuration for LocalStack
+spring:
+  cloud:
+    aws:
+      credentials:
+        access-key: test
+        secret-key: test
+      region:
+        static: us-east-1
+      s3:
+        endpoint: http://localhost:4566
+      sqs:
+        endpoint: http://localhost:4566
+
+# Test filtering settings (more permissive)
+filtering:
+  max-location-accuracy: 200.0
+  min-rssi: -100
+  max-rssi: 0
+  connected-quality-weight: 2.0
+  scan-quality-weight: 1.0
+  low-link-speed-quality-weight: 1.5
+  mobile-hotspot:
+    enabled: false
+    action: LOG_ONLY
+    oui-blacklist:
+      - "00:00:00"  # Test OUI
+
+# Kinesis Data Firehose Configuration - disabled for tests
+firehose:
+  enabled: false
+  delivery-stream-name: test-wifi-measurements-stream
+  max-batch-size: 10  # Smaller batches for tests
+  max-batch-size-bytes: 1048576  # 1 MB for tests
+  batch-timeout-ms: 1000  # Faster timeout for tests
+  max-record-size-bytes: 102400  # 100 KB for tests
+  max-retries: 1
+  retry-backoff-ms: 100
+
+# Data API Configuration - disabled for tests
+data-api:
+  enabled: false
+  batch-size: 10
+  max-retries: 1
+
+# Test processing settings (smaller batches)
+processing:
+  thread-pool-size: 2
+  batch-write-size: 10
+  max-memory-threshold: 104857600  # 100MB
+  deduplication-window-seconds: 1
+  enable-data-sanitization: true
+  max-retry-attempts: 2
+  retry-base-delay-millis: 100
+
+# Test Memory Management Configuration (reduced for testing)
+memory-management:
+  enabled: true
+  memory-pressure-threshold: 0.9  # Higher threshold for tests
+  max-batch-memory-bytes: 10485760  # 10MB max memory for batch accumulation
+  memory-check-interval-ms: 1000  # Check memory every 1 second in tests
+  enable-batch-throttling: true
+  min-throttled-batch-size: 2  # Very small for tests
+  enable-performance-profiling: false  # Disable for tests to reduce overhead
+  enable-streaming-serialization: true
+  gc-optimization:
+    enabled: false  # Disable GC optimization in tests
+    suggest-gc-on-pressure: false
+    log-gc-events: false
+    gc-pause-interval-ms: 50
+
+# Test logging
+logging:
+  level:
+    root: WARN
+    com.wifi.measurements.transformer: DEBUG
+    org.testcontainers: DEBUG
+    software.amazon.awssdk: WARN
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" 

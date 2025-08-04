@@ -1,0 +1,177 @@
+spring:
+  application:
+    name: wifi-measurements-transformer-service
+  
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
+  
+  task:
+    execution:
+      pool:
+        core-size: 10
+        max-size: 10
+        queue-capacity: 100
+        keep-alive: 60s
+    scheduling:
+      pool:
+        size: 2
+
+# Server Configuration
+server:
+  port: 8081
+  shutdown: graceful
+  
+# Management and Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env,loggers,prometheus,shutdown
+      base-path: /
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+    shutdown:
+      enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+    group:
+      liveness:
+        include:
+          - livenessState
+          - memory
+          - sqsMessageProcessingActivity
+          - firehoseDeliveryActivity
+        show-details: always
+      readiness:
+        include:
+          - readinessState
+          - sqs
+          - firehose
+        show-details: always
+    sqs-message-processing:
+      message-timeout-threshold: 5  # 5 minutes - fails liveness if no processing activity
+      processing-rate-threshold: 0.1  # Minimum processing rate in messages per minute
+    firehose-delivery:
+      delivery-timeout-threshold: 10  # 10 minutes - fails liveness if no delivery activity
+      delivery-rate-threshold: 0.05  # Minimum delivery rate in batches per minute
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.wifi.measurements.transformer: DEBUG
+    software.amazon.awssdk: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+# LocalStack AWS Configuration
+aws:
+  region: us-east-1
+  endpoint-url: http://localhost:4566
+  credentials:
+    access-key: test
+    secret-key: test
+  s3:
+    use-path-style: true
+    skip-credentials-validation: true
+    skip-metadata-api-check: true
+    skip-requesting-account-id: true
+
+# SQS Configuration
+sqs:
+  queue-url: http://localhost:4566/000000000000/wifi-scan-events
+  max-messages: 10
+  wait-time-seconds: 20
+  visibility-timeout-seconds: 300
+  max-concurrent-batches: 5
+  max-retries: 3
+
+# S3 Configuration
+s3:
+  region: us-east-1
+  bucket-name: ingested-wifiscan-data
+  max-file-size: 157286400
+  connection-timeout-seconds: 30
+  read-timeout-seconds: 60
+
+# Data Filtering Configuration
+filtering:
+  max-location-accuracy: 150.0
+  min-rssi: -100
+  max-rssi: 0
+  connected-quality-weight: 2.0
+  scan-quality-weight: 1.0
+  low-link-speed-quality-weight: 1.5
+  mobile-hotspot:
+    enabled: false
+    action: LOG_ONLY
+    oui-blacklist:
+      - "00:23:6C"  # Apple
+      - "3C:15:C2"  # Apple
+      - "58:55:CA"  # Apple
+      - "40:B0:FA"  # Samsung
+      - "E8:50:8B"  # Samsung
+      - "DA:A1:19"  # Google
+      - "F8:A9:D0"  # Google
+
+# Kinesis Data Firehose Configuration
+firehose:
+  enabled: ${FIREHOSE_ENABLED:true}
+  delivery-stream-name: ${FIREHOSE_DELIVERY_STREAM_NAME:wifi-measurements-stream}
+  max-batch-size: 500  # Maximum records per batch
+  max-batch-size-bytes: 4194304  # 4 MB maximum batch size
+  batch-timeout-ms: 5000  # Maximum time to wait for batch completion
+  max-record-size-bytes: 1024000  # 1000 KB maximum record size
+  max-retries: 3
+  retry-backoff-ms: 1000
+
+# Data API Configuration
+data-api:
+  enabled: false
+  batch-size: 1000
+  max-retries: 3
+
+# Processing Configuration
+processing:
+  thread-pool-size: 10
+  batch-write-size: 1000
+  max-memory-threshold: 3221225472
+  deduplication-window-seconds: 5
+  enable-data-sanitization: true
+  max-retry-attempts: 3
+  retry-base-delay-millis: 1000
+
+# Memory Management Configuration
+memory-management:
+  enabled: false
+  memory-pressure-threshold: 0.8  # 80% heap usage threshold
+  max-batch-memory-bytes: 104857600  # 100MB max memory for batch accumulation
+  memory-check-interval-ms: 5000  # Check memory every 5 seconds
+  enable-batch-throttling: true
+  min-throttled-batch-size: 10  # Minimum batch size when throttling
+  enable-performance-profiling: true
+  enable-streaming-serialization: true
+  gc-optimization:
+    enabled: true
+    suggest-gc-on-pressure: false  # Avoid explicit GC in production
+    log-gc-events: true
+    gc-pause-interval-ms: 100  # 100ms pause between large batches 

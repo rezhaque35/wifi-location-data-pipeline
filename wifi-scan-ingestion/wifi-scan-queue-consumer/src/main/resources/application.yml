@@ -1,0 +1,142 @@
+# src/main/resources/application.yml
+# Main application configuration for WiFi Scan Queue Consumer
+
+spring:
+  application:
+    name: frisco-location-wifi-scan-vmb-consumer
+
+server:
+  servlet:
+    context-path: /frisco-location-wifi-scan-vmb-consumer
+  host: localhost
+
+management:
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: health,info,metrics,env,kafka
+  endpoint:
+    health:
+      show-details: always
+      group:
+        readiness:
+          include: kafkaConsumerGroup,kafkaTopicAccessibility,sslCertificate,firehoseConnectivity
+        liveness:
+          include: messageConsumptionActivity,jvmMemory
+  health:
+    kafka:
+      enabled: true
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+    message-consumption:
+      message-timeout-threshold: 5  # 5 minutes - fails liveness if no messages received  
+      consumption-rate-threshold: 0.1
+
+# Enhanced Health Indicator Configuration with SSL Readiness Monitoring
+health:
+  indicator:
+    # General health indicator settings
+    timeout-seconds: 5
+    memory-threshold-percentage: 90
+    consumption-timeout-minutes: 30
+    minimum-consumption-rate: 0.0
+    retry-attempts: 3
+    enable-caching: true
+    cache-ttl-seconds: 30
+    
+    # Enhanced SSL Certificate Readiness Configuration
+    certificate-expiration-warning-days: 30
+    certificate-expiration-urgent-days: 15
+    certificate-expiration-critical-days: 7
+    certificate-validation-timeout-seconds: 10
+    enable-certificate-chain-validation: true
+    enable-enhanced-ssl-monitoring: true
+    
+    # CloudWatch Integration Configuration
+    enable-cloud-watch-metrics: true
+    cloud-watch-metric-namespace: "KafkaConsumer/SSL"
+    certificate-expiry-metric-name: "ssl_certificate_expiry_days"
+    enable-kubernetes-event-generation: true
+    
+    # Enhanced Readiness Specific Settings
+    enable-readiness-optimization: true
+    enable-operational-guidance: true
+    enable-certificate-health-score: true
+    readiness-probe-frequency-seconds: 10
+
+request:
+ logging:
+  ignore: "/swagger-ui.html,/v3/api-docs,/swagger-ui/**,/v3/api-docs/**,/info,/health,/metrics,/env,/kafka,health/**"
+  
+logging:
+  level:
+    com.wifidata.consumer: INFO
+    org.springframework.kafka: INFO
+    org.springframework.kafka.listener.KafkaMessageListenerContainer: WARN
+    org.apache.kafka: WARN
+    # Suppress sensitive configuration logging
+    org.apache.kafka.clients.consumer.ConsumerConfig: WARN
+    org.apache.kafka.clients.producer.ProducerConfig: WARN
+    org.apache.kafka.clients.admin.AdminClientConfig: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+kafka:
+  bootstrap-servers: localhost:9093
+  consumer:
+    group-id: wifi-scan-consumer-dev
+    auto-offset-reset: earliest
+    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    enable-auto-commit: false
+    # Batch Processing Configuration
+    max-poll-records: 150              # Optimal batch size for 150-message processing
+    session-timeout: 45000ms           # 45 seconds - handles Firehose retries
+    max-poll-interval: 300000ms        # 5 minutes - allows extended rate limit backoff
+    heartbeat-interval: 15000ms        # 15 seconds
+    fetch-min-size: 4718592            # ~150 × 30KB minimum (4608KB)
+    fetch-max-wait: 500ms
+  topic:
+    name: wifi-scan-data
+    partitions: 3
+    replication-factor: 1
+  ssl:
+    enabled: true
+    protocol: SSL
+    keystore:
+      location: ${KAFKA_SSL_KEYSTORE_LOCATION:scripts/kafka/secrets/kafka.keystore.p12}
+      password: ${KAFKA_SSL_KEYSTORE_PASSWORD:kafka123}
+      type: ${KAFKA_SSL_KEYSTORE_TYPE:PKCS12}
+    truststore:
+      location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:scripts/kafka/secrets/kafka.truststore.p12}
+      password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD:kafka123}
+      type: ${KAFKA_SSL_TRUSTSTORE_TYPE:PKCS12}
+    key-password: ${KAFKA_SSL_KEY_PASSWORD:kafka123}
+
+# AWS Kinesis Data Firehose Configuration
+aws:
+  region: ${AWS_REGION:us-east-1}
+  endpoint-url: ${AWS_ENDPOINT_URL:http://localhost:4566}  # LocalStack endpoint, empty for production
+  credentials:
+    access-key: ${AWS_ACCESS_KEY_ID:test}  # LocalStack test credentials
+    secret-key: ${AWS_SECRET_ACCESS_KEY:test}  # LocalStack test credentials
+  firehose:
+    delivery-stream-name: ${AWS_FIREHOSE_DELIVERY_STREAM_NAME:MVS-stream}
+    # Enhanced Firehose Configuration for Batch Processing
+    buffer-time: 300         # 5 minutes (optimized)
+    batch-processing:
+      min-batch-size: 10
+      max-batch-size: 150    # Can use full poll
+      dynamic-sizing: true
+      timeout: 5s
+    # Firehose Batch Constraints - AWS Hard Limits
+    batch-constraints:
+      max-batch-size: 500                    # Maximum records per batch (AWS limit)
+      max-batch-size-bytes: 4194304          # Maximum 4MB per batch (AWS limit)
+      max-record-size-bytes: 1048576         # Maximum 1MB per record (AWS limit)
+
+
+

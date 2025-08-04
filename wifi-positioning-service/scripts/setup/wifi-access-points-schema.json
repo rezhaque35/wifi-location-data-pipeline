@@ -1,0 +1,16 @@
+{
+  "TableName": "wifi_access_points",
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "mac_addr",
+      "AttributeType": "S"
+    }
+  ],
+  "KeySchema": [
+    {
+      "AttributeName": "mac_addr",
+      "KeyType": "HASH"
+    }
+  ],
+  "BillingMode": "PAY_PER_REQUEST"
+} 
