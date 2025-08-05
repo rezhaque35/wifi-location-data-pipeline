@@ -70,11 +70,11 @@ public class S3EventExtractor {
     private final ObjectMapper objectMapper;
     
     // Validation patterns
-    private static final Pattern UUID_PATTERN = Pattern.compile("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$");
+    private static final Pattern UUID_PATTERN = Pattern.compile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$");
     private static final Pattern REGION_PATTERN = Pattern.compile("^[a-z0-9-]+$");
     private static final Pattern S3_ARN_PATTERN = Pattern.compile("^arn:aws:s3:::[a-zA-Z0-9.-]+$");
     private static final Pattern BUCKET_NAME_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9.-]*[a-z0-9]$");
-    private static final Pattern ETAG_PATTERN = Pattern.compile("^[a-f0-9]{32}$");
+    private static final Pattern ETAG_PATTERN = Pattern.compile("^[a-fA-F0-9]{32}$");
     private static final Pattern VERSION_ID_PATTERN = Pattern.compile("^[A-Za-z0-9._-]+$");
     
     public S3EventExtractor() {

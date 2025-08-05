@@ -21,15 +21,59 @@ export AWS_ACCESS_KEY_ID="test"
 export AWS_SECRET_ACCESS_KEY="test"
 export AWS_DEFAULT_REGION="$AWS_REGION"
 
-# Function to check if LocalStack is running
+# Function to check if LocalStack is running and start it if needed
 check_localstack() {
     echo "🔍 Checking if LocalStack is running..."
     if ! curl -s $LOCALSTACK_ENDPOINT/health > /dev/null; then
-        echo "❌ LocalStack is not running. Please start LocalStack first:"
-        echo "   docker run --rm -it -p 4566:4566 -p 4510-4559:4510-4559 localstack/localstack"
-        exit 1
+        echo "❌ LocalStack is not running. Starting LocalStack..."
+        
+        # Check if Docker is available
+        if ! command -v docker &> /dev/null; then
+            echo "❌ Docker is not installed or not in PATH. Please install Docker first."
+            exit 1
+        fi
+        
+        # Check if LocalStack image exists, pull if not
+        if ! docker images | grep -q "localstack/localstack"; then
+            echo "📥 Pulling LocalStack image..."
+            docker pull localstack/localstack
+        fi
+        
+        # Start LocalStack in background
+        echo "🚀 Starting LocalStack container..."
+        docker run --rm -d \
+            --name localstack-wifi-transformer \
+            -p 4566:4566 \
+            -p 4510-4559:4510-4559 \
+            -e SERVICES=s3,sqs,firehose,events \
+            -e DEBUG=1 \
+            -e DATA_DIR=/tmp/localstack/data \
+            localstack/localstack
+        
+        # Wait for LocalStack to be ready
+        echo "⏳ Waiting for LocalStack to be ready..."
+        local max_attempts=30
+        local attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+            if curl -s $LOCALSTACK_ENDPOINT/health > /dev/null; then
+                echo "✅ LocalStack is ready!"
+                break
+            fi
+            
+            echo "   Attempt $attempt/$max_attempts - waiting..."
+            sleep 2
+            attempt=$((attempt + 1))
+        done
+        
+        if [ $attempt -gt $max_attempts ]; then
+            echo "❌ LocalStack failed to start within expected time"
+            echo "   You can check the logs with: docker logs localstack-wifi-transformer"
+            exit 1
+        fi
+    else
+        echo "✅ LocalStack is already running"
     fi
-    echo "✅ LocalStack is running"
 }
 
 # Function to create SQS queue
@@ -37,24 +81,54 @@ create_sqs_queue() {
     echo "🔧 Creating SQS queue: $SQS_QUEUE_NAME"
     
     # Create the main queue
+    echo "   Creating main queue..."
     aws --endpoint-url=$LOCALSTACK_ENDPOINT sqs create-queue \
         --queue-name $SQS_QUEUE_NAME \
         --attributes '{
-            "VisibilityTimeoutSeconds": "300",
+            "VisibilityTimeout": "300",
             "MessageRetentionPeriod": "1209600",
             "DelaySeconds": "0",
             "ReceiveMessageWaitTimeSeconds": "20"
-        }' || echo "Queue may already exist"
+        }' || {
+        echo "❌ Failed to create main SQS queue"
+        return 1
+    }
     
     # Create dead letter queue
+    echo "   Creating dead letter queue..."
     aws --endpoint-url=$LOCALSTACK_ENDPOINT sqs create-queue \
         --queue-name "${SQS_QUEUE_NAME}-dlq" \
         --attributes '{
-            "VisibilityTimeoutSeconds": "300",
+            "VisibilityTimeout": "300",
             "MessageRetentionPeriod": "1209600"
-        }' || echo "DLQ may already exist"
+        }' || {
+        echo "❌ Failed to create DLQ"
+        return 1
+    }
     
-    echo "✅ SQS queues created"
+    # Verify queues were created
+    echo "   Verifying queue creation..."
+    sleep 2  # Give LocalStack time to process
+    
+    # Check main queue
+    if ! aws --endpoint-url=$LOCALSTACK_ENDPOINT sqs get-queue-url --queue-name $SQS_QUEUE_NAME > /dev/null 2>&1; then
+        echo "❌ Main queue verification failed"
+        return 1
+    fi
+    
+    # Check DLQ
+    if ! aws --endpoint-url=$LOCALSTACK_ENDPOINT sqs get-queue-url --queue-name "${SQS_QUEUE_NAME}-dlq" > /dev/null 2>&1; then
+        echo "❌ DLQ verification failed"
+        return 1
+    fi
+    
+    # Get and display queue URLs
+    MAIN_QUEUE_URL=$(aws --endpoint-url=$LOCALSTACK_ENDPOINT sqs get-queue-url --queue-name $SQS_QUEUE_NAME --query 'QueueUrl' --output text)
+    DLQ_URL=$(aws --endpoint-url=$LOCALSTACK_ENDPOINT sqs get-queue-url --queue-name "${SQS_QUEUE_NAME}-dlq" --query 'QueueUrl' --output text)
+    
+    echo "✅ SQS queues created successfully"
+    echo "   Main Queue URL: $MAIN_QUEUE_URL"
+    echo "   DLQ URL: $DLQ_URL"
 }
 
 # Function to create S3 buckets
@@ -213,6 +287,49 @@ EOF
     echo "✅ Sample test data created"
 }
 
+# Function to verify all resources
+verify_setup() {
+    echo "🔍 Verifying all resources are properly created..."
+    
+    # Verify SQS queues
+    echo "   Verifying SQS queues..."
+    if ! aws --endpoint-url=$LOCALSTACK_ENDPOINT sqs get-queue-url --queue-name $SQS_QUEUE_NAME > /dev/null 2>&1; then
+        echo "❌ Main SQS queue verification failed"
+        return 1
+    fi
+    
+    if ! aws --endpoint-url=$LOCALSTACK_ENDPOINT sqs get-queue-url --queue-name "${SQS_QUEUE_NAME}-dlq" > /dev/null 2>&1; then
+        echo "❌ DLQ verification failed"
+        return 1
+    fi
+    
+    # Verify S3 buckets
+    echo "   Verifying S3 buckets..."
+    if ! aws --endpoint-url=$LOCALSTACK_ENDPOINT s3 ls s3://$S3_BUCKET_NAME > /dev/null 2>&1; then
+        echo "❌ S3 ingestion bucket verification failed"
+        return 1
+    fi
+    
+    if ! aws --endpoint-url=$LOCALSTACK_ENDPOINT s3 ls s3://$S3_WAREHOUSE_BUCKET > /dev/null 2>&1; then
+        echo "❌ S3 warehouse bucket verification failed"
+        return 1
+    fi
+    
+    if ! aws --endpoint-url=$LOCALSTACK_ENDPOINT s3 ls s3://$S3_FIREHOSE_DESTINATION_BUCKET > /dev/null 2>&1; then
+        echo "❌ S3 Firehose destination bucket verification failed"
+        return 1
+    fi
+    
+    # Verify Firehose delivery stream
+    echo "   Verifying Firehose delivery stream..."
+    if ! aws --endpoint-url=$LOCALSTACK_ENDPOINT firehose describe-delivery-stream --delivery-stream-name $FIREHOSE_DELIVERY_STREAM_NAME > /dev/null 2>&1; then
+        echo "❌ Firehose delivery stream verification failed"
+        return 1
+    fi
+    
+    echo "✅ All resources verified successfully"
+}
+
 # Function to verify Firehose setup
 verify_firehose() {
     echo "🔍 Verifying Firehose setup..."
@@ -273,16 +390,48 @@ display_summary() {
     echo "   The service will write to Firehose delivery stream: $FIREHOSE_DELIVERY_STREAM_NAME"
 }
 
+# Function to show usage
+show_usage() {
+    echo "Usage: $0 [COMMAND]"
+    echo ""
+    echo "Commands:"
+    echo "  setup     - Setup LocalStack infrastructure (default)"
+    echo "  start     - Start LocalStack only"
+    echo "  help      - Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0              # Setup infrastructure (start LocalStack if needed)"
+    echo "  $0 setup        # Same as above"
+    echo "  $0 start        # Start LocalStack only"
+    echo ""
+    echo "For cleanup operations, use: ./scripts/cleanup.sh"
+}
+
 # Main execution
 main() {
-    check_localstack
-    create_sqs_queue
-    create_s3_buckets
-    setup_firehose
-    setup_eventbridge
-    create_sample_data
-    verify_firehose
-    display_summary
+    case "${1:-setup}" in
+        "setup")
+            check_localstack
+            create_sqs_queue
+            create_s3_buckets
+            setup_firehose
+            setup_eventbridge
+            create_sample_data
+            verify_setup
+            display_summary
+            ;;
+        "start")
+            check_localstack
+            ;;
+        "help"|"-h"|"--help")
+            show_usage
+            ;;
+        *)
+            echo "❌ Unknown command: $1"
+            show_usage
+            exit 1
+            ;;
+    esac
 }
 
 # Execute main function

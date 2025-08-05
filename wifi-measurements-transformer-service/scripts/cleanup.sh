@@ -21,6 +21,29 @@ export AWS_ACCESS_KEY_ID="test"
 export AWS_SECRET_ACCESS_KEY="test"
 export AWS_DEFAULT_REGION="$AWS_REGION"
 
+# Function to stop and remove LocalStack Docker container
+cleanup_localstack_container() {
+    echo "🔧 Cleaning up LocalStack Docker container..."
+    
+    # Stop the LocalStack container if running
+    if docker ps | grep -q "localstack-wifi-transformer"; then
+        echo "🛑 Stopping LocalStack container..."
+        docker stop localstack-wifi-transformer
+        echo "✅ LocalStack container stopped"
+    else
+        echo "ℹ️  LocalStack container is not running"
+    fi
+    
+    # Remove any stopped containers
+    if docker ps -a | grep -q "localstack-wifi-transformer"; then
+        echo "🗑️  Removing LocalStack container..."
+        docker rm localstack-wifi-transformer
+        echo "✅ LocalStack container removed"
+    else
+        echo "ℹ️  No LocalStack container to remove"
+    fi
+}
+
 # Function to check if LocalStack is running
 check_localstack() {
     echo "🔍 Checking if LocalStack is running..."
@@ -129,15 +152,56 @@ display_summary() {
     echo "  ❌ S3 buckets and all contents (including Firehose destination)"
     echo "  ❌ SQS queues (main and DLQ)"
     echo "  ❌ Local logs directory"
+    echo "  ❌ LocalStack Docker container"
     echo ""
     echo "🔗 To verify cleanup:"
     echo "  aws --endpoint-url=$LOCALSTACK_ENDPOINT sqs list-queues"
     echo "  aws --endpoint-url=$LOCALSTACK_ENDPOINT s3 ls"
     echo "  aws --endpoint-url=$LOCALSTACK_ENDPOINT events list-rules"
     echo "  aws --endpoint-url=$LOCALSTACK_ENDPOINT firehose list-delivery-streams"
+    echo "  docker ps -a | grep localstack-wifi-transformer"
     echo ""
     echo "🔄 To reset the environment, run:"
-    echo "  ./scripts/setup-localstack.sh"
+    echo "  ./scripts/setup.sh"
+}
+
+# Function to show usage
+show_usage() {
+    echo "Usage: $0 [OPTION]"
+    echo ""
+    echo "Options:"
+    echo "  --force        - Cleanup without confirmation prompt"
+    echo "  --remove-image - Also remove LocalStack Docker image (frees ~500MB)"
+    echo "  --help         - Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0                    # Cleanup with confirmation prompt"
+    echo "  $0 --force            # Cleanup without confirmation"
+    echo "  $0 --remove-image     # Cleanup + remove Docker image"
+    echo "  $0 --force --remove-image # Cleanup + remove image without confirmation"
+    echo "  $0 --help             # Show this help message"
+    echo ""
+    echo "This script will clean up:"
+    echo "  - All LocalStack resources (SQS, S3, Firehose, EventBridge)"
+    echo "  - LocalStack Docker container"
+    echo "  - Local logs directory"
+    echo "  - All data and configurations"
+    echo ""
+    echo "Note: Docker image is preserved by default for offline development."
+    echo "Use --remove-image to free up disk space (~500MB)."
+}
+
+# Function to remove LocalStack Docker image
+remove_localstack_image() {
+    echo "🔧 Removing LocalStack Docker image..."
+    
+    if docker images | grep -q "localstack/localstack"; then
+        echo "🗑️  Removing LocalStack Docker image..."
+        docker rmi localstack/localstack
+        echo "✅ LocalStack Docker image removed (~500MB freed)"
+    else
+        echo "ℹ️  LocalStack Docker image not found"
+    fi
 }
 
 # Function to prompt for confirmation
@@ -150,9 +214,59 @@ confirm_cleanup() {
     fi
 }
 
+# Function to create SQS queue (for reference in cleanup)
+create_sqs_queue() {
+    echo "🔧 Creating SQS queue: $SQS_QUEUE_NAME"
+    
+    # Create the main queue
+    aws --endpoint-url=$LOCALSTACK_ENDPOINT sqs create-queue \
+        --queue-name $SQS_QUEUE_NAME \
+        --attributes '{
+            "VisibilityTimeout": "300",
+            "MessageRetentionPeriod": "1209600",
+            "DelaySeconds": "0",
+            "ReceiveMessageWaitTimeSeconds": "20"
+        }' || echo "Queue may already exist"
+    
+    # Create dead letter queue
+    aws --endpoint-url=$LOCALSTACK_ENDPOINT sqs create-queue \
+        --queue-name "${SQS_QUEUE_NAME}-dlq" \
+        --attributes '{
+            "VisibilityTimeout": "300",
+            "MessageRetentionPeriod": "1209600"
+        }' || echo "DLQ may already exist"
+    
+    echo "✅ SQS queues created"
+}
+
 # Main execution
 main() {
-    if [ "$1" != "--force" ]; then
+    local remove_image=false
+    local force=false
+    
+    # Parse arguments
+    for arg in "$@"; do
+        case "$arg" in
+            "--help"|"-h"|"help")
+                show_usage
+                exit 0
+                ;;
+            "--force")
+                force=true
+                ;;
+            "--remove-image")
+                remove_image=true
+                ;;
+            *)
+                echo "❌ Unknown option: $arg"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Require confirmation unless --force is used
+    if [ "$force" = false ]; then
         confirm_cleanup
     fi
     
@@ -162,7 +276,13 @@ main() {
     cleanup_s3_buckets
     cleanup_sqs_queues
     cleanup_logs
+    cleanup_localstack_container
     display_summary
+    
+    # Remove image if requested
+    if [ "$remove_image" = true ]; then
+        remove_localstack_image
+    fi
 }
 
 # Execute main function
