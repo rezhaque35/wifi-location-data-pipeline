@@ -3,7 +3,7 @@ package com.wifi.measurements.transformer.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wifi.measurements.transformer.config.properties.FirehoseConfigurationProperties;
-import com.wifi.measurements.transformer.dto.LocationData;
+
 import com.wifi.measurements.transformer.dto.WifiMeasurement;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,7 +59,7 @@ class WiFiMeasurementsPublisherTest {
     }
 
     @Test
-    void shouldAccumulateRecordsUntilBatchSizeLimit() throws Exception {
+    void shouldAccumulateRecordsUntilBatchSizeLimit() {
         // Given
         WifiMeasurement measurement = createTestMeasurement();
 
@@ -69,8 +69,8 @@ class WiFiMeasurementsPublisherTest {
         publisher.publishMeasurement(measurement);
         publisher.publishMeasurement(measurement); // This should trigger a new batch
 
-        // Then - verify that batch consumer was called at least once
-        verify(batchConsumer, atLeastOnce()).accept(any());
+        // Then - verify that batch consumer was called at least once (with timeout for async emission)
+        verify(batchConsumer, timeout(2000).atLeastOnce()).accept(any());
         
         // Verify batch status shows remaining records
         WiFiMeasurementsPublisher.BatchStatus status = publisher.getCurrentBatchStatus();
@@ -91,12 +91,13 @@ class WiFiMeasurementsPublisherTest {
         publisher.publishMeasurement(measurement);
         publisher.publishMeasurement(measurement); // This should trigger emission due to size
 
-        // Then
-        verify(batchConsumer, atLeastOnce()).accept(any());
+        // Then - account for asynchronous batch emission with timeout
+        // The batch emission uses CompletableFuture.runAsync(), so we need to wait for completion
+        verify(batchConsumer, timeout(2000).atLeastOnce()).accept(any());
     }
 
     @Test
-    void shouldEmitBatchOnFlush() throws Exception {
+    void shouldEmitBatchOnFlush() {
         // Given - use the default JSON serialization
         WifiMeasurement measurement = createTestMeasurement();
         publisher.publishMeasurement(measurement);
@@ -110,8 +111,8 @@ class WiFiMeasurementsPublisherTest {
         
         // Verify batch is cleared after flush
         WiFiMeasurementsPublisher.BatchStatus status = publisher.getCurrentBatchStatus();
-        assertThat(status.recordCount()).isEqualTo(0);
-        assertThat(status.totalSizeBytes()).isEqualTo(0);
+        assertThat(status.recordCount()).isZero();
+        assertThat(status.totalSizeBytes()).isZero();
     }
 
     @Test
@@ -130,7 +131,7 @@ class WiFiMeasurementsPublisherTest {
         
         // Batch should remain empty
         WiFiMeasurementsPublisher.BatchStatus status = publisher.getCurrentBatchStatus();
-        assertThat(status.recordCount()).isEqualTo(0);
+        assertThat(status.recordCount()).isZero();
     }
 
     @Test
@@ -148,12 +149,13 @@ class WiFiMeasurementsPublisherTest {
         verify(batchConsumer, never()).accept(any());
         
         WiFiMeasurementsPublisher.BatchStatus status = publisher.getCurrentBatchStatus();
-        assertThat(status.recordCount()).isEqualTo(0);
+        assertThat(status.recordCount()).isZero();
     }
 
     @Test
-    void shouldCaptureBatchedJsonRecords() throws Exception {
+    void shouldCaptureBatchedJsonRecords() {
         // Given
+        @SuppressWarnings("unchecked")
         ArgumentCaptor<List<byte[]>> batchCaptor = ArgumentCaptor.forClass(List.class);
         WifiMeasurement measurement = createTestMeasurement();
 
@@ -162,8 +164,8 @@ class WiFiMeasurementsPublisherTest {
         publisher.publishMeasurement(measurement);
         publisher.publishMeasurement(measurement);
 
-        // Then
-        verify(batchConsumer).accept(batchCaptor.capture());
+        // Then - use timeout to account for asynchronous batch emission
+        verify(batchConsumer, timeout(2000)).accept(batchCaptor.capture());
         List<byte[]> capturedBatch = batchCaptor.getValue();
         
         assertThat(capturedBatch).hasSize(3);
@@ -172,7 +174,7 @@ class WiFiMeasurementsPublisherTest {
     }
 
     @Test
-    void shouldReturnCorrectBatchStatus() throws Exception {
+    void shouldReturnCorrectBatchStatus() {
         // Given
         WifiMeasurement measurement = createTestMeasurement();
 
@@ -187,7 +189,7 @@ class WiFiMeasurementsPublisherTest {
     }
 
     @Test
-    void shouldHandleEmptyFlush() throws Exception {
+    void shouldHandleEmptyFlush() {
         // Given - empty publisher
 
         // When
