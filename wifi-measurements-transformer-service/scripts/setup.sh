@@ -45,7 +45,7 @@ check_localstack() {
             --name localstack-wifi-transformer \
             -p 4566:4566 \
             -p 4510-4559:4510-4559 \
-            -e SERVICES=s3,sqs,firehose,events \
+            -e SERVICES=s3,sqs,firehose,events,iam,sts \
             -e DEBUG=1 \
             -e DATA_DIR=/tmp/localstack/data \
             localstack/localstack
@@ -175,7 +175,7 @@ setup_firehose() {
             "ErrorOutputPrefix": "errors/!{firehose:error-output-type}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/",
             "BufferingHints": {
                 "SizeInMBs": 148,
-                "IntervalInSeconds": 30
+                "IntervalInSeconds": 60
             },
             "CompressionFormat": "GZIP",
             "EncryptionConfiguration": {
@@ -363,7 +363,7 @@ display_summary() {
     echo "  S3 Firehose Destination: s3://$S3_FIREHOSE_DESTINATION_BUCKET"
     echo "  Firehose Delivery Stream: $FIREHOSE_DELIVERY_STREAM_NAME"
     echo "  Firehose Buffer Size: 148 MB"
-    echo "  Firehose Buffer Interval: 30 seconds"
+    echo "  Firehose Buffer Interval: 60 seconds"
     echo ""
     echo "🔗 Useful LocalStack URLs:"
     echo "  Health Check: $LOCALSTACK_ENDPOINT/health"
@@ -381,7 +381,7 @@ display_summary() {
     echo "  - Delivery Stream Type: DirectPut"
     echo "  - Destination: S3 (s3://$S3_FIREHOSE_DESTINATION_BUCKET)"
     echo "  - Buffer Size: 148 MB"
-    echo "  - Buffer Interval: 30 seconds"
+    echo "  - Buffer Interval: 60 seconds"
     echo "  - Compression: GZIP"
     echo "  - Partitioning: year/month/day/hour"
     echo "  - Error Output: errors/ directory"

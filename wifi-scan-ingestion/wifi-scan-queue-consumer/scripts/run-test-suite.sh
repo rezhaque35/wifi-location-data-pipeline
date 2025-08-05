@@ -332,6 +332,18 @@ run_test "Firehose Integration - High Frequency (15 messages, 0.5s interval)" \
 run_test "Firehose Integration - Verbose (8 messages with detailed output)" \
     "./scripts/validate-firehose-integration.sh --count 8 --interval 1 --verbose --timeout 120"
 
+# Test 11: WiFi Scan Endpoint - Basic
+run_test "WiFi Scan Endpoint - Basic (3 messages)" \
+    "./scripts/validate-wifi-scan-endpoint.sh --count 3 --interval 1 --timeout 60"
+
+# Test 12: WiFi Scan Endpoint - Moderate Load
+run_test "WiFi Scan Endpoint - Moderate Load (5 messages)" \
+    "./scripts/validate-wifi-scan-endpoint.sh --count 5 --interval 1 --timeout 90"
+
+# Test 13: WiFi Scan Endpoint - Verbose
+run_test "WiFi Scan Endpoint - Verbose (3 messages with detailed output)" \
+    "./scripts/validate-wifi-scan-endpoint.sh --count 3 --interval 1 --verbose --timeout 60"
+
 # Display cleanup summary
 echo ""
 print_info "Cleanup Summary:"

@@ -21,7 +21,7 @@ WiFi Scan Data → S3 → SQS → Transformer → Firehose → Data Lake → Pos
 
 ### Prerequisites
 
-- Java 17 or higher
+- Java 21 or higher
 - Maven 3.6+
 - Docker (for LocalStack)
 - AWS CLI configured (for production deployment)

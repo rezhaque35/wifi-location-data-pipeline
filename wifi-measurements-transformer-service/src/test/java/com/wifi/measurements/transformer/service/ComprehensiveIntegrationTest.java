@@ -50,8 +50,6 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -658,7 +656,7 @@ class ComprehensiveIntegrationTest {
 
     private void uploadCompressedWifiScanDataToS3(String objectKey) throws IOException {
         // Read the sample WiFi scan data
-        String wifiScanJson = Files.readString(Paths.get("../documents/smaple_wifiscan.json"));
+        String wifiScanJson = readSampleWifiScanData();
         
         // Compress it with GZIP
         ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
@@ -1137,7 +1135,7 @@ class ComprehensiveIntegrationTest {
      */
     private void uploadMixedQualityWifiScanDataToS3(String objectKey) throws IOException {
         // Create a modified version of the sample data with some invalid records
-        String validWifiScanJson = Files.readString(Paths.get("../documents/smaple_wifiscan.json"));
+        String validWifiScanJson = readSampleWifiScanData();
         
         // Parse and modify to include some invalid data for filtering tests
         JsonNode originalData = objectMapper.readTree(validWifiScanJson);
@@ -1521,7 +1519,7 @@ class ComprehensiveIntegrationTest {
     private String createComprehensiveFilteringTestData() {
         // Use the existing sample data as base and modify it for comprehensive testing
         try {
-            String baseData = Files.readString(Paths.get("../documents/smaple_wifiscan.json"));
+            String baseData = readSampleWifiScanData();
             JsonNode originalData = objectMapper.readTree(baseData);
             ObjectNode modifiedData = originalData.deepCopy();
             
@@ -1532,7 +1530,7 @@ class ComprehensiveIntegrationTest {
         } catch (IOException e) {
             logger.warn("Failed to create comprehensive filtering test data, using base data", e);
             try {
-                return Files.readString(Paths.get("../documents/smaple_wifiscan.json"));
+                return readSampleWifiScanData();
             } catch (IOException ex) {
                 throw new RuntimeException("Failed to read sample data", ex);
             }
@@ -1544,7 +1542,7 @@ class ComprehensiveIntegrationTest {
      */
     private String createMobileHotspotTestData() {
         try {
-            String baseData = Files.readString(Paths.get("../documents/smaple_wifiscan.json"));
+            String baseData = readSampleWifiScanData();
             JsonNode originalData = objectMapper.readTree(baseData);
             ObjectNode modifiedData = originalData.deepCopy();
             
@@ -1555,7 +1553,7 @@ class ComprehensiveIntegrationTest {
         } catch (IOException e) {
             logger.warn("Failed to create mobile hotspot test data, using base data", e);
             try {
-                return Files.readString(Paths.get("../documents/smaple_wifiscan.json"));
+                return readSampleWifiScanData();
             } catch (IOException ex) {
                 throw new RuntimeException("Failed to read sample data", ex);
             }
@@ -1567,7 +1565,7 @@ class ComprehensiveIntegrationTest {
      */
     private String createLowLinkSpeedTestData() {
         try {
-            String baseData = Files.readString(Paths.get("../documents/smaple_wifiscan.json"));
+            String baseData = readSampleWifiScanData();
             JsonNode originalData = objectMapper.readTree(baseData);
             ObjectNode modifiedData = originalData.deepCopy();
             
@@ -1578,7 +1576,7 @@ class ComprehensiveIntegrationTest {
         } catch (IOException e) {
             logger.warn("Failed to create low link speed test data, using base data", e);
             try {
-                return Files.readString(Paths.get("../documents/smaple_wifiscan.json"));
+                return readSampleWifiScanData();
             } catch (IOException ex) {
                 throw new RuntimeException("Failed to read sample data", ex);
             }
@@ -1590,7 +1588,7 @@ class ComprehensiveIntegrationTest {
      */
     private String createInvalidTimestampTestData() {
         try {
-            String baseData = Files.readString(Paths.get("../documents/smaple_wifiscan.json"));
+            String baseData = readSampleWifiScanData();
             JsonNode originalData = objectMapper.readTree(baseData);
             ObjectNode modifiedData = originalData.deepCopy();
             
@@ -1601,7 +1599,7 @@ class ComprehensiveIntegrationTest {
         } catch (IOException e) {
             logger.warn("Failed to create invalid timestamp test data, using base data", e);
             try {
-                return Files.readString(Paths.get("../documents/smaple_wifiscan.json"));
+                return readSampleWifiScanData();
             } catch (IOException ex) {
                 throw new RuntimeException("Failed to read sample data", ex);
             }
@@ -1613,7 +1611,7 @@ class ComprehensiveIntegrationTest {
      */
     private String createMissingFieldsTestData() {
         try {
-            String baseData = Files.readString(Paths.get("../documents/smaple_wifiscan.json"));
+            String baseData = readSampleWifiScanData();
             JsonNode originalData = objectMapper.readTree(baseData);
             ObjectNode modifiedData = originalData.deepCopy();
             
@@ -1624,10 +1622,22 @@ class ComprehensiveIntegrationTest {
         } catch (IOException e) {
             logger.warn("Failed to create missing fields test data, using base data", e);
             try {
-                return Files.readString(Paths.get("../documents/smaple_wifiscan.json"));
+                return readSampleWifiScanData();
             } catch (IOException ex) {
                 throw new RuntimeException("Failed to read sample data", ex);
             }
+        }
+    }
+
+    /**
+     * Helper method to read the sample WiFi scan data from classpath resources.
+     */
+    private String readSampleWifiScanData() throws IOException {
+        try (var inputStream = getClass().getClassLoader().getResourceAsStream("smaple_wifiscan.json")) {
+            if (inputStream == null) {
+                throw new IOException("Could not find smaple_wifiscan.json in classpath");
+            }
+            return new String(inputStream.readAllBytes());
         }
     }
 
