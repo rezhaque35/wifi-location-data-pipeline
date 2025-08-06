@@ -81,15 +81,14 @@ check_prerequisites() {
 # Make scripts executable
 make_scripts_executable() {
     print_step "Making scripts executable..."
-    cd scripts
     chmod +x *.sh
-    cd ..
+    chmod +x test/*.sh
 }
 
 # Clean up any existing environment
 cleanup_environment() {
     print_step "Cleaning up any existing environment..."
-    ./scripts/stop-local-kafka.sh 2>/dev/null || true
+    ./stop-local-kafka.sh 2>/dev/null || true
     docker system prune -f
 }
 
@@ -108,11 +107,11 @@ main() {
     
     # Run the complete setup
     print_step "Setting up local Kafka environment..."
-    ./scripts/setup-local-kafka.sh
+    ./setup-local-kafka.sh
     
     # Start Kafka cluster (with better error handling)
     print_step "Starting Kafka cluster..."
-    if ! ./scripts/start-local-kafka.sh; then
+    if ! ./start-local-kafka.sh; then
         print_error "Failed to start Kafka cluster"
         print_step "Checking container status..."
         docker ps -a --filter "name=kafka" --filter "name=zookeeper"
@@ -127,22 +126,22 @@ main() {
     
     # Test the setup
     print_step "Testing SSL connection..."
-    if ! ./scripts/test-ssl-connection.sh; then
+    if ! ./test/test-ssl-connection.sh; then
         print_warning "SSL connection test failed, but continuing with setup..."
     fi
     
     print_step "Creating test topic..."
-    ./scripts/create-test-topic.sh
+    ./test/create-test-topic.sh
     
     print_step "Sending test message..."
-    ./scripts/send-test-message.sh "Test message from setup script"
+    ./test/send-test-message.sh "Test message from setup script"
     
     print_step "Consuming test message..."
-    ./scripts/consume-test-messages.sh
+    ./test/consume-test-messages.sh
     
     # Setup AWS infrastructure
     print_step "Setting up AWS infrastructure (LocalStack)..."
-    if ! ./scripts/setup-aws-infrastructure.sh; then
+    if ! ./setup-aws-infrastructure.sh; then
         print_warning "AWS infrastructure setup had issues, but continuing with setup..."
     fi
     
@@ -151,8 +150,8 @@ main() {
     echo "1. Start your Spring Boot application"
     echo "2. Monitor the application logs"
     echo "3. Use the test scripts to verify message flow"
-    echo "4. Run Firehose integration tests: ./scripts/validate-firehose-integration.sh"
-    echo -e "\nTo stop the environment, run: ${YELLOW}./scripts/stop-local-kafka.sh${NC}"
+    echo "4. Run Firehose integration tests: ./test/validate-firehose-integration.sh"
+    echo -e "\nTo stop the environment, run: ${YELLOW}./stop-local-kafka.sh${NC}"
     echo -e "To stop LocalStack, run: ${YELLOW}docker-compose -f docker-compose-localstack.yml down${NC}"
 }
 

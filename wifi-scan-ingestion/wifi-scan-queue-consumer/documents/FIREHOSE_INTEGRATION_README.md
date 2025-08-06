@@ -175,7 +175,7 @@ aws firehose create-delivery-stream \
 Run the complete test suite that includes both Kafka and Firehose integration:
 
 ```bash
-./scripts/run-test-suite.sh
+./scripts/test/run-test-suite.sh
 ```
 
 This includes:

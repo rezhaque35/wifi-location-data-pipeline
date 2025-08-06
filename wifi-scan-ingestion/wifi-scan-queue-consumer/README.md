@@ -80,69 +80,111 @@ com.wifi.scan.consume/
 
 ## 📋 Prerequisites
 
-- **Java 21** or higher
-- **Apache Maven 3.8+**
-- **Docker & Docker Compose** (for local Kafka and LocalStack)
+### Required Software
+- **Docker Desktop for Mac** (v4.0 or later)
+  - Install from: https://www.docker.com/products/docker-desktop/
+  - Ensure Docker Desktop is running
+  - Minimum system requirements:
+    - macOS 11 (Big Sur) or later
+    - 4GB RAM minimum (8GB recommended)
+    - 20GB free disk space
+
+- **Java 21** (OpenJDK or Oracle)
+  - Install via Homebrew: `brew install openjdk@21`
+  - Set JAVA_HOME:
+    ```bash
+    echo 'export JAVA_HOME=$(/usr/libexec/java_home -v 21)' >> ~/.zshrc
+    echo 'export PATH=$JAVA_HOME/bin:$PATH' >> ~/.zshrc
+    source ~/.zshrc
+    ```
+
+- **Maven 3.9+**
+  - Install via Homebrew: `brew install maven`
+  - Verify installation: `mvn --version`
+
+- **Additional Tools**
+  - **keytool** (included with Java)
+  - **openssl** (pre-installed on Mac)
+  - **jq** (for WiFi message generation)
+    - Install via Homebrew: `brew install jq`
+  - **bc** (for decimal calculations - usually pre-installed on Mac)
 - **curl** (for health checks)
-- **jq** (for JSON processing in scripts)
 - **AWS CLI** (for AWS services - will be installed automatically)
 
-### Optional
-- **Apache Kafka** (if not using Docker)
-- **SSL certificates** (for encrypted communication)
-- **LocalStack** (for local AWS services development)
+### Verify Prerequisites
+```bash
+# Check versions
+docker --version          # Should show v4.0+
+docker-compose --version  # Should show v2.0+
+java --version            # Should show Java 21
+mvn --version             # Should show Maven 3.9+
+keytool -help             # Should show keytool options
+openssl version           # Should show OpenSSL version
+jq --version              # Should show jq version (for WiFi message generation)
+bc --version              # Should show bc version (for calculations)
+```
 
 ## 🚀 Quick Start
 
-### 1. Clone and Build
-
+### Option 1: Automated Setup (Recommended)
 ```bash
-git clone <repository-url>
-cd wifi-scan-queue-consumer
-mvn clean install
+# Navigate to scripts directory
+cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
+
+# Run the complete setup script (handles everything automatically)
+./setup.sh
 ```
 
-### 2. Complete Environment Setup
+This script will:
+- ✅ Check all prerequisites
+- ✅ Set up the Kafka environment with SSL
+- ✅ Start Kafka cluster
+- ✅ Test SSL connectivity
+- ✅ Create test topic
+- ✅ Send and consume test messages
+- ✅ Set up AWS infrastructure (LocalStack)
+- ✅ Provide clear next steps
 
-Run the comprehensive setup script that includes both Kafka and AWS infrastructure:
-
+### Option 2: Manual Setup
 ```bash
-./scripts/setup-dev-environment.sh
+# Navigate to scripts directory
+cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
+
+# Make scripts executable
+chmod +x *.sh
+chmod +x test/*.sh
+
+# Set up Kafka environment
+./setup-local-kafka.sh
+
+# Start Kafka cluster
+./start-local-kafka.sh
+
+# Test the setup
+./test/test-ssl-connection.sh
+./test/create-test-topic.sh
+./test/send-test-message.sh "Hello SSL Kafka!"
+./test/consume-test-messages.sh
 ```
 
-This will set up:
-- Kafka with SSL encryption
-- LocalStack with AWS services (Firehose, S3, IAM)
-- All necessary AWS resources
-- Test the complete environment
-
-### 3. Start the Application
-
+### Option 3: Test with WiFi Scan Data
 ```bash
-mvn spring-boot:run
+# After basic setup, test with realistic WiFi data
+./test/send-wifi-scan-messages.sh --count 5 --interval 1
+./test/consume-test-messages.sh wifi-scan-data
 ```
 
 ### 4. Run Integration Tests
 
 ```bash
 # Run comprehensive test suite
-./scripts/run-test-suite.sh
+./test/run-test-suite.sh
 
 # Or test Firehose integration specifically
-./scripts/validate-firehose-integration.sh
+./test/validate-firehose-integration.sh
 ```
 
-### 2. Start Local Kafka (Docker)
-
-```bash
-# Start Kafka with Docker Compose
-./scripts/start-local-kafka.sh
-
-# Create required topic
-./scripts/create-test-topic.sh
-```
-
-### 3. Run the Application
+### 5. Start the Application
 
 ```bash
 # Development mode
@@ -152,14 +194,14 @@ mvn spring-boot:run
 java -jar target/wifi-scan-queue-consumer-1.0.0-SNAPSHOT.jar
 ```
 
-### 4. Verify Installation
+### 6. Verify Installation
 
 ```bash
 # Check health
 curl http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health
 
 # Run validation tests
-./scripts/run-test-suite.sh
+./test/run-test-suite.sh
 ```
 
 ## ⚙️ Configuration
@@ -221,409 +263,32 @@ kafka:
       type: PKCS12
 ```
 
-## 🏥 Health Monitoring & Kubernetes Integration
+### SSL Configuration Details
+- **Keystore Password**: `kafka123` (for local development only)
+- **Truststore Password**: `kafka123` (for local development only)
+- **SSL Port**: `9093`
+- **Plaintext Port**: `9092`
+- **Certificate Validity**: 365 days
+- **Certificate Location**: 
+  - Development: `src/main/resources/secrets/`
+  - Docker: `kafka/secrets/`
 
-### Health Check Architecture
+### Kafka Configuration
+- **Bootstrap Servers**: 
+  - SSL: `localhost:9093`
+  - Plaintext: `localhost:9092`
+- **Zookeeper Port**: `2181`
+- **Default Topics**: 
+  - Simple messages: `test-topic`
+  - WiFi scan data: `wifi-scan-data`
+- **Default Consumer Group**: `local-test-group`
+- **SSL Protocol**: TLSv1.2
+- **Security Protocol**: SSL
 
-The application implements a comprehensive health monitoring system with custom health indicators designed for production Kubernetes deployments. The system distinguishes between **infrastructure readiness** (can the service start?) and **operational liveness** (is the service working correctly?).
-
-### Health Endpoints
-
-All health endpoints are available at the following URLs:
-
-| Endpoint | Purpose | Kubernetes Integration |
-|----------|---------|----------------------|
-| `http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/` | Overall application health | General monitoring |
-| `http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/readiness` | Readiness probe endpoint | K8s readiness probe |
-| `http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/liveness` | Liveness probe endpoint | K8s liveness probe |
-| `http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/api/metrics/kafka` | Detailed operational metrics | Monitoring/alerting |
-
-### Kubernetes Readiness Probe 🟢
-
-**Purpose**: Determines if the application is ready to receive traffic and process messages.
-
-**Kubernetes Configuration**:
-```yaml
-readinessProbe:
-  httpGet:
-    path: /frisco-location-wifi-scan-vmb-consumer/health/readiness
-    port: 8080
-  initialDelaySeconds: 30    # Allow time for Kafka connection establishment
-  periodSeconds: 10          # Check every 10 seconds
-  timeoutSeconds: 5          # 5-second timeout per check
-  failureThreshold: 3        # 3 consecutive failures = remove from service
-  successThreshold: 1        # 1 success = ready to receive traffic
-```
-
-**Health Indicators Included**:
-- **`kafkaConsumerGroup`**: Consumer group registration and cluster connectivity
-- **`kafkaTopicAccessibility`**: Access to configured Kafka topics
-- **`sslCertificate`**: SSL/TLS certificate health and expiration monitoring
-- **`messageProcessingReadiness`**: Service readiness for message processing
-
-**Configuration**:
-```yaml
-health:
-  indicator:
-    timeout-seconds: 5
-    consumption-timeout-minutes: 30    # Increased for idle tolerance
-    certificate-expiration-warning-days: 30
-    retry-attempts: 3
-    enable-caching: true
-    cache-ttl-seconds: 30
-
-management:
-  health:
-    message-consumption:
-      message-timeout-threshold: 300000  # 5 minutes - fails liveness if no messages received
-      consumption-rate-threshold: 0.1
-```
-
-### Kubernetes Liveness Probe 🔴
-
-**Purpose**: Determines if the application is still running and healthy (restart if unhealthy).
-
-**Kubernetes Configuration**:
-```yaml
-livenessProbe:
-  httpGet:
-    path: /frisco-location-wifi-scan-vmb-consumer/health/liveness
-    port: 8080
-  initialDelaySeconds: 60    # Allow for application startup
-  periodSeconds: 30          # Check every 30 seconds
-  timeoutSeconds: 10         # 10-second timeout per check
-  failureThreshold: 3        # 3 consecutive failures = restart pod
-  successThreshold: 1        # 1 success = healthy
-```
-
-**Health Indicators Included**:
-- **`messageConsumptionActivity`**: Consumer polling and message processing health
-- **`jvmMemory`**: JVM memory usage monitoring
-
-**Critical Fix**: The liveness probe now correctly handles **idle periods** where no messages are available for consumption. The service remains healthy during idle periods and immediately processes messages when they become available.
-
-### SSL Certificate Monitoring 🔐
-
-The application includes comprehensive SSL certificate monitoring with **proactive alerting timeline**:
-
-#### Certificate Expiry Warning Timeline
-
-| Days Before Expiry | Alert Level | Action Required | Kubernetes Behavior |
-|-------------------|-------------|-----------------|-------------------|
-| **30+ days** | 🟢 **HEALTHY** | No action needed | Pod remains in service |
-| **30 days** | 🟡 **WARNING** | Plan certificate renewal | Pod remains in service |
-| **15 days** | 🟠 **CRITICAL** | Execute certificate renewal | Pod remains in service |
-| **7 days** | 🔴 **URGENT** | Emergency renewal procedures | Pod remains in service |
-| **0 days (expired)** | ❌ **FAILED** | Manual certificate renewal | **Pod removed from service** |
-
-#### SSL Certificate Health Response
-
-**Healthy Certificate (>30 days)**:
-```json
-{
-  "status": "UP",
-  "details": {
-    "sslEnabled": true,
-    "sslConnectionHealthy": true,
-    "keystoreExpired": false,
-    "truststoreExpired": false,
-    "keystoreExpiringSoon": false,
-    "truststoreExpiringSoon": false,
-    "keystoreDaysUntilExpiry": 364,
-    "truststoreDaysUntilExpiry": 364,
-    "minimumDaysUntilExpiry": 364,
-    "checkTimestamp": 1674567890123
-  }
-}
-```
-
-**Certificate Expiring Soon (7-30 days)**:
-```json
-{
-  "status": "UP",
-  "details": {
-    "sslEnabled": true,
-    "sslConnectionHealthy": true,
-    "keystoreExpiringSoon": true,
-    "truststoreExpiringSoon": false,
-    "keystoreDaysUntilExpiry": 15,
-    "certificateWarning": "Certificate expires in 15 days - renewal recommended",
-    "alertLevel": "CRITICAL"
-  }
-}
-```
-
-#### SSL Configuration for Certificate Monitoring
-
-```yaml
-kafka:
-  ssl:
-    enabled: true
-    keystore:
-      location: ${KAFKA_SSL_KEYSTORE_LOCATION:scripts/kafka/secrets/kafka.keystore.p12}
-      password: ${KAFKA_KEYSTORE_PASSWORD:kafka123}
-      type: PKCS12
-    truststore:
-      location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:scripts/kafka/secrets/kafka.truststore.p12}
-      password: ${KAFKA_TRUSTSTORE_PASSWORD:kafka123}
-      type: PKCS12
-
-health:
-  indicator:
-    certificate-expiration-warning-days: 30
-    certificate-expiration-critical-days: 15
-    certificate-expiration-urgent-days: 7
-```
-
-### Custom Health Indicators Detail
-
-#### 1. KafkaConsumerGroupHealthIndicator
-**Purpose**: Monitors consumer group registration and cluster connectivity
-```json
-{
-  "kafkaConsumerGroup": {
-    "status": "UP",
-    "details": {
-      "consumerConnected": true,
-      "consumerGroupActive": true,
-      "clusterNodeCount": 3,
-      "checkTimestamp": 1674567890123
-    }
-  }
-}
-```
-
-#### 2. TopicAccessibilityHealthIndicator
-**Purpose**: Verifies access to configured Kafka topics
-```json
-{
-  "kafkaTopicAccessibility": {
-    "status": "UP",
-    "details": {
-      "topicsAccessible": true,
-      "topicName": "wifi-scan-data",
-      "checkTimestamp": 1674567890123
-    }
-  }
-}
-```
-
-#### 3. MessageConsumptionActivityHealthIndicator
-**Purpose**: Monitors consumer activity and message reception health
-
-**🔧 CRITICAL SEMANTIC FIX**: This health check now accurately reports what it measures:
-- ✅ **What it measures**: Time since last **message received** from Kafka
-- ❌ **What it used to claim**: Time since last "poll" attempt
-- ✅ **Accurate behavior**: Consumer can be actively polling every few seconds but health check correctly indicates idle periods
-
-```json
-{
-  "messageConsumptionActivity": {
-    "status": "UP",
-    "details": {
-      "reason": "Consumer is healthy - actively polling for messages",
-      "consumerConnected": true,
-      "consumerGroupActive": true,
-      "consumptionRate": 2.5,
-      "totalMessagesConsumed": 150,
-      "totalMessagesProcessed": 148,
-      "successRate": 98.67,
-      "timeSinceLastMessageReceivedMs": 120000,
-      "messageTimeoutThresholdMs": 300000,
-      "checkTimestamp": 1674567890123
-    }
-  }
-}
-```
-
-**Configuration Details**:
-```yaml
-management:
-  health:
-    message-consumption:
-      message-timeout-threshold: 300000  # Time since last message received (not poll attempts)
-      consumption-rate-threshold: 0.1    # Messages/minute - warns if processing rate too low (when active)
-```
-
-#### 4. JvmMemoryHealthIndicator
-**Purpose**: Monitors JVM memory usage
-```json
-{
-  "jvmMemory": {
-    "status": "UP",
-    "details": {
-      "memoryHealthy": true,
-      "memoryUsagePercentage": 65.2,
-      "usedMemoryMB": 512,
-      "totalMemoryMB": 1024,
-      "maxMemoryMB": 2048,
-      "threshold": 90,
-      "checkTimestamp": 1674567890123
-    }
-  }
-}
-```
-
-### Health Check Testing
-
-Test health endpoints using the provided scripts:
-
-```bash
-# Test overall health
-curl -s http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/ | jq '.'
-
-# Test readiness probe
-curl -s http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/readiness | jq '.'
-
-# Test liveness probe
-curl -s http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/liveness | jq '.'
-
-# Comprehensive validation (tests idle tolerance + auto-recovery)
-./scripts/run-test-suite.sh
-
-# Test health after idle period
-./scripts/validate-service-health.sh --count 5 --interval 1 --timeout 60
-```
-
-#### 🔧 Intelligent Message Timeout Recovery
-
-The test suite includes **automatic timeout recovery** for scenarios where the service becomes unhealthy due to message consumption timeout:
-
-**Problem**: Service idle >5 minutes → Liveness probe DOWN → Tests fail before sending messages
-
-**Solution**: Enhanced `run-test-suite.sh` with intelligent pre-check:
-
-```bash
-# Before running tests, script automatically:
-# 1. Checks liveness health status
-# 2. Detects specific "message timeout" failures  
-# 3. Sends recovery messages to wake consumer
-# 4. Waits for health recovery (up to 60s)
-# 5. Proceeds with normal test validation
-
-./scripts/run-test-suite.sh   # Now handles idle timeout automatically
-```
-
-**Recovery Process**:
-```
-[INFO] Checking service health before starting tests...
-[WARNING] Liveness probe is DOWN - checking if it's due to message consumption timeout...
-[WARNING] Detected message consumption timeout - sending recovery messages...
-[INFO] Sending 3 recovery messages to wake up the consumer...
-[INFO] Recovery messages sent successfully
-[INFO] ✅ Service health recovered successfully!
-```
-
-### Operational Metrics
-
-Detailed operational metrics available at:
-```
-GET http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/api/metrics/kafka
-```
-
-**Sample Response**:
-```json
-{
-  "totalMessagesConsumed": 1250,
-  "totalMessagesProcessed": 1248,
-  "totalMessagesFailed": 2,
-  "successRate": 99.84,
-  "errorRate": 0.16,
-  "averageProcessingTimeMs": 15.7,
-  "consumptionRate": 2.8,
-  "isPollingActive": true,
-  "isConsumerConnected": true,
-  "consumerGroupActive": true,
-  "isConsumptionHealthy": true,
-  "memoryUsagePercentage": 67.3,
-  "timestamp": 1674567890123,
-  "metricsVersion": "2.0.0"
-}
-```
-
-### Configuration Properties
-
-```yaml
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,env,kafka
-  endpoint:
-    health:
-      show-details: always
-      group:
-        readiness:
-          include: kafkaConsumerGroup,kafkaTopicAccessibility,sslCertificate,messageProcessingReadiness
-        liveness:
-          include: messageConsumptionActivity,jvmMemory
-  health:
-    kafka:
-      enabled: true
-    livenessstate:
-      enabled: true
-    readinessstate:
-      enabled: true
-
-health:
-  indicator:
-    timeout-seconds: 5
-    memory-threshold-percentage: 90
-    consumption-timeout-minutes: 30    # Increased for idle tolerance
-    minimum-consumption-rate: 0.0
-    certificate-expiration-warning-days: 30
-    certificate-expiration-critical-days: 15
-    certificate-expiration-urgent-days: 7
-    retry-attempts: 3
-    enable-caching: true
-    cache-ttl-seconds: 30
-```
-
-## 💻 Development
-
-### Project Structure
-
-```
-wifi-scan-queue-consumer/
-├── src/
-│   ├── main/
-│   │   ├── java/com/wifi/scan/consume/
-│   │   │   ├── config/              # Spring configuration
-│   │   │   ├── controller/          # REST endpoints
-│   │   │   ├── health/              # Health indicators
-│   │   │   ├── listener/            # Kafka listeners
-│   │   │   ├── metrics/             # Metrics collection
-│   │   │   └── service/             # Business services
-│   │   └── resources/
-│   │       └── application.yml      # Configuration
-│   └── test/                        # Test classes
-├── scripts/                         # Development scripts
-│   └── kafka/
-│       └── secrets/                 # SSL certificates (local dev)
-├── documents/                       # Documentation
-├── target/                          # Build output
-└── pom.xml                         # Maven configuration
-```
-
-### Development Workflow
-
-1. **Setup Environment**
-   ```bash
-   ./scripts/setup-dev-environment.sh
-   ```
-
-2. **Run Tests**
-   ```bash
-   mvn test                    # Unit tests
-   mvn verify                  # Integration tests
-   ./scripts/run-test-suite.sh # Full validation
-   ```
-
-3. **Code Quality**
-   ```bash
-   mvn clean compile          # Check compilation
-   mvn spotbugs:check         # Static analysis
-   ```
+### Topic Configuration
+- **Partitions**: 3 (default for new topics)
+- **Replication Factor**: 1 (single broker setup)
+- **Retention**: 7 days (Kafka default)
 
 ## 🧪 Testing
 
@@ -640,7 +305,7 @@ wifi-scan-queue-consumer/
 - **Coverage**: End-to-end scenarios with real Kafka
 
 #### Validation Tests
-- **Location**: `scripts/run-test-suite.sh`
+- **Location**: `scripts/test/run-test-suite.sh`
 - **Framework**: Shell scripts with curl/jq
 - **Coverage**: Live service validation
 
@@ -654,10 +319,10 @@ mvn test
 mvn verify
 
 # Live service validation
-./scripts/run-test-suite.sh
+./test/run-test-suite.sh
 
 # Specific test scenarios
-./scripts/validate-service-health.sh --count 10 --verbose
+./test/validate-service-health.sh --count 10 --verbose
 ```
 
 ### Test Configuration
@@ -666,6 +331,508 @@ Tests use the `test` profile with:
 - Embedded Kafka for integration tests
 - Mock services for unit tests
 - Temporary test data and cleanup
+
+## 📜 Scripts
+
+### Directory Structure
+
+```
+wifi-scan-queue-consumer/
+├── scripts/
+│   ├── setup.sh                           # ⭐ Complete automated setup
+│   ├── setup-local-kafka.sh              # Kafka environment setup
+│   ├── setup-aws-infrastructure.sh       # AWS infrastructure setup
+│   ├── start-local-kafka.sh              # Start Kafka cluster
+│   ├── stop-local-kafka.sh               # Stop and cleanup
+│   ├── cleanup.sh                        # Complete infrastructure cleanup
+│   ├── generate-ssl-certs.sh             # SSL certificate generation
+│   ├── docker-compose.yml                # Docker configuration
+│   ├── test/                             # Test scripts directory
+│   │   ├── run-test-suite.sh             # Comprehensive test suite
+│   │   ├── test-ssl-connection.sh        # SSL connectivity test
+│   │   ├── create-test-topic.sh          # Topic creation
+│   │   ├── send-test-message.sh          # Simple message sender
+│   │   ├── send-wifi-scan-messages.sh    # 📡 WiFi scan data generator
+│   │   ├── validate-service-health.sh    # 🔍 End-to-end service validation
+│   │   ├── validate-firehose-integration.sh # Firehose integration testing
+│   │   ├── validate-wifi-scan-endpoint.sh # WiFi scan endpoint testing
+│   │   ├── test-wifi-scan-endpoint.sh    # WiFi scan endpoint testing
+│   │   └── consume-test-messages.sh      # Message consumer
+│   └── kafka/                            # Generated during setup
+│       └── secrets/
+│           ├── kafka.keystore.p12        # SSL keystore
+│           ├── kafka.truststore.p12      # SSL truststore
+│           ├── ca-cert                   # Certificate authority
+│           └── ca-key                    # CA private key
+├── src/main/resources/secrets/           # Application certificates
+│   ├── kafka.keystore.p12
+│   └── kafka.truststore.p12
+├── pom.xml                              # Maven configuration
+└── src/                                 # Spring Boot application source
+```
+
+### Core Setup Scripts
+
+| Script | Purpose | Usage | Parameters | Duration |
+|--------|---------|--------|------------|----------|
+| `setup.sh` | **Complete automated setup** | `./setup.sh` | None | ~3-5 min |
+| `setup-local-kafka.sh` | Kafka environment setup only | `./setup-local-kafka.sh` | None | ~2-3 min |
+| `setup-aws-infrastructure.sh` | AWS infrastructure setup | `./setup-aws-infrastructure.sh` | None | ~2-3 min |
+| `generate-ssl-certs.sh` | Generate SSL certificates | `./generate-ssl-certs.sh` | None | ~30 sec |
+| `start-local-kafka.sh` | Start Kafka cluster | `./start-local-kafka.sh` | None | ~30 sec |
+| `stop-local-kafka.sh` | Stop and cleanup | `./stop-local-kafka.sh` | None | ~15 sec |
+| `cleanup.sh` | Complete infrastructure cleanup | `./cleanup.sh` | None | ~1-2 min |
+
+### Testing Scripts
+
+| Script | Purpose | Usage | Parameters | Use Case |
+|--------|---------|--------|------------|----------|
+| `test/test-ssl-connection.sh` | Validate SSL connectivity | `./test/test-ssl-connection.sh` | None | SSL verification |
+| `test/create-test-topic.sh` | Create test topic | `./test/create-test-topic.sh [topic-name]` | Optional: topic name | Topic management |
+| `test/send-test-message.sh` | Send simple text messages | `./test/send-test-message.sh "message" [topic-name]` | Required: message, Optional: topic | Basic testing |
+| `test/send-wifi-scan-messages.sh` | **Send realistic WiFi scan data** | `./test/send-wifi-scan-messages.sh [options]` | --count, --interval, --topic, --ssl | **Positioning service testing** |
+| `test/validate-service-health.sh` | **End-to-end service validation** | `./test/validate-service-health.sh [options]` | --count, --interval, --timeout, --verbose | **Complete service validation** |
+| `test/validate-firehose-integration.sh` | **Firehose integration testing** | `./test/validate-firehose-integration.sh [options]` | --count, --interval, --timeout, --verbose | **AWS integration testing** |
+| `test/validate-wifi-scan-endpoint.sh` | **WiFi scan endpoint testing** | `./test/validate-wifi-scan-endpoint.sh [options]` | --count, --interval, --timeout, --verbose | **Endpoint validation** |
+| `test/consume-test-messages.sh` | Consume messages | `./test/consume-test-messages.sh [topic-name]` | Optional: topic name | Message verification |
+
+### WiFi Scan Message Generator
+
+The `test/send-wifi-scan-messages.sh` script is a specialized tool that generates realistic WiFi scan data messages for testing the positioning service. This script creates messages that exactly match the `WifiPositioningRequest` format used by the WiFi positioning service.
+
+#### 🎯 Key Features
+
+- **📡 Realistic Data Generation**: Creates valid MAC addresses, signal strengths (-30 to -100 dBm), and frequencies
+- **📶 Multiple Frequency Bands**: Supports both 2.4GHz (2412-2472 MHz) and 5GHz (5180-5825 MHz) bands
+- **🔢 Variable Scan Results**: Each message contains 1-5 scan results per positioning request
+- **⚙️ Highly Configurable**: Count, interval, topic, SSL, and message structure options
+- **📋 JSON Format**: Generates properly formatted JSON messages for the positioning service
+- **🔄 Continuous Streaming**: Can generate continuous message streams for load testing
+
+#### 📖 Usage Examples
+
+```bash
+# Basic usage - Send 10 messages every 2 seconds (default)
+./test/send-wifi-scan-messages.sh
+
+# Quick test - Send 5 messages every 1 second
+./test/send-wifi-scan-messages.sh --count 5 --interval 1
+
+# Load testing - Send 100 messages rapidly
+./test/send-wifi-scan-messages.sh --count 100 --interval 0.1
+
+# SSL testing with custom topic
+./test/send-wifi-scan-messages.sh --count 20 --topic wifi-positioning-test --ssl
+
+# High-frequency continuous stream for stress testing
+./test/send-wifi-scan-messages.sh --count 1000 --interval 0.05
+
+# Production-like testing with realistic intervals
+./test/send-wifi-scan-messages.sh --count 50 --interval 2 --topic wifi-scan-data
+```
+
+#### 📋 Command Line Options
+
+| Option | Description | Default | Example |
+|--------|-------------|---------|---------|
+| `--count N` | Number of messages to send | 10 | `--count 50` |
+| `--interval SECONDS` | Interval between messages | 2 | `--interval 1.5` |
+| `--topic TOPIC` | Target Kafka topic | wifi-scan-data | `--topic my-topic` |
+| `--ssl` | Use SSL connection | false | `--ssl` |
+| `--help` | Show help message | - | `--help` |
+
+#### 📄 Sample Generated Message
+
+```json
+{
+  "wifiScanResults": [
+    {
+      "macAddress": "aa:bb:cc:dd:ee:ff",
+      "signalStrength": -65.4,
+      "frequency": 2437,
+      "ssid": "OfficeWiFi",
+      "linkSpeed": 866,
+      "channelWidth": 80
+    },
+    {
+      "macAddress": "11:22:33:44:55:66",
+      "signalStrength": -72.1,
+      "frequency": 5180,
+      "ssid": "SecureAP",
+      "linkSpeed": 1200,
+      "channelWidth": 160
+    },
+    {
+      "macAddress": "99:88:77:66:55:44",
+      "signalStrength": -81.3,
+      "frequency": 5240,
+      "ssid": "CoffeeShop",
+      "linkSpeed": 433,
+      "channelWidth": 40
+    }
+  ],
+  "client": "wifi-scan-generator",
+  "requestId": "req-1735820400-12345",
+  "application": "wifi-scan-test-suite",
+  "calculationDetail": true
+}
+```
+
+### Service Health Validation
+
+The `test/validate-service-health.sh` script provides comprehensive end-to-end validation of your Spring Boot application. It sends WiFi scan messages and continuously monitors the service health indicators to ensure messages are being consumed correctly.
+
+#### 🎯 Key Features
+
+- **📨 Automated Message Generation**: Uses `send-wifi-scan-messages.sh` to generate realistic test data
+- **🔍 Real-time Health Monitoring**: Monitors overall health, readiness, and liveness endpoints
+- **📊 Message Count Tracking**: Tracks message consumption through service metrics
+- **⏱️ Configurable Timeouts**: Customizable validation timeouts and intervals
+- **📋 Detailed Reporting**: Comprehensive validation reports with pass/fail status
+- **🚨 Background Process Management**: Handles cleanup of background message senders
+
+#### 📖 Usage Examples
+
+```bash
+# Basic validation - Send 10 messages and monitor for 60 seconds
+./test/validate-service-health.sh
+
+# Quick validation - 5 messages with 30-second timeout
+./test/validate-service-health.sh --count 5 --timeout 30
+
+# Detailed validation with verbose output
+./test/validate-service-health.sh --count 20 --interval 1 --verbose
+
+# SSL testing with custom service URL
+./test/validate-service-health.sh --ssl --service-url http://localhost:8081
+
+# High-frequency testing
+./test/validate-service-health.sh --count 50 --interval 0.5 --health-interval 2
+
+# Production-like validation
+./test/validate-service-health.sh --count 100 --interval 2 --timeout 300
+```
+
+#### 📋 Command Line Options
+
+| Option | Description | Default | Example |
+|--------|-------------|---------|---------|
+| `--count N` | Number of messages to send | 10 | `--count 20` |
+| `--interval SECONDS` | Interval between messages | 2 | `--interval 1` |
+| `--topic TOPIC` | Target Kafka topic | wifi-scan-data | `--topic my-topic` |
+| `--service-url URL` | Service base URL | http://localhost:8080 | `--service-url http://localhost:8081` |
+| `--timeout SECONDS` | Validation timeout | 60 | `--timeout 120` |
+| `--health-interval SECONDS` | Health check interval | 5 | `--health-interval 3` |
+| `--ssl` | Use SSL for Kafka | false | `--ssl` |
+| `--verbose` | Detailed output | false | `--verbose` |
+
+### Development Workflow
+
+#### 🌅 Daily Development Startup
+```bash
+# Navigate to scripts directory
+cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
+
+# 1. Start Kafka environment
+./start-local-kafka.sh
+
+# 2. Verify connectivity
+./test/test-ssl-connection.sh
+
+# 3. Create topic for your work (if needed)
+./test/create-test-topic.sh my-dev-topic
+```
+
+#### 🧪 Testing Message Flow
+```bash
+# Simple text message testing
+./test/send-test-message.sh "Debug message" my-dev-topic
+./test/consume-test-messages.sh my-dev-topic
+
+# WiFi scan data testing (realistic data)
+./test/send-wifi-scan-messages.sh --count 5 --topic my-dev-topic
+./test/consume-test-messages.sh my-dev-topic
+
+# End-to-end service validation (recommended)
+./test/validate-service-health.sh --count 10 --verbose
+
+# SSL testing
+./test/send-wifi-scan-messages.sh --count 3 --ssl
+./test/consume-test-messages.sh wifi-scan-data --ssl
+```
+
+#### 🔧 Development with Spring Boot Application
+```bash
+# 1. Start Kafka
+./start-local-kafka.sh
+
+# 2. Generate test data
+./test/send-wifi-scan-messages.sh --count 10 --interval 2
+
+# 3. Start your Spring Boot application
+cd ../
+mvn spring-boot:run
+
+# 4. Monitor application logs for message processing
+# 5. Verify health endpoints
+curl http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health
+```
+
+#### 🔄 Continuous Testing
+```bash
+# Terminal 1: Start continuous message generation
+./test/send-wifi-scan-messages.sh --count 1000 --interval 1
+
+# Terminal 2: Monitor Spring Boot application
+cd ../ && mvn spring-boot:run
+
+# Terminal 3: Monitor Kafka logs
+docker logs -f kafka
+```
+
+#### 🌙 Daily Shutdown
+```bash
+# Complete cleanup
+./cleanup.sh
+```
+
+## 🏥 Health Monitoring & Kubernetes Integration ✅
+
+✅ **PRODUCTION READY** - Comprehensive health monitoring system fully implemented and tested.
+
+**🎯 CRITICAL FIX IMPLEMENTED**: Resolved the **10-minute idle timeout issue** where the service incorrectly became unhealthy after periods of no message activity. The service now correctly remains healthy during idle periods and immediately processes messages when they become available.
+
+### 🔗 Health Endpoints
+
+All health endpoints are accessible at the following **verified URLs**:
+
+| Endpoint | Purpose | Kubernetes Integration |
+|----------|---------|----------------------|
+| `http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/` | Overall application health | General monitoring |
+| `http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/readiness` | Readiness probe endpoint | K8s readiness probe |
+| `http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/liveness` | Liveness probe endpoint | K8s liveness probe |
+| `http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/api/metrics/kafka` | Detailed operational metrics | Monitoring/alerting |
+
+**Testing URLs**:
+```bash
+# Test overall health
+curl -s http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/ | jq '.'
+
+# Test readiness probe
+curl -s http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/readiness | jq '.'
+
+# Test liveness probe  
+curl -s http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/liveness | jq '.'
+
+# Test operational metrics
+curl -s http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/api/metrics/kafka | jq '.'
+```
+
+### 🎯 Health Indicators Implemented
+
+#### **1. KafkaConsumerGroupHealthIndicator** ✅
+- **Purpose**: Monitors consumer group registration and cluster connectivity
+- **Component Name**: `kafkaConsumerGroup`
+- **Checks**: Consumer connection, group status, cluster node count
+- **Endpoint**: Readiness probe
+
+#### **2. TopicAccessibilityHealthIndicator** ✅  
+- **Purpose**: Verifies access to configured Kafka topics
+- **Component Name**: `kafkaTopicAccessibility`
+- **Checks**: Topic existence, metadata availability, permissions
+- **Endpoint**: Readiness probe
+
+#### **3. MessageConsumptionActivityHealthIndicator** ✅
+- **Purpose**: Monitors consumer activity and message reception health
+- **Component Name**: `messageConsumptionActivity`
+- **🔧 CRITICAL SEMANTIC FIX**: Measures time since last **message received** (not poll attempts)
+- **Key Feature**: ✅ **Idle Tolerance** - Remains healthy during periods with no messages
+- **Endpoint**: Liveness probe
+
+#### **4. MemoryHealthIndicator** ✅
+- **Purpose**: Monitors JVM memory usage with configurable thresholds
+- **Component Name**: `jvmMemory`
+- **Checks**: Heap memory usage (default threshold: 90%)
+- **Endpoint**: Liveness probe
+
+#### **5. SslCertificateHealthIndicator** ✅
+- **Purpose**: Validates SSL/TLS certificate health and accessibility
+- **Component Name**: `sslCertificate`
+- **🔐 SSL Certificate Warning Timeline**:
+  
+  | Days Before Expiry | Alert Level | Action Required | Kubernetes Behavior |
+  |-------------------|-------------|-----------------|-------------------|
+  | **30+ days** | 🟢 **HEALTHY** | No action needed | Pod remains in service |
+  | **30 days** | 🟡 **WARNING** | Plan certificate renewal | Pod remains in service |
+  | **15 days** | 🟠 **CRITICAL** | Execute certificate renewal | Pod remains in service |
+  | **7 days** | 🔴 **URGENT** | Emergency renewal procedures | Pod remains in service |
+  | **0 days (expired)** | ❌ **FAILED** | Manual certificate renewal | **Pod removed from service** |
+
+#### **6. EnhancedSslCertificateHealthIndicator** ✅
+- **Purpose**: Advanced SSL certificate monitoring with CloudWatch integration
+- **Component Name**: `enhancedSslCertificate`
+- **Features**: Certificate health scoring, Kubernetes event generation, CloudWatch metrics
+
+### 📊 Operational Metrics System
+
+#### **MetricsController Endpoints**:
+- `GET /frisco-location-wifi-scan-vmb-consumer/api/metrics/kafka` - Comprehensive metrics JSON
+- `GET /frisco-location-wifi-scan-vmb-consumer/api/metrics/kafka/summary` - Human-readable summary
+- `GET /frisco-location-wifi-scan-vmb-consumer/api/metrics/kafka/status` - Operational status overview
+- `POST /frisco-location-wifi-scan-vmb-consumer/api/metrics/kafka/reset` - Reset metrics for testing
+
+**Sample Metrics Response**:
+```json
+{
+  "totalMessagesConsumed": 92,
+  "totalMessagesProcessed": 92,
+  "totalMessagesFailed": 0,
+  "successRate": 100.0,
+  "errorRate": 0.0,
+  "averageProcessingTimeMs": 15.02,
+  "minProcessingTimeMs": 13,
+  "maxProcessingTimeMs": 23,
+  "firstMessageTimestamp": "2025-06-13T17:24:30.103807",
+  "lastMessageTimestamp": "2025-06-13T18:12:49.613871",
+  "lastPollTimestamp": "2025-06-13T18:12:49.613871",
+  "isPollingActive": true,
+  "isConsumerConnected": true,
+  "consumerGroupActive": true,
+  "memoryUsagePercentage": 53.29,
+  "usedMemoryMB": 72,
+  "totalMemoryMB": 136,
+  "maxMemoryMB": 12288,
+  "consumptionRate": 1.92,
+  "isConsumptionHealthy": true,
+  "timestamp": 1749852773148,
+  "metricsVersion": "2.0.0"
+}
+```
+
+### 🧪 Test Coverage ✅
+
+**HealthIndicatorIntegrationTest** - Comprehensive test suite:
+- ✅ All health indicators properly autowired
+- ✅ Main health endpoint returns UP status
+- ✅ Readiness/Liveness endpoints contain correct components
+- ✅ Memory and SSL certificate health validation
+- ✅ Message consumption activity monitoring
+
+**Test Results**: 
+```
+Tests run: 7, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS - All health indicators working correctly
+```
+
+**Idle Tolerance Testing**:
+```bash
+# Test 1: Immediate execution - ALL TESTS PASSED ✅
+./scripts/test/run-test-suite.sh
+
+# Test 2: After 44+ minutes idle - ALL TESTS PASSED ✅  
+./scripts/test/run-test-suite.sh
+
+# Conclusion: 10-minute idle timeout issue RESOLVED ✅
+```
+
+### 🚀 Kubernetes Integration
+
+#### **Readiness Probe Configuration** ✅
+```yaml
+readinessProbe:
+  httpGet:
+    path: /frisco-location-wifi-scan-vmb-consumer/health/readiness
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+```
+
+**Readiness Components**: `kafkaConsumerGroup`, `kafkaTopicAccessibility`, `sslCertificate`, `firehoseConnectivity`
+
+#### **Liveness Probe Configuration** ✅
+```yaml
+livenessProbe:
+  httpGet:
+    path: /frisco-location-wifi-scan-vmb-consumer/health/liveness
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+```
+
+**Liveness Components**: `messageConsumptionActivity`, `jvmMemory`
+
+### ⚙️ Configuration Properties
+
+```yaml
+management:
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: health,info,metrics,env,kafka
+  endpoint:
+    health:
+      show-details: always
+      group:
+        readiness:
+          include: kafkaConsumerGroup,kafkaTopicAccessibility,sslCertificate,firehoseConnectivity
+        liveness:
+          include: messageConsumptionActivity,jvmMemory
+  health:
+    kafka:
+      enabled: true
+    message-consumption:
+      message-timeout-threshold: 5  # 5 minutes
+      consumption-rate-threshold: 0.1
+
+# Enhanced Health Indicator Configuration
+health:
+  indicator:
+    timeout-seconds: 5
+    memory-threshold-percentage: 90
+    consumption-timeout-minutes: 30
+    minimum-consumption-rate: 0.0
+    retry-attempts: 3
+    enable-caching: true
+    cache-ttl-seconds: 30
+    # SSL Certificate Configuration
+    certificate-expiration-warning-days: 30
+    certificate-expiration-urgent-days: 15
+    certificate-expiration-critical-days: 7
+    certificate-validation-timeout-seconds: 10
+```
+
+### 🔧 Critical Fixes Summary
+
+#### **Message Consumption Activity Health Indicator Semantic Fix**
+
+**Issue**: Misleading configuration and error messages created operational confusion.
+
+**Before (Misleading)**:
+```yaml
+poll-timeout-threshold: 300000  # Suggested monitoring "poll attempts"
+```
+```
+"reason": "Consumer hasn't polled in 1023566 ms"
+```
+
+**After (Accurate)**:
+```yaml
+message-timeout-threshold: 300000  # Time since last message received
+```
+```
+"reason": "Consumer hasn't received messages in 1023566 ms - may indicate inactive consumer or no available messages"
+```
+
+**Benefits**:
+- 🎯 **Accurate Monitoring**: Health checks represent what they actually measure
+- 🚀 **Operational Clarity**: No confusion during normal idle periods
+- 📊 **Better Alerting**: Teams understand actual service behavior
+- 🔧 **Troubleshooting**: Clear distinction between connectivity vs idle state
 
 ## 🚀 Deployment
 
@@ -708,155 +875,153 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "production"
-```
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SPRING_PROFILES_ACTIVE` | Active Spring profile | `development` |
-| `KAFKA_BOOTSTRAP_SERVERS` | Kafka broker endpoints | `localhost:9092` |
-| `KAFKA_CONSUMER_GROUP_ID` | Consumer group ID | `wifi-scan-consumer` |
-| `KAFKA_SSL_ENABLED` | Enable SSL/TLS | `false` |
-| `KAFKA_KEYSTORE_PASSWORD` | Keystore password | - |
-| `KAFKA_TRUSTSTORE_PASSWORD` | Truststore password | - |
-
-## 📊 Monitoring
-
-### Health Endpoints
-
-| Endpoint | Description |
-|----------|-------------|
-| `/frisco-location-wifi-scan-vmb-consumer/health` | Overall application health |
-| `/frisco-location-wifi-scan-vmb-consumer/health/readiness` | Readiness probe |
-| `/frisco-location-wifi-scan-vmb-consumer/health/liveness` | Liveness probe |
-| `/frisco-location-wifi-scan-vmb-consumer/info` | Application information |
-| `/frisco-location-wifi-scan-vmb-consumer/metrics` | Application metrics |
-
-### Custom Health Indicators
-
-- **Kafka Consumer Health**: Monitors Kafka consumer group status
-- **Message Consumption Activity**: Tracks recent message processing
-- **Memory Health**: Monitors JVM memory usage
-- **SSL Certificate Health**: Validates SSL certificate status
-- **Topic Accessibility**: Verifies Kafka topic access
-
-### Metrics
-
-Available at `/frisco-location-wifi-scan-vmb-consumer/metrics/kafka`:
-
-```json
-{
-  "totalMessagesConsumed": 1250,
-  "totalMessagesProcessed": 1250,
-  "totalMessagesFailed": 0,
-  "successRate": 100.0,
-  "errorRate": 0.0,
-  "averageProcessingTimeMs": 15.2,
-  "memoryUsagePercentage": 35.5,
-  "isConsumerConnected": true,
-  "isPollingActive": true
-}
-```
-
-## 📜 Scripts
-
-### Development Scripts
-
-| Script | Description |
-|--------|-------------|
-| `setup-dev-environment.sh` | Setup development environment |
-| `start-local-kafka.sh` | Start local Kafka with Docker |
-| `stop-local-kafka.sh` | Stop local Kafka containers |
-| `create-test-topic.sh` | Create required Kafka topics |
-
-### Testing Scripts
-
-| Script | Description |
-|--------|-------------|
-| `run-test-suite.sh` | Comprehensive test suite |
-| `validate-service-health.sh` | Service health validation |
-| `send-test-message.sh` | Send test messages to Kafka |
-| `send-wifi-scan-messages.sh` | Send WiFi scan test data |
-
-### SSL Scripts
-
-| Script | Description |
-|--------|-------------|
-| `generate-ssl-certs.sh` | Generate SSL certificates |
-| `test-ssl-connection.sh` | Test SSL connectivity |
-
-### Usage Examples
-
-```bash
-# Run comprehensive validation
-./scripts/run-test-suite.sh
-
-# Test with specific parameters
-./scripts/validate-service-health.sh \
-  --count 20 \
-  --interval 0.5 \
-  --timeout 120 \
-  --verbose
-
-# Send custom test messages
-./scripts/send-wifi-scan-messages.sh \
-  --count 100 \
-  --interval 1 \
-  --topic wifi-scan-data
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-cluster:9092"
+        livenessProbe:
+          httpGet:
+            path: /frisco-location-wifi-scan-vmb-consumer/health/liveness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /frisco-location-wifi-scan-vmb-consumer/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
 ```
 
 ## 🔧 Troubleshooting
 
-### Common Issues
+### Common Issues and Solutions
 
-#### Service Won't Start
+#### 1. 🐳 Docker Desktop Issues
+**Problem**: Docker Desktop not running
+**Symptoms**:
+- `Cannot connect to the Docker daemon`
+- `docker: command not found`
+**Solutions**:
+1. Start Docker Desktop application
+2. Check Docker Desktop status in menu bar
+3. Verify Docker service is running:
+   ```bash
+   docker info
+   ```
+4. Restart Docker Desktop if needed
+
+#### 2. 🔌 Port Conflicts
+**Problem**: Port already in use
+**Symptoms**:
+- `Port 9093 is already in use`
+- `Address already in use`
+**Solutions**:
 ```bash
-# Check Java version
-java -version  # Should be 21+
+# Find process using port
+lsof -i :9093
+lsof -i :9092
+lsof -i :2181
 
-# Check port availability
-netstat -an | grep 8080
+# Kill the process
+kill -9 <PID>
 
-# Check Kafka connectivity
-./scripts/test-ssl-connection.sh
+# Or stop existing containers
+./stop-local-kafka.sh
+docker system prune -f
 ```
 
-#### Kafka Connection Issues
+#### 3. 🔐 SSL/TLS Issues
+**Problem**: SSL handshake failures
+**Symptoms**:
+- `SSL handshake failed`
+- `Certificate not found`
+- `javax.net.ssl.SSLHandshakeException`
+**Solutions**:
+1. Regenerate certificates:
 ```bash
-# Verify Kafka is running
-docker ps | grep kafka
+   ./generate-ssl-certs.sh
+   ```
+2. Restart Kafka:
+   ```bash
+   ./stop-local-kafka.sh && ./start-local-kafka.sh
+   ```
+3. Verify certificate validity:
+   ```bash
+   keytool -list -v -keystore kafka/secrets/kafka.keystore.p12
+   ```
+4. Check certificate expiration:
+   ```bash
+   keytool -list -keystore kafka/secrets/kafka.keystore.p12 | grep "Valid from"
+   ```
 
-# Check topic exists
-./scripts/create-test-topic.sh
+#### 4. ☕ Java Version Issues
+**Problem**: Wrong Java version
+**Symptoms**:
+- `Unsupported major.minor version`
+- `Java version not found`
+**Solutions**:
+1. Install Java 21:
+```bash
+   brew install openjdk@21
+   ```
+2. Set JAVA_HOME:
+   ```bash
+   export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+   echo 'export JAVA_HOME=$(/usr/libexec/java_home -v 21)' >> ~/.zshrc
+   ```
+3. Verify Java version:
+   ```bash
+   java --version
+   echo $JAVA_HOME
+   ```
 
-# Test basic connectivity
-curl http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/
+#### 5. 📦 Maven Issues
+**Problem**: Maven build failures
+**Symptoms**:
+- `Maven not found`
+- `Build failed`
+**Solutions**:
+1. Install Maven:
+   ```bash
+   brew install maven
+   ```
+2. Clear Maven cache:
+   ```bash
+   mvn clean
+   rm -rf ~/.m2/repository
+   ```
+
+#### 6. 🔧 jq/bc Missing (WiFi Generator Issues)
+**Problem**: WiFi message generation fails
+**Symptoms**:
+- `jq: command not found`
+- `bc: command not found`
+**Solutions**:
+```bash
+# Install jq for JSON processing
+brew install jq
+
+# bc is usually pre-installed, but if missing:
+brew install bc
 ```
 
-#### SSL/TLS Problems
+#### 7. 📨 Message Production/Consumption Issues
+**Problem**: Messages not being sent or received
+**Symptoms**:
+- No messages in topic
+- Consumer not receiving messages
+**Solutions**:
+1. Verify topic exists:
 ```bash
-# Regenerate certificates
-./scripts/generate-ssl-certs.sh
-
-# Test SSL connection
-./scripts/test-ssl-connection.sh
-
-# Check certificate validity
-openssl x509 -in secrets/kafka.cert.pem -text -noout
-```
-
-#### Health Check Issues
-```bash
-# Test all health endpoints
-curl -s http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/ | jq '.'
-curl -s http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/readiness | jq '.'
-curl -s http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/liveness | jq '.'
-
-# Test idle tolerance (critical fix)
-./scripts/run-test-suite.sh
-sleep 600  # Wait 10 minutes
-./scripts/run-test-suite.sh  # Should still pass
+   docker exec kafka kafka-topics --bootstrap-server localhost:9092 --list
+   ```
+2. Check topic details:
+   ```bash
+   docker exec kafka kafka-topics --bootstrap-server localhost:9092 --describe --topic test-topic
+   ```
+3. Test with simple producer/consumer:
+   ```bash
+   ./test/send-test-message.sh "Test message"
+   ./test/consume-test-messages.sh
 ```
 
 ### Debug Mode
@@ -899,7 +1064,7 @@ kafka:
 
 1. Create feature branch from `main`
 2. Implement changes with tests
-3. Run full test suite: `./scripts/run-test-suite.sh`
+3. Run full test suite: `./test/run-test-suite.sh`
 4. Update documentation as needed
 5. Submit pull request with description
 
@@ -911,114 +1076,149 @@ git clone <repository-url>
 cd wifi-scan-queue-consumer
 
 # Setup development environment
-./scripts/setup-dev-environment.sh
-
-# Run tests to verify setup
-mvn clean verify
-./scripts/run-test-suite.sh
+cd scripts
+./setup.sh
 ```
 
 ## 🔥 Firehose Integration
 
-The WiFi Scan Queue Consumer includes comprehensive AWS Kinesis Data Firehose integration for streaming data to S3. This enables real-time data processing and storage in a scalable, managed environment.
+The application integrates with AWS Kinesis Data Firehose to stream processed data to S3. This enables:
 
-### Features
+- **Real-time Data Streaming**: Continuous data flow to S3
+- **Automatic Partitioning**: Data organized by date/time
+- **Scalable Storage**: Leverage S3's unlimited storage
+- **Data Analytics**: Enable downstream analytics and processing
 
-- **LocalStack Support**: Full local development environment with AWS services
-- **Firehose Delivery Stream**: Configured to buffer data and deliver to S3
-- **S3 Integration**: Data is stored in partitioned folders by date/time
-- **IAM Security**: Proper role-based access control
-- **Health Monitoring**: Service health checks for Firehose connectivity
-- **Comprehensive Testing**: End-to-end validation scripts
-
-### Quick Setup
-
-```bash
-# Setup AWS infrastructure only
-./scripts/setup-aws-infrastructure.sh
-
-# Test Firehose integration
-./scripts/validate-firehose-integration.sh
-
-# Run comprehensive tests including Firehose
-./scripts/run-test-suite.sh
-```
-
-### Configuration
-
-The Firehose integration is configured in `application.yml`:
+### Firehose Configuration
 
 ```yaml
 aws:
-  region: us-east-1
-  endpoint-url: http://localhost:4566  # LocalStack endpoint
   firehose:
     delivery-stream-name: MVS-stream
-    buffer-time: 300         # 5 minutes
-    batch-processing:
-      min-batch-size: 10
-      max-batch-size: 150
+    region: us-east-1
+    batch-size: 100
+    batch-interval: 60
 ```
 
-### Data Flow
-
-```
-Kafka Topic → Spring Boot App → Firehose → S3 Bucket
-     ↓              ↓              ↓         ↓
-wifi-scan-data → Consumer → MVS-stream → wifi-scan-data-bucket/
-                                              └── wifi-scan-data/
-                                                  └── year=2024/
-                                                      └── month=01/
-                                                          └── day=15/
-                                                              └── hour=14/
-                                                                  └── data-files
-```
-
-### Health Monitoring
-
-The service includes health indicators for Firehose connectivity:
+### Testing Firehose Integration
 
 ```bash
-# Check Firehose connectivity
-curl http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health/readiness | jq '.components.firehoseConnectivity'
+# Test Firehose integration
+./test/validate-firehose-integration.sh --count 20 --interval 1
 
-# Check overall service health
-curl http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health
+# Monitor S3 for delivered data
+aws s3 ls s3://wifi-scan-data-bucket --recursive
 ```
 
-### Testing
+## 🔒 Security Note
+
+⚠️ **Important**: These scripts are designed for **local development only**. The certificates and passwords used are not secure and should never be used in production environments.
+
+- Default passwords (`kafka123`) are hardcoded for development convenience
+- Certificates are self-signed and not from a trusted CA
+- SSL configuration is simplified for development use
+- No authentication mechanisms are enabled
+
+## 📊 Validation Checklist
+
+### ✅ Prerequisites Checklist
+- [ ] Docker Desktop installed and running
+- [ ] Java 21 installed and configured ($JAVA_HOME set)
+- [ ] Maven 3.9+ installed
+- [ ] jq installed (for WiFi message generation)
+- [ ] bc available (for calculations)
+- [ ] All scripts are executable (`chmod +x *.sh`)
+- [ ] Sufficient disk space (20GB+ free)
+
+### ✅ Environment Setup Checklist
+- [ ] Certificates generated successfully (`ls kafka/secrets/`)
+- [ ] Kafka container running (`docker ps | grep kafka`)
+- [ ] SSL port 9093 accessible (`telnet localhost 9093`)
+- [ ] Plaintext port 9092 accessible (`telnet localhost 9092`)
+- [ ] Test topic created
+- [ ] Messages can be sent and consumed
+- [ ] WiFi message generator works (`./test/send-wifi-scan-messages.sh --count 1`)
+
+### ✅ Application Setup Checklist
+- [ ] Spring Boot application builds successfully (`mvn clean compile`)
+- [ ] Application connects to Kafka over SSL
+- [ ] Health checks passing (`curl http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health`)
+- [ ] Messages processed correctly (check application logs)
+- [ ] No SSL errors in logs
+- [ ] Consumer group registered in Kafka
+
+### 🧪 Clean Environment Test
+
+To test scripts on a fresh Mac:
+
+1. **Reset environment:**
+```bash
+   ./cleanup.sh
+   ```
+
+2. **Run complete setup:**
+   ```bash
+   ./setup.sh
+```
+
+3. **Verify setup:**
+```bash
+   ./test/test-ssl-connection.sh
+   ./test/create-test-topic.sh
+   ./test/send-test-message.sh "Test message"
+   ./test/send-wifi-scan-messages.sh --count 3
+   ./test/consume-test-messages.sh
+   ```
+
+## 🍎 Mac-Specific Notes
+
+### macOS Compatibility
+
+1. **Docker Desktop:**
+   - Requires macOS 11 (Big Sur) or later
+   - Needs virtualization support enabled in System Preferences
+   - May require additional memory allocation (8GB+ recommended)
+   - Check "Use Rosetta for x86/AMD64 emulation" if on Apple Silicon
+
+2. **Java 21:**
+   - Use Homebrew for installation (recommended)
+   - Set JAVA_HOME correctly for your shell (.zshrc for zsh)
+   - Verify PATH includes Java bin directory
+   - Apple Silicon Macs: Use ARM64 version for better performance
+
+3. **File Permissions:**
+   - Ensure all scripts are executable (`chmod +x *.sh`)
+   - Check certificate file permissions (should be readable)
+   - Verify Docker volume mounts work correctly
+
+4. **Performance Optimization:**
+   - Allocate sufficient memory to Docker (8GB+ recommended)
+   - Monitor CPU usage during message processing
+   - Check disk space regularly (Docker images can be large)
+   - Consider increasing Docker Desktop resource limits
+
+5. **Network Configuration:**
+   - macOS firewall may block local ports
+   - Antivirus software may interfere with Docker networking
+   - VPN connections may affect localhost connectivity
+
+### macOS-Specific Troubleshooting
 
 ```bash
-# Basic Firehose test
-./scripts/validate-firehose-integration.sh --count 10 --interval 1
+# Check macOS version compatibility
+sw_vers
 
-# Verbose testing with detailed output
-./scripts/validate-firehose-integration.sh --count 20 --interval 0.5 --verbose
+# Verify Homebrew installation
+brew --version
 
-# Skip S3 validation (useful for debugging)
-./scripts/validate-firehose-integration.sh --no-s3-check
+# Check Java installation paths
+/usr/libexec/java_home -V
+
+# Monitor system resources
+top -o cpu
+df -h
+
+# Check port availability on macOS
+sudo lsof -i :9093
+sudo lsof -i :9092
 ```
-
-### Cleanup
-
-```bash
-# Clean up AWS infrastructure
-./scripts/cleanup-aws-infrastructure.sh
-```
-
-For detailed documentation, see [FIREHOSE_INTEGRATION_README.md](scripts/FIREHOSE_INTEGRATION_README.md).
-
----
-
-## 📞 Support
-
-For support and questions:
-- 📧 **Email**: [support@example.com]
-- 📋 **Issues**: [GitHub Issues](https://github.com/your-org/wifi-scan-queue-consumer/issues)
-- 📖 **Documentation**: [Wiki](https://github.com/your-org/wifi-scan-queue-consumer/wiki)
-
----
-
-**Version**: 1.0.0-SNAPSHOT  
-**Last Updated**: June 2025  
-**License**: [MIT License](LICENSE)

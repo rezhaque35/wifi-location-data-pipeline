@@ -69,7 +69,7 @@ check_existing_services() {
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_status "Stopping existing containers..."
-            ./scripts/stop-local-kafka.sh
+            ./stop-local-kafka.sh
         else
             print_warning "Keeping existing containers running."
             exit 0
@@ -82,9 +82,7 @@ start_services() {
     print_status "Starting Kafka and Zookeeper containers..."
     
     # Start services in detached mode
-    cd scripts
     docker-compose up -d
-    cd ..
     
     print_success "Containers started successfully!"
 }
@@ -212,10 +210,10 @@ main() {
     print_success "Local Kafka SSL cluster is now running!"
     echo ""
     echo "Next steps:"
-    echo "1. Test SSL connection: ./test-ssl-connection.sh"
-    echo "2. Send test message: ./send-test-message.sh 'Hello Kafka!'"
-    echo "3. Consume messages: ./consume-test-messages.sh"
-    echo "4. Stop cluster: ./scripts/stop-local-kafka.sh"
+    echo "1. Test SSL connection: ./test/test-ssl-connection.sh"
+    echo "2. Send test message: ./test/send-test-message.sh 'Hello Kafka!'"
+    echo "3. Consume messages: ./test/consume-test-messages.sh"
+    echo "4. Stop cluster: ./stop-local-kafka.sh"
     echo ""
     echo "Useful commands:"
     echo "- View logs: docker logs kafka -f"

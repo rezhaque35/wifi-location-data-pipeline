@@ -212,7 +212,7 @@ check_and_fix_message_timeout() {
             
             # Send a few messages to wake up the service
             print_info "Sending 3 recovery messages to wake up the consumer..."
-            if ./scripts/send-wifi-scan-messages.sh --count 3 --interval 1 > /dev/null 2>&1; then
+            if ./send-wifi-scan-messages.sh --count 3 --interval 1 > /dev/null 2>&1; then
                 print_info "Recovery messages sent successfully"
                 
                 # Wait for health to recover
@@ -294,55 +294,55 @@ echo ""
 
 # Test 1: Basic Functionality
 run_test "Basic Functionality (3 messages)" \
-    "./scripts/validate-service-health.sh --count 3 --interval 1"
+            "./validate-service-health.sh --count 3 --interval 1"
 
 # Test 2: Quick Processing
 run_test "Quick Processing (5 messages, 0.5s interval)" \
-    "./scripts/validate-service-health.sh --count 5 --interval 0.5 --timeout 60"
+            "./validate-service-health.sh --count 5 --interval 0.5 --timeout 60"
 
 # Test 3: Moderate Load
 run_test "Moderate Load (10 messages, 1s interval)" \
-    "./scripts/validate-service-health.sh --count 10 --interval 1 --timeout 120"
+            "./validate-service-health.sh --count 10 --interval 1 --timeout 120"
 
 # Test 4: Health Monitoring
 run_test "Health Monitoring (8 messages, frequent checks)" \
-    "./scripts/validate-service-health.sh --count 8 --interval 1 --health-interval 2 --timeout 90"
+            "./validate-service-health.sh --count 8 --interval 1 --health-interval 2 --timeout 90"
 
 # Test 5: High Frequency
 run_test "High Frequency (15 messages, 0.3s interval)" \
-    "./scripts/validate-service-health.sh --count 15 --interval 0.3 --timeout 120"
+            "./validate-service-health.sh --count 15 --interval 0.3 --timeout 120"
 
 # Test 6: Verbose Monitoring
 run_test "Verbose Monitoring (5 messages with detailed output)" \
-    "./scripts/validate-service-health.sh --count 5 --interval 1 --verbose"
+            "./validate-service-health.sh --count 5 --interval 1 --verbose"
 
 # Test 7: Firehose Integration - Basic
 run_test "Firehose Integration - Basic (5 messages)" \
-    "./scripts/validate-firehose-integration.sh --count 5 --interval 1 --timeout 90"
+            "./validate-firehose-integration.sh --count 5 --interval 1 --timeout 90"
 
 # Test 8: Firehose Integration - Moderate Load
 run_test "Firehose Integration - Moderate Load (10 messages)" \
-    "./scripts/validate-firehose-integration.sh --count 10 --interval 1 --timeout 120"
+            "./validate-firehose-integration.sh --count 10 --interval 1 --timeout 120"
 
 # Test 9: Firehose Integration - High Frequency
 run_test "Firehose Integration - High Frequency (15 messages, 0.5s interval)" \
-    "./scripts/validate-firehose-integration.sh --count 15 --interval 0.5 --timeout 150"
+            "./validate-firehose-integration.sh --count 15 --interval 0.5 --timeout 150"
 
 # Test 10: Firehose Integration - Verbose
 run_test "Firehose Integration - Verbose (8 messages with detailed output)" \
-    "./scripts/validate-firehose-integration.sh --count 8 --interval 1 --verbose --timeout 120"
+            "./validate-firehose-integration.sh --count 8 --interval 1 --verbose --timeout 120"
 
 # Test 11: WiFi Scan Endpoint - Basic
 run_test "WiFi Scan Endpoint - Basic (3 messages)" \
-    "./scripts/validate-wifi-scan-endpoint.sh --count 3 --interval 1 --timeout 60"
+            "./validate-wifi-scan-endpoint.sh --count 3 --interval 1 --timeout 60"
 
 # Test 12: WiFi Scan Endpoint - Moderate Load
 run_test "WiFi Scan Endpoint - Moderate Load (5 messages)" \
-    "./scripts/validate-wifi-scan-endpoint.sh --count 5 --interval 1 --timeout 90"
+            "./validate-wifi-scan-endpoint.sh --count 5 --interval 1 --timeout 90"
 
 # Test 13: WiFi Scan Endpoint - Verbose
 run_test "WiFi Scan Endpoint - Verbose (3 messages with detailed output)" \
-    "./scripts/validate-wifi-scan-endpoint.sh --count 3 --interval 1 --verbose --timeout 60"
+            "./validate-wifi-scan-endpoint.sh --count 3 --interval 1 --verbose --timeout 60"
 
 # Display cleanup summary
 echo ""

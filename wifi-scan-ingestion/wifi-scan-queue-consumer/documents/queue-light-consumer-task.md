@@ -28,13 +28,13 @@
 - [x] **Script: Local Kafka management**
   - [x] Create `scripts/start-local-kafka.sh` to start Docker Compose
   - [x] Create `scripts/stop-local-kafka.sh` to stop and cleanup
-  - [x] Create `scripts/create-test-topic.sh` to create test topics
-  - [x] Create `scripts/test-ssl-connection.sh` to validate SSL connectivity
+  - [x] Create `scripts/test/create-test-topic.sh` to create test topics
+  - [x] Create `scripts/test/test-ssl-connection.sh` to validate SSL connectivity
   - [x] Add error handling and status checks in all scripts
 
 - [x] **Script: Test message producer/consumer**
-  - [x] Create `scripts/send-test-message.sh` for producing test messages
-  - [x] Create `scripts/consume-test-messages.sh` for consuming messages
+  - [x] Create `scripts/test/send-test-message.sh` for producing test messages
+  - [x] Create `scripts/test/consume-test-messages.sh` for consuming messages
   - [x] Include SSL configuration in test scripts
   - [x] Add message validation and logging
 

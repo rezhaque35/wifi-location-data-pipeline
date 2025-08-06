@@ -106,16 +106,16 @@ A test script is provided to verify the endpoint functionality:
 
 ```bash
 # Basic test
-./scripts/test-wifi-scan-endpoint.sh
+./scripts/test/test-wifi-scan-endpoint.sh
 
 # Test with custom port
-./scripts/test-wifi-scan-endpoint.sh -p 8081
+./scripts/test/test-wifi-scan-endpoint.sh -p 8081
 
 # Send multiple messages
-./scripts/test-wifi-scan-endpoint.sh -c 5 -i 2
+./scripts/test/test-wifi-scan-endpoint.sh -c 5 -i 2
 
 # Use custom message file
-./scripts/test-wifi-scan-endpoint.sh -m custom-message.json
+./scripts/test/test-wifi-scan-endpoint.sh -m custom-message.json
 ```
 
 ### Manual Testing with curl

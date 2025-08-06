@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# cleanup-aws-infrastructure.sh
-# This script cleans up AWS infrastructure (LocalStack) and related resources
+# cleanup.sh
+# This script cleans up complete infrastructure including LocalStack, Kafka, and related AWS resources
 
 set -e
 
@@ -193,11 +193,21 @@ cleanup_docker() {
 
 # Main cleanup function
 main() {
-    print_header "AWS INFRASTRUCTURE CLEANUP"
-    print_info "This script will clean up LocalStack and related AWS resources"
+    print_header "COMPLETE INFRASTRUCTURE CLEANUP"
+    print_info "This script will clean up LocalStack, Kafka, and related AWS resources"
     
     # Stop LocalStack
     stop_localstack
+    
+    # Stop Kafka cluster
+    print_header "STOPPING KAFKA CLUSTER"
+    print_step "Stopping Kafka and Zookeeper..."
+    if [ -f "./stop-local-kafka.sh" ]; then
+        ./stop-local-kafka.sh
+        print_success "Kafka cluster stopped successfully"
+    else
+        print_warning "stop-local-kafka.sh not found, skipping Kafka cleanup"
+    fi
     
     # Clean up AWS resources
     cleanup_aws_resources
@@ -209,15 +219,16 @@ main() {
     cleanup_docker
     
     print_header "CLEANUP COMPLETED"
-    print_success "AWS infrastructure cleanup completed successfully!"
+    print_success "Complete infrastructure cleanup completed successfully!"
     echo ""
     print_info "Summary of actions:"
     echo "  - LocalStack stopped and removed"
+    echo "  - Kafka cluster stopped and cleaned up"
     echo "  - AWS resources cleaned up (Firehose, S3, IAM)"
     echo "  - Temporary files removed"
     echo "  - Docker resources cleaned up"
     echo ""
-    print_info "To restart the environment, run: ./scripts/setup-dev-environment.sh"
+    print_info "To restart the environment, run: ./setup.sh"
 }
 
 # Parse command line arguments

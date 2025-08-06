@@ -341,7 +341,7 @@ send_test_messages() {
         
         local message="{\"timestamp\":\"$timestamp\",\"device_id\":\"$device_id\",\"wifi_scan_data\":{\"ssid\":\"$test_ssid\",\"signal_strength\":-$signal_strength,\"frequency\":2400,\"capabilities\":\"WPA2\"}}"
         
-        if ./scripts/send-test-message.sh "$message" "wifi-scan-data" --ssl > /dev/null 2>&1; then
+        if ./send-test-message.sh "$message" "wifi-scan-data" --ssl > /dev/null 2>&1; then
             ((success_count++))
             
             # Track the sent message
