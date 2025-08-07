@@ -156,5 +156,10 @@ pids
 scripts/docker-compose.yml
 
 # SSL certificates and secrets (local development only)
-scripts/kafka/secrets/
-secrets/ 
+scripts/kafka/
+secrets/
+# Allow keystore and truststore files in test resources for unit tests
+!src/test/resources/secrets/
+!src/test/resources/secrets/*.p12
+# Ignore credential files in test resources
+src/test/resources/secrets/*_creds 

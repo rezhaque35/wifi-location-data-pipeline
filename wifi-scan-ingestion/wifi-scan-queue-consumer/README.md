@@ -124,6 +124,80 @@ jq --version              # Should show jq version (for WiFi message generation)
 bc --version              # Should show bc version (for calculations)
 ```
 
+## 🔐 SSL Certificate Setup (First-Time Users)
+
+**⚠️ IMPORTANT**: Before running tests or starting the application, you need to generate SSL certificates for Kafka communication. This is a **one-time setup** that's required for both development and testing.
+
+### Quick SSL Setup (Recommended)
+```bash
+# Navigate to scripts directory
+cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
+
+# Generate SSL certificates (takes ~30 seconds)
+./generate-ssl-certs.sh
+```
+
+This script will:
+- ✅ Create `kafka/secrets/` directory with SSL certificates
+- ✅ Generate keystore and truststore files
+- ✅ **Automatically copy keystore/truststore to test resources**
+- ✅ Set up proper file permissions
+- ✅ Validate certificate generation
+
+### What Gets Created
+```
+scripts/
+├── kafka/secrets/                    # Main SSL certificates (git-ignored)
+│   ├── kafka.keystore.p12           # Kafka keystore
+│   ├── kafka.truststore.p12         # Kafka truststore
+│   ├── ca-cert                      # Certificate authority
+│   ├── ca-key                       # CA private key
+│   └── *_creds                      # Credential files
+└── src/test/resources/secrets/      # Test resources (git-tracked)
+    ├── kafka.keystore.p12           # ✅ Copied for unit tests
+    └── kafka.truststore.p12         # ✅ Copied for unit tests
+```
+
+### Manual SSL Setup (If Needed)
+```bash
+# Navigate to scripts directory
+cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
+
+# Make script executable
+chmod +x generate-ssl-certs.sh
+
+# Generate certificates
+./generate-ssl-certs.sh
+
+# Verify files were created
+ls -la kafka/secrets/
+ls -la ../src/test/resources/secrets/
+```
+
+### SSL Certificate Details
+- **Keystore Password**: `kafka123` (for local development only)
+- **Truststore Password**: `kafka123` (for local development only)
+- **Certificate Validity**: 365 days
+- **Format**: PKCS12 (.p12)
+- **Auto-copy**: Keystore/truststore automatically copied to test resources
+
+### Troubleshooting SSL Setup
+```bash
+# If you get permission errors
+chmod +x scripts/generate-ssl-certs.sh
+
+# If certificates are expired or corrupted
+rm -rf scripts/kafka/secrets/
+rm -rf src/test/resources/secrets/*.p12
+./scripts/generate-ssl-certs.sh
+
+# Verify SSL setup worked
+./scripts/test/test-ssl-connection.sh
+```
+
+### ✅ SSL Setup Complete!
+Once you see the success message "✅ Keystore and truststore files have been automatically copied to test resources!", you're ready to proceed with testing and development.
+
 ## 🚀 Quick Start
 
 ### Option 1: Automated Setup (Recommended)
@@ -137,6 +211,7 @@ cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
 
 This script will:
 - ✅ Check all prerequisites
+- ✅ **Generate SSL certificates** (if not already done)
 - ✅ Set up the Kafka environment with SSL
 - ✅ Start Kafka cluster
 - ✅ Test SSL connectivity
@@ -144,6 +219,8 @@ This script will:
 - ✅ Send and consume test messages
 - ✅ Set up AWS infrastructure (LocalStack)
 - ✅ Provide clear next steps
+
+**💡 Note**: If you're setting up for the first time, the script will automatically run `./generate-ssl-certs.sh` to create the required SSL certificates.
 
 ### Option 2: Manual Setup
 ```bash
@@ -153,6 +230,9 @@ cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
 # Make scripts executable
 chmod +x *.sh
 chmod +x test/*.sh
+
+# Generate SSL certificates (required for first-time setup)
+./generate-ssl-certs.sh
 
 # Set up Kafka environment
 ./setup-local-kafka.sh
@@ -183,6 +263,8 @@ chmod +x test/*.sh
 # Or test Firehose integration specifically
 ./test/validate-firehose-integration.sh
 ```
+
+**🔐 SSL Requirement**: Make sure you've run `./generate-ssl-certs.sh` before running tests, as unit tests require the keystore and truststore files in `src/test/resources/secrets/`.
 
 ### 5. Start the Application
 
@@ -292,12 +374,24 @@ kafka:
 
 ## 🧪 Testing
 
+### 🔐 SSL Certificate Requirement for Testing
+
+**⚠️ IMPORTANT**: Before running any tests, ensure SSL certificates are generated:
+
+```bash
+# Generate SSL certificates (required for unit tests)
+cd scripts && ./generate-ssl-certs.sh
+```
+
+Unit tests require keystore and truststore files in `src/test/resources/secrets/`. The `generate-ssl-certs.sh` script automatically copies these files to the correct location.
+
 ### Test Categories
 
 #### Unit Tests
 - **Location**: `src/test/java`
 - **Framework**: JUnit 5, Mockito
 - **Coverage**: Individual components and business logic
+- **SSL Requirement**: Requires `kafka.keystore.p12` and `kafka.truststore.p12` in `src/test/resources/secrets/`
 
 #### Integration Tests
 - **Location**: `src/test/java/*IntegrationTest.java`
@@ -533,6 +627,9 @@ The `test/validate-service-health.sh` script provides comprehensive end-to-end v
 # Navigate to scripts directory
 cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
 
+# 0. Generate SSL certificates (first-time setup only)
+./generate-ssl-certs.sh
+
 # 1. Start Kafka environment
 ./start-local-kafka.sh
 
@@ -542,6 +639,8 @@ cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
 # 3. Create topic for your work (if needed)
 ./test/create-test-topic.sh my-dev-topic
 ```
+
+**💡 Note**: SSL certificate generation is only needed once. On subsequent runs, you can skip step 0.
 
 #### 🧪 Testing Message Flow
 ```bash
@@ -930,27 +1029,44 @@ docker system prune -f
 ```
 
 #### 3. 🔐 SSL/TLS Issues
-**Problem**: SSL handshake failures
+**Problem**: SSL handshake failures or missing certificates
 **Symptoms**:
 - `SSL handshake failed`
 - `Certificate not found`
 - `javax.net.ssl.SSLHandshakeException`
+- `Unit tests failing with SSL errors`
+- `FileNotFoundException: kafka.keystore.p12`
 **Solutions**:
-1. Regenerate certificates:
-```bash
-   ./generate-ssl-certs.sh
+1. **First-time setup**: Generate SSL certificates:
+   ```bash
+   cd scripts && ./generate-ssl-certs.sh
    ```
-2. Restart Kafka:
+2. **Verify test resources**: Check if certificates are in test resources:
+   ```bash
+   ls -la src/test/resources/secrets/
+   # Should show: kafka.keystore.p12 and kafka.truststore.p12
+   ```
+3. **Regenerate certificates** (if corrupted or expired):
+   ```bash
+   rm -rf scripts/kafka/secrets/
+   rm -rf src/test/resources/secrets/*.p12
+   ./scripts/generate-ssl-certs.sh
+   ```
+4. **Restart Kafka**:
    ```bash
    ./stop-local-kafka.sh && ./start-local-kafka.sh
    ```
-3. Verify certificate validity:
+5. **Verify certificate validity**:
    ```bash
-   keytool -list -v -keystore kafka/secrets/kafka.keystore.p12
+   keytool -list -v -keystore kafka/secrets/kafka.keystore.p12 -storepass kafka123
    ```
-4. Check certificate expiration:
+6. **Check certificate expiration**:
    ```bash
-   keytool -list -keystore kafka/secrets/kafka.keystore.p12 | grep "Valid from"
+   keytool -list -keystore kafka/secrets/kafka.keystore.p12 -storepass kafka123 | grep "Valid from"
+   ```
+7. **Test SSL connectivity**:
+   ```bash
+   ./test/test-ssl-connection.sh
    ```
 
 #### 4. ☕ Java Version Issues
@@ -990,7 +1106,42 @@ docker system prune -f
    rm -rf ~/.m2/repository
    ```
 
-#### 6. 🔧 jq/bc Missing (WiFi Generator Issues)
+#### 6. 🧪 Unit Test Failures (SSL Related)
+**Problem**: Unit tests failing due to missing SSL certificates
+**Symptoms**:
+- `FileNotFoundException: kafka.keystore.p12`
+- `SSL handshake failed` in unit tests
+- `No such file or directory: src/test/resources/secrets/`
+**Solutions**:
+1. **Generate SSL certificates for tests**:
+   ```bash
+   cd scripts && ./generate-ssl-certs.sh
+   ```
+2. **Verify test resources directory**:
+   ```bash
+   ls -la src/test/resources/secrets/
+   # Should contain: kafka.keystore.p12, kafka.truststore.p12
+   ```
+3. **Check .gitignore exceptions**:
+   ```bash
+   git status src/test/resources/secrets/
+   # Should show the .p12 files as tracked
+   ```
+4. **Re-run tests**:
+   ```bash
+   mvn test
+   ```
+5. **If still failing, regenerate and commit**:
+   ```bash
+   rm -rf src/test/resources/secrets/*.p12
+   ./scripts/generate-ssl-certs.sh
+   git add src/test/resources/secrets/*.p12
+   git commit -m "Update SSL certificates for tests"
+   mvn test
+   ```
+   ```
+
+#### 7. 🔧 jq/bc Missing (WiFi Generator Issues)
 **Problem**: WiFi message generation fails
 **Symptoms**:
 - `jq: command not found`
@@ -1004,7 +1155,7 @@ brew install jq
 brew install bc
 ```
 
-#### 7. 📨 Message Production/Consumption Issues
+#### 8. 📨 Message Production/Consumption Issues
 **Problem**: Messages not being sent or received
 **Symptoms**:
 - No messages in topic

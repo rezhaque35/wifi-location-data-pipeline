@@ -41,13 +41,15 @@ TRUSTSTORE_FILE="kafka.truststore.p12"
 CA_CERT="ca-cert"
 CA_KEY="ca-key"
 
-# Directory paths
-SECRETS_DIR="scripts/kafka/secrets"
+# Directory paths - Fixed to create kafka/secrets in scripts directory
+SECRETS_DIR="kafka/secrets"
+TEST_RESOURCES_SECRETS_DIR="../src/test/resources/secrets"
 
 # Function to create directories
 create_directories() {
     print_status "Creating certificate directories..."
     mkdir -p "${SECRETS_DIR}"
+    mkdir -p "${TEST_RESOURCES_SECRETS_DIR}"
     print_success "Directories created!"
 }
 
@@ -65,6 +67,12 @@ cleanup_existing_certificates() {
         print_success "Existing certificates cleaned up!"
     else
         print_status "No existing certificates found."
+    fi
+    
+    # Also cleanup test resources directory
+    if [ -d "${TEST_RESOURCES_SECRETS_DIR}" ]; then
+        rm -f "${TEST_RESOURCES_SECRETS_DIR}"/*.p12
+        print_success "Test resources certificates cleaned up!"
     fi
 }
 
@@ -198,6 +206,18 @@ create_credential_files() {
     cd - > /dev/null
 }
 
+# Function to copy keystore and truststore to test resources
+copy_to_test_resources() {
+    print_status "Copying keystore and truststore to test resources..."
+    
+    # Copy keystore and truststore files to test resources
+    cp "${SECRETS_DIR}/${KEYSTORE_FILE}" "${TEST_RESOURCES_SECRETS_DIR}/"
+    cp "${SECRETS_DIR}/${TRUSTSTORE_FILE}" "${TEST_RESOURCES_SECRETS_DIR}/"
+    
+    print_success "Keystore and truststore copied to test resources!"
+    print_status "Test resources location: ${TEST_RESOURCES_SECRETS_DIR}"
+}
+
 # Function to validate generated certificates
 validate_certificates() {
     print_status "Validating generated certificates..."
@@ -244,6 +264,7 @@ main() {
     import_certificates_to_keystore
     create_truststore
     create_credential_files
+    copy_to_test_resources
     validate_certificates
     cleanup_temp_files
     
@@ -253,14 +274,21 @@ main() {
     echo "- ${SECRETS_DIR}/${KEYSTORE_FILE}"
     echo "- ${SECRETS_DIR}/${TRUSTSTORE_FILE}"
     echo ""
+    echo "Test resources files:"
+    echo "- ${TEST_RESOURCES_SECRETS_DIR}/${KEYSTORE_FILE}"
+    echo "- ${TEST_RESOURCES_SECRETS_DIR}/${TRUSTSTORE_FILE}"
+    echo ""
     echo "Certificate locations for application:"
-    echo "- Keystore: scripts/kafka/secrets/${KEYSTORE_FILE}"
-    echo "- Truststore: scripts/kafka/secrets/${TRUSTSTORE_FILE}"
+    echo "- Keystore: ${SECRETS_DIR}/${KEYSTORE_FILE}"
+    echo "- Truststore: ${SECRETS_DIR}/${TRUSTSTORE_FILE}"
     echo ""
     echo "Passwords (for local development only):"
     echo "- Keystore password: ${KEYSTORE_PASSWORD}"
     echo "- Truststore password: ${TRUSTSTORE_PASSWORD}"
     echo "- Key password: ${KEY_PASSWORD}"
+    echo ""
+    print_success "✅ Keystore and truststore files have been automatically copied to test resources!"
+    print_success "✅ Unit tests should now work on other machines without manual file copying!"
     echo ""
 }
 
