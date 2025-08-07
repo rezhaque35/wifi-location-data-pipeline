@@ -419,6 +419,181 @@ mvn verify
 ./test/validate-service-health.sh --count 10 --verbose
 ```
 
+### 🧪 Comprehensive Test Suite (`run-test-suite.sh`)
+
+The `run-test-suite.sh` script provides **comprehensive end-to-end validation** of the entire WiFi scan queue consumer service. It runs **13 different test scenarios** covering all major use cases and edge cases.
+
+#### 🎯 **Test Categories & Use Cases**
+
+##### **1. Basic Functionality Tests**
+- **Test**: Basic Functionality (3 messages)
+- **Purpose**: Validates core message processing capabilities
+- **Use Case**: Ensures the service can handle basic WiFi scan data ingestion
+- **Validation**: Message consumption, health monitoring, S3 data delivery
+
+##### **2. Performance & Load Testing**
+- **Test**: Quick Processing (5 messages, 0.5s interval)
+- **Purpose**: Tests rapid message processing capabilities
+- **Use Case**: High-frequency WiFi scan data from mobile devices
+- **Validation**: Processing speed, memory usage, response times
+
+- **Test**: Moderate Load (10 messages, 1s interval)
+- **Purpose**: Validates steady-state processing performance
+- **Use Case**: Continuous WiFi scan data streams from multiple sources
+- **Validation**: Throughput, stability, resource utilization
+
+- **Test**: High Frequency (15 messages, 0.3s interval)
+- **Purpose**: Stress tests the service under high message volume
+- **Use Case**: Peak traffic scenarios, mobile app usage spikes
+- **Validation**: System resilience, error handling, performance degradation
+
+##### **3. Health Monitoring & Observability**
+- **Test**: Health Monitoring (8 messages, frequent checks)
+- **Purpose**: Validates health check endpoints and monitoring capabilities
+- **Use Case**: Production monitoring, alerting, and observability
+- **Validation**: Health endpoints, metrics collection, status reporting
+
+- **Test**: Verbose Monitoring (5 messages with detailed output)
+- **Purpose**: Tests detailed logging and debugging capabilities
+- **Use Case**: Development debugging, production troubleshooting
+- **Validation**: Log output, error reporting, diagnostic information
+
+##### **4. AWS Firehose Integration Testing**
+- **Test**: Firehose Integration - Basic (5 messages)
+- **Purpose**: Validates AWS Kinesis Firehose data delivery
+- **Use Case**: Streaming data to S3 data lake for analytics
+- **Validation**: Firehose delivery, S3 storage, data format
+
+- **Test**: Firehose Integration - Moderate Load (10 messages)
+- **Purpose**: Tests Firehose performance under normal load
+- **Use Case**: Production data pipeline reliability
+- **Validation**: Delivery reliability, data consistency, error handling
+
+- **Test**: Firehose Integration - High Frequency (15 messages, 0.5s interval)
+- **Purpose**: Stress tests Firehose integration under high volume
+- **Use Case**: Peak data ingestion scenarios
+- **Validation**: Throughput limits, backpressure handling, data loss prevention
+
+- **Test**: Firehose Integration - Verbose (8 messages with detailed output)
+- **Purpose**: Detailed validation of Firehose data transformation
+- **Use Case**: Data quality assurance, format validation
+- **Validation**: Data transformation, encoding, compression
+
+##### **5. WiFi Scan Endpoint Testing**
+- **Test**: WiFi Scan Endpoint - Basic (3 messages)
+- **Purpose**: Validates REST API endpoint for WiFi scan data
+- **Use Case**: Direct API integration with mobile apps
+- **Validation**: HTTP endpoints, request/response handling, data validation
+
+- **Test**: WiFi Scan Endpoint - Moderate Load (5 messages)
+- **Purpose**: Tests endpoint performance under normal usage
+- **Use Case**: Production API usage patterns
+- **Validation**: Response times, error handling, rate limiting
+
+- **Test**: WiFi Scan Endpoint - Verbose (3 messages with detailed output)
+- **Purpose**: Detailed API validation and debugging
+- **Use Case**: API development and troubleshooting
+- **Validation**: Request/response logging, error details, data format
+
+#### 🔧 **Test Suite Features**
+
+##### **Automated Environment Management**
+- **S3 Bucket Cleanup**: Automatically cleans S3 bucket before and after tests
+- **Data Backup**: Optional backup of existing S3 data before cleanup
+- **Health Recovery**: Automatically detects and recovers from message consumption timeouts
+- **Resource Cleanup**: Ensures clean test environment for each test
+
+##### **Comprehensive Validation**
+- **Message Processing**: Validates end-to-end message flow from Kafka to S3
+- **Health Monitoring**: Checks service health, readiness, and liveness endpoints
+- **Data Integrity**: Verifies data transformation and storage in S3
+- **Error Handling**: Tests error scenarios and recovery mechanisms
+- **Performance Metrics**: Monitors processing times and throughput
+
+##### **Flexible Configuration**
+```bash
+# Basic test suite run
+./test/run-test-suite.sh
+
+# Skip cleanup (preserve test data)
+./test/run-test-suite.sh --skip-cleanup
+
+# Backup existing data before cleanup
+./test/run-test-suite.sh --backup-old-data
+
+# Verbose output for debugging
+./test/run-test-suite.sh --verbose
+
+# Combine options
+./test/run-test-suite.sh --skip-cleanup --verbose
+```
+
+#### 📊 **Test Results & Reporting**
+
+The test suite provides comprehensive reporting:
+- **Individual Test Results**: Pass/fail status for each test scenario
+- **Summary Statistics**: Total tests, passed, failed counts
+- **Detailed Output**: Verbose mode shows detailed test execution
+- **Error Details**: Specific failure reasons and debugging information
+
+#### 🎯 **Use Cases Validated**
+
+1. **📱 Mobile App Integration**: WiFi scan data ingestion from mobile devices
+2. **🏢 Enterprise WiFi Monitoring**: Large-scale WiFi network monitoring
+3. **📊 Data Analytics Pipeline**: Real-time data processing for analytics
+4. **🔍 IoT Device Integration**: WiFi-enabled IoT device data collection
+5. **🌐 Multi-tenant Services**: Shared infrastructure for multiple clients
+6. **⚡ High-frequency Data**: Rapid WiFi scan data from dense environments
+7. **🛡️ Production Reliability**: Enterprise-grade reliability and monitoring
+8. **🔧 Development Workflow**: Local development and testing capabilities
+
+#### 🚀 **Running the Test Suite**
+
+```bash
+# Navigate to scripts directory
+cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
+
+# Run complete test suite
+./test/run-test-suite.sh
+
+# Run with verbose output for debugging
+./test/run-test-suite.sh --verbose
+
+# Run without cleanup (preserve test data)
+./test/run-test-suite.sh --skip-cleanup
+
+# Run with data backup
+./test/run-test-suite.sh --backup-old-data --verbose
+```
+
+**Expected Output**:
+```
+========================================
+SERVICE VALIDATION TEST SUITE
+========================================
+
+[TEST] Running: Basic Functionality (3 messages)
+[PASS] Basic Functionality (3 messages)
+
+[TEST] Running: Quick Processing (5 messages, 0.5s interval)
+[PASS] Quick Processing (5 messages, 0.5s interval)
+
+...
+
+========================================
+TEST RESULTS SUMMARY
+========================================
+✅ PASS - Basic Functionality (3 messages)
+✅ PASS - Quick Processing (5 messages, 0.5s interval)
+...
+
+Total Tests: 13
+Passed: 13
+Failed: 0
+
+🎉 ALL TESTS PASSED!
+```
+
 ### Test Configuration
 
 Tests use the `test` profile with:
@@ -481,6 +656,7 @@ wifi-scan-queue-consumer/
 
 | Script | Purpose | Usage | Parameters | Use Case |
 |--------|---------|--------|------------|----------|
+| `test/run-test-suite.sh` | **🎯 Comprehensive test suite (13 scenarios)** | `./test/run-test-suite.sh [options]` | --skip-cleanup, --backup-old-data, --verbose | **Complete service validation** |
 | `test/test-ssl-connection.sh` | Validate SSL connectivity | `./test/test-ssl-connection.sh` | None | SSL verification |
 | `test/create-test-topic.sh` | Create test topic | `./test/create-test-topic.sh [topic-name]` | Optional: topic name | Topic management |
 | `test/send-test-message.sh` | Send simple text messages | `./test/send-test-message.sh "message" [topic-name]` | Required: message, Optional: topic | Basic testing |
@@ -489,6 +665,55 @@ wifi-scan-queue-consumer/
 | `test/validate-firehose-integration.sh` | **Firehose integration testing** | `./test/validate-firehose-integration.sh [options]` | --count, --interval, --timeout, --verbose | **AWS integration testing** |
 | `test/validate-wifi-scan-endpoint.sh` | **WiFi scan endpoint testing** | `./test/validate-wifi-scan-endpoint.sh [options]` | --count, --interval, --timeout, --verbose | **Endpoint validation** |
 | `test/consume-test-messages.sh` | Consume messages | `./test/consume-test-messages.sh [topic-name]` | Optional: topic name | Message verification |
+
+### 🎯 Comprehensive Test Suite (`run-test-suite.sh`)
+
+The `run-test-suite.sh` script is the **flagship testing tool** that validates the entire service through **13 comprehensive test scenarios**. It provides **end-to-end validation** of all major use cases and production scenarios.
+
+#### 📋 **Test Scenarios Overview**
+
+| Test Category | Test Name | Messages | Interval | Purpose |
+|---------------|-----------|----------|----------|---------|
+| **Basic Functionality** | Basic Functionality | 3 | 1s | Core message processing |
+| **Performance** | Quick Processing | 5 | 0.5s | Rapid processing validation |
+| **Performance** | Moderate Load | 10 | 1s | Steady-state performance |
+| **Performance** | High Frequency | 15 | 0.3s | Stress testing |
+| **Monitoring** | Health Monitoring | 8 | 1s | Health check validation |
+| **Monitoring** | Verbose Monitoring | 5 | 1s | Detailed logging validation |
+| **Firehose** | Firehose Integration - Basic | 5 | 1s | AWS Firehose validation |
+| **Firehose** | Firehose Integration - Moderate | 10 | 1s | Firehose performance |
+| **Firehose** | Firehose Integration - High Freq | 15 | 0.5s | Firehose stress testing |
+| **Firehose** | Firehose Integration - Verbose | 8 | 1s | Firehose detailed validation |
+| **API** | WiFi Scan Endpoint - Basic | 3 | 1s | REST API validation |
+| **API** | WiFi Scan Endpoint - Moderate | 5 | 1s | API performance |
+| **API** | WiFi Scan Endpoint - Verbose | 3 | 1s | API detailed validation |
+
+#### 🚀 **Quick Start**
+
+```bash
+# Run complete test suite (recommended)
+./test/run-test-suite.sh
+
+# Run with verbose output for debugging
+./test/run-test-suite.sh --verbose
+
+# Run without cleanup (preserve test data)
+./test/run-test-suite.sh --skip-cleanup
+
+# Run with data backup before cleanup
+./test/run-test-suite.sh --backup-old-data --verbose
+```
+
+#### 🎯 **What Gets Validated**
+
+1. **📱 Message Processing**: End-to-end flow from Kafka to S3
+2. **🏥 Health Monitoring**: Service health, readiness, and liveness
+3. **📊 Data Integrity**: S3 data transformation and storage
+4. **⚡ Performance**: Processing speed and throughput
+5. **🛡️ Reliability**: Error handling and recovery
+6. **🔗 AWS Integration**: Firehose delivery and S3 storage
+7. **🌐 API Functionality**: REST endpoint validation
+8. **📈 Observability**: Logging and monitoring capabilities
 
 ### WiFi Scan Message Generator
 
