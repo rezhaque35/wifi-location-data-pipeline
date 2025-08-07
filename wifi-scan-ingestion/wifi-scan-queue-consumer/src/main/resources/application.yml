@@ -125,6 +125,9 @@ aws:
     secret-key: ${AWS_SECRET_ACCESS_KEY:test}  # LocalStack test credentials
   firehose:
     delivery-stream-name: ${AWS_FIREHOSE_DELIVERY_STREAM_NAME:MVS-stream}
+    # Explicit Firehose endpoint for production optimization (optional)
+    # Leave empty to use AWS SDK default: https://firehose.{region}.amazonaws.com
+    endpoint-url: ${AWS_FIREHOSE_ENDPOINT_URL:}
     # Enhanced Firehose Configuration for Batch Processing
     buffer-time: 300         # 5 minutes (optimized)
     batch-processing:

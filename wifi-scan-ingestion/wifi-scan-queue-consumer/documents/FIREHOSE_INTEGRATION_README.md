@@ -12,6 +12,7 @@ The WiFi Scan Queue Consumer service now includes comprehensive AWS Kinesis Data
 - **IAM Security**: Proper role-based access control
 - **Health Monitoring**: Service health checks for Firehose connectivity
 - **Comprehensive Testing**: End-to-end validation scripts
+- **Intelligent Endpoint Selection**: Automatic endpoint configuration for different environments
 
 ## Architecture
 
@@ -36,17 +37,124 @@ The service is configured via `application.yml`:
 ```yaml
 aws:
   region: us-east-1
-  endpoint-url: http://localhost:4566  # LocalStack endpoint
+  endpoint-url: http://localhost:4566  # LocalStack endpoint (development only)
   credentials:
     access-key: test
     secret-key: test
   firehose:
     delivery-stream-name: MVS-stream
+    # Explicit Firehose endpoint for production optimization (optional)
+    endpoint-url: ${AWS_FIREHOSE_ENDPOINT_URL:}  # Leave empty for AWS SDK default
     buffer-time: 300         # 5 minutes
     batch-processing:
       min-batch-size: 10
       max-batch-size: 150
 ```
+
+## 🔗 Endpoint Configuration
+
+### **Intelligent Endpoint Selection**
+
+The Firehose client uses intelligent endpoint selection with the following priority order:
+
+1. **LocalStack endpoint** (development) - if `aws.endpoint-url` contains "localhost"
+2. **Explicit Firehose endpoint** (production optimization) - if `aws.firehose.endpoint-url` is set
+3. **AWS SDK default endpoint** (fallback) - automatically determined by region
+
+### **Environment-Specific Configuration**
+
+#### **Development (LocalStack)**
+```yaml
+aws:
+  region: us-east-1
+  endpoint-url: http://localhost:4566  # LocalStack endpoint
+  credentials:
+    access-key: test
+    secret-key: test
+  firehose:
+    endpoint-url:  # Leave empty - will use LocalStack endpoint
+```
+
+**Result**: Uses `http://localhost:4566` for all AWS services
+
+#### **Production (AWS Default)**
+```yaml
+aws:
+  region: us-east-1
+  endpoint-url:  # Leave empty
+  firehose:
+    endpoint-url:  # Leave empty - will use AWS SDK default
+```
+
+**Result**: Uses `https://firehose.us-east-1.amazonaws.com` (AWS SDK default)
+
+#### **Production (Explicit Firehose Endpoint)**
+```yaml
+aws:
+  region: us-east-1
+  endpoint-url:  # Leave empty
+  firehose:
+    endpoint-url: https://firehose.us-east-1.amazonaws.com  # Explicit endpoint
+```
+
+**Result**: Uses `https://firehose.us-east-1.amazonaws.com` (explicit override)
+
+#### **VPC Environment**
+```yaml
+aws:
+  region: us-east-1
+  endpoint-url:  # Leave empty
+  firehose:
+    endpoint-url: https://firehose.us-east-1.amazonaws.com  # VPC endpoint
+```
+
+**Result**: Uses VPC endpoint for enhanced security
+
+### **Endpoint URLs by Region**
+
+| Region | AWS SDK Default Firehose Endpoint |
+|--------|-----------------------------------|
+| us-east-1 | `https://firehose.us-east-1.amazonaws.com` |
+| us-west-2 | `https://firehose.us-west-2.amazonaws.com` |
+| eu-west-1 | `https://firehose.eu-west-1.amazonaws.com` |
+| ap-southeast-1 | `https://firehose.ap-southeast-1.amazonaws.com` |
+
+### **Configuration Examples**
+
+#### **Environment Variables**
+
+```bash
+# Development (LocalStack)
+export AWS_ENDPOINT_URL=http://localhost:4566
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+
+# Production (AWS Default)
+export AWS_REGION=us-east-1
+# No endpoint overrides needed
+
+# Production (Explicit Firehose Endpoint)
+export AWS_FIREHOSE_ENDPOINT_URL=https://firehose.us-east-1.amazonaws.com
+export AWS_REGION=us-east-1
+```
+
+#### **Docker Environment**
+
+```yaml
+# docker-compose.yml
+environment:
+  - AWS_ENDPOINT_URL=http://localhost:4566  # LocalStack
+  - AWS_ACCESS_KEY_ID=test
+  - AWS_SECRET_ACCESS_KEY=test
+```
+
+### **Benefits of Intelligent Endpoint Selection**
+
+1. **🔧 Development Flexibility**: Automatic LocalStack detection
+2. **🚀 Production Performance**: Optimized endpoint selection
+3. **🛡️ Security**: Support for VPC endpoints
+4. **📊 Monitoring**: Clear logging of endpoint selection
+5. **🔄 Zero Configuration**: Works out of the box for most scenarios
 
 ### Firehose Configuration
 

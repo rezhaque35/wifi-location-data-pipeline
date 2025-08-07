@@ -27,12 +27,13 @@ import software.amazon.awssdk.services.firehose.FirehoseClientBuilder;
  * - Provides flexible credential management (static or default provider chain)
  * - Exposes delivery stream name as a configurable bean
  * - Handles both production AWS and development LocalStack configurations
+ * - Intelligent endpoint selection: LocalStack vs AWS default vs explicit Firehose endpoint
  * 
  * High-Level Steps:
  * 1. Read configuration properties for AWS region, credentials, and endpoints
  * 2. Create FirehoseClientBuilder with specified AWS region
  * 3. Configure credentials provider (static or default chain)
- * 4. Set custom endpoint for LocalStack development if specified
+ * 4. Intelligently select endpoint: LocalStack > Explicit Firehose > AWS default
  * 5. Build and return configured FirehoseClient instance
  * 6. Expose delivery stream name as a Spring bean
  * 
@@ -55,6 +56,10 @@ public class FirehoseConfiguration {
     @Value("${aws.endpoint-url:}")
     private String endpointUrl;
 
+    /** Explicit Firehose endpoint URL for production optimization (optional) */
+    @Value("${aws.firehose.endpoint-url:}")
+    private String firehoseEndpointUrl;
+
     /** AWS access key for static credentials (used with LocalStack) */
     @Value("${aws.credentials.access-key:}")
     private String accessKey;
@@ -73,13 +78,18 @@ public class FirehoseConfiguration {
      * This bean method creates a fully configured FirehoseClient that can be used
      * throughout the application for delivering processed WiFi scan data to AWS
      * Kinesis Data Firehose. The client supports both production AWS and LocalStack
-     * development environments.
+     * development environments with intelligent endpoint selection.
+     * 
+     * Endpoint Selection Priority:
+     * 1. LocalStack endpoint (for development) - if endpointUrl contains "localhost"
+     * 2. Explicit Firehose endpoint (for production optimization) - if firehoseEndpointUrl is set
+     * 3. AWS SDK default endpoint (fallback) - automatically determined by region
      * 
      * High-Level Steps:
      * 1. Create FirehoseClientBuilder with specified AWS region
      * 2. Check if static credentials are provided (LocalStack scenario)
      * 3. Configure credentials provider based on available credentials
-     * 4. Set custom endpoint if specified (for LocalStack development)
+     * 4. Intelligently select and configure endpoint based on environment
      * 5. Build and return the configured FirehoseClient
      * 6. Log configuration details for monitoring and debugging
      * 
@@ -109,17 +119,44 @@ public class FirehoseConfiguration {
             log.info("Using default credentials provider chain for Firehose client");
         }
 
-        // Configure custom endpoint for LocalStack development environment
-        if (!endpointUrl.isEmpty()) {
-            log.info("Using custom endpoint for Firehose client: {}", endpointUrl);
-            builder.endpointOverride(URI.create(endpointUrl));
-        }
+        // Intelligent endpoint selection with priority order
+        configureEndpoint(builder);
 
         // Build and return the configured FirehoseClient
         FirehoseClient client = builder.build();
         log.info("Firehose client configured successfully for delivery stream: {}", deliveryStreamName);
         
         return client;
+    }
+
+    /**
+     * Configures the endpoint for the Firehose client with intelligent selection.
+     * 
+     * Priority order:
+     * 1. LocalStack endpoint (development) - if endpointUrl contains "localhost"
+     * 2. Explicit Firehose endpoint (production optimization) - if firehoseEndpointUrl is set
+     * 3. AWS SDK default endpoint (fallback) - automatically determined by region
+     * 
+     * @param builder The FirehoseClientBuilder to configure
+     */
+    private void configureEndpoint(FirehoseClientBuilder builder) {
+        // Priority 1: LocalStack endpoint (for development)
+        if (!endpointUrl.isEmpty() && endpointUrl.contains("localhost")) {
+            log.info("Using LocalStack endpoint for Firehose client: {}", endpointUrl);
+            builder.endpointOverride(URI.create(endpointUrl));
+            return;
+        }
+        
+        // Priority 2: Explicit Firehose endpoint (for production optimization)
+        if (!firehoseEndpointUrl.isEmpty()) {
+            log.info("Using explicit Firehose endpoint: {}", firehoseEndpointUrl);
+            builder.endpointOverride(URI.create(firehoseEndpointUrl));
+            return;
+        }
+        
+        // Priority 3: AWS SDK default endpoint (fallback)
+        log.info("Using AWS SDK default Firehose endpoint for region: {}", awsRegion);
+        // No endpoint override needed - AWS SDK will use: https://firehose.{region}.amazonaws.com
     }
 
     /**
