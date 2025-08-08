@@ -3,9 +3,7 @@ package com.wifi.measurements.transformer.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Represents a WiFi connected event.
- */
+/** Represents a WiFi connected event. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record WifiConnectedEvent(
     @JsonProperty("timestamp") Long timestamp,
@@ -15,5 +13,4 @@ public record WifiConnectedEvent(
     @JsonProperty("isCaptive") Boolean isCaptive,
     @JsonProperty("returnedIP") String returnedIP,
     @JsonProperty("wifiConnectedInfo") WifiConnectedInfo wifiConnectedInfo,
-    @JsonProperty("location") LocationData location
-) {} 
+    @JsonProperty("location") LocationData location) {}

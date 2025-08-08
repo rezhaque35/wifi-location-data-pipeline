@@ -1,264 +1,292 @@
 // wifi-measurements-transformer-service/src/test/java/com/wifi/measurements/transformer/service/DataValidationServiceTest.java
 package com.wifi.measurements.transformer.service;
 
-import com.wifi.measurements.transformer.config.properties.DataFilteringConfigurationProperties;
-import com.wifi.measurements.transformer.dto.LocationData;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import static com.wifi.measurements.transformer.service.DataValidationService.ONE_YEAR_MILLIS;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
+
+import java.util.Set;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Set;
+import com.wifi.measurements.transformer.config.properties.DataFilteringConfigurationProperties;
+import com.wifi.measurements.transformer.dto.LocationData;
 
-import static com.wifi.measurements.transformer.service.DataValidationService.ONE_YEAR_MILLIS;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.lenient;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class DataValidationServiceTest {
 
-    @Mock
-    private DataFilteringConfigurationProperties filteringConfig;
-    
-    @Mock
-    private DataFilteringConfigurationProperties.MobileHotspotConfiguration mobileHotspot;
-    
-    private DataValidationService validationService;
+  @Mock private DataFilteringConfigurationProperties filteringConfig;
 
-    @BeforeEach
-    void setUp() {
-        // Configure default filtering properties
-        lenient().when(filteringConfig.maxLocationAccuracy()).thenReturn(150.0);
-        lenient().when(filteringConfig.minRssi()).thenReturn(-100);
-        lenient().when(filteringConfig.maxRssi()).thenReturn(0);
-        lenient().when(filteringConfig.mobileHotspot()).thenReturn(mobileHotspot);
-        lenient().when(mobileHotspot.enabled()).thenReturn(true);
-        lenient().when(mobileHotspot.ouiBlacklist()).thenReturn(Set.of("00:11:22", "AA:BB:CC", "FF:FF:FF"));
-        lenient().when(mobileHotspot.action()).thenReturn(DataFilteringConfigurationProperties.MobileHotspotAction.EXCLUDE);
-        
-        validationService = new DataValidationService(filteringConfig, new SimpleMeterRegistry());
-    }
+  @Mock private DataFilteringConfigurationProperties.MobileHotspotConfiguration mobileHotspot;
 
-    @Test
-    void validateLocation_ValidLocation_ReturnsSuccess() {
-        // Given
-        LocationData location = new LocationData(
-            "fused", 40.6768816, -74.416391, 110.9, 100.0, 
-            System.currentTimeMillis(), "fused", 0.0, 0.0
-        );
+  private DataValidationService validationService;
 
-        // When
-        DataValidationService.ValidationResult result = validationService.validateLocation(location);
+  @BeforeEach
+  void setUp() {
+    // Configure default filtering properties
+    lenient().when(filteringConfig.maxLocationAccuracy()).thenReturn(150.0);
+    lenient().when(filteringConfig.minRssi()).thenReturn(-100);
+    lenient().when(filteringConfig.maxRssi()).thenReturn(0);
+    lenient().when(filteringConfig.mobileHotspot()).thenReturn(mobileHotspot);
+    lenient().when(mobileHotspot.enabled()).thenReturn(true);
+    lenient()
+        .when(mobileHotspot.ouiBlacklist())
+        .thenReturn(Set.of("00:11:22", "AA:BB:CC", "FF:FF:FF"));
+    lenient()
+        .when(mobileHotspot.action())
+        .thenReturn(DataFilteringConfigurationProperties.MobileHotspotAction.EXCLUDE);
 
-        // Then
-        assertThat(result.valid()).isTrue();
-        assertThat(result.errorMessage()).isNull();
-    }
+    validationService = new DataValidationService(filteringConfig, new SimpleMeterRegistry());
+  }
 
-    @Test
-    void validateLocation_NullLocation_ReturnsInvalid() {
-        // When
-        DataValidationService.ValidationResult result = validationService.validateLocation(null);
+  @Test
+  void validateLocation_ValidLocation_ReturnsSuccess() {
+    // Given
+    LocationData location =
+        new LocationData(
+            "fused",
+            40.6768816,
+            -74.416391,
+            110.9,
+            100.0,
+            System.currentTimeMillis(),
+            "fused",
+            0.0,
+            0.0);
 
-        // Then
-        assertThat(result.valid()).isFalse();
-        assertThat(result.errorMessage()).isEqualTo("Location data is null");
-    }
+    // When
+    DataValidationService.ValidationResult result = validationService.validateLocation(location);
 
-    @Test
-    void validateLocation_InvalidCoordinates_ReturnsInvalid() {
-        // Given
-        LocationData location = new LocationData(
-            "fused", 91.0, -74.416391, 110.9, 100.0, 
-            System.currentTimeMillis(), "fused", 0.0, 0.0
-        );
+    // Then
+    assertThat(result.valid()).isTrue();
+    assertThat(result.errorMessage()).isNull();
+  }
 
-        // When
-        DataValidationService.ValidationResult result = validationService.validateLocation(location);
+  @Test
+  void validateLocation_NullLocation_ReturnsInvalid() {
+    // When
+    DataValidationService.ValidationResult result = validationService.validateLocation(null);
 
-        // Then
-        assertThat(result.valid()).isFalse();
-        assertThat(result.errorMessage()).contains("Invalid coordinates");
-    }
+    // Then
+    assertThat(result.valid()).isFalse();
+    assertThat(result.errorMessage()).isEqualTo("Location data is null");
+  }
 
-    @Test
-    void validateLocation_AccuracyExceedsThreshold_ReturnsInvalid() {
-        // Given
-        LocationData location = new LocationData(
-            "fused", 40.6768816, -74.416391, 110.9, 200.0, 
-            System.currentTimeMillis(), "fused", 0.0, 0.0
-        );
+  @Test
+  void validateLocation_InvalidCoordinates_ReturnsInvalid() {
+    // Given
+    LocationData location =
+        new LocationData(
+            "fused", 91.0, -74.416391, 110.9, 100.0, System.currentTimeMillis(), "fused", 0.0, 0.0);
 
-        // When
-        DataValidationService.ValidationResult result = validationService.validateLocation(location);
+    // When
+    DataValidationService.ValidationResult result = validationService.validateLocation(location);
 
-        // Then
-        assertThat(result.valid()).isFalse();
-        assertThat(result.errorMessage()).contains("Location accuracy 200.0m exceeds threshold 150.0m");
-    }
+    // Then
+    assertThat(result.valid()).isFalse();
+    assertThat(result.errorMessage()).contains("Invalid coordinates");
+  }
 
-    @Test
-    void validateRssi_ValidRssi_ReturnsSuccess() {
-        // When
-        DataValidationService.ValidationResult result = validationService.validateRssi(-58);
+  @Test
+  void validateLocation_AccuracyExceedsThreshold_ReturnsInvalid() {
+    // Given
+    LocationData location =
+        new LocationData(
+            "fused",
+            40.6768816,
+            -74.416391,
+            110.9,
+            200.0,
+            System.currentTimeMillis(),
+            "fused",
+            0.0,
+            0.0);
 
-        // Then
-        assertThat(result.valid()).isTrue();
-        assertThat(result.errorMessage()).isNull();
-    }
+    // When
+    DataValidationService.ValidationResult result = validationService.validateLocation(location);
 
-    @Test
-    void validateRssi_NullRssi_ReturnsInvalid() {
-        // When
-        DataValidationService.ValidationResult result = validationService.validateRssi(null);
+    // Then
+    assertThat(result.valid()).isFalse();
+    assertThat(result.errorMessage()).contains("Location accuracy 200.0m exceeds threshold 150.0m");
+  }
 
-        // Then
-        assertThat(result.valid()).isFalse();
-        assertThat(result.errorMessage()).isEqualTo("RSSI is null");
-    }
+  @Test
+  void validateRssi_ValidRssi_ReturnsSuccess() {
+    // When
+    DataValidationService.ValidationResult result = validationService.validateRssi(-58);
 
-    @Test
-    void validateRssi_TooLowRssi_ReturnsInvalid() {
-        // When
-        DataValidationService.ValidationResult result = validationService.validateRssi(-101);
+    // Then
+    assertThat(result.valid()).isTrue();
+    assertThat(result.errorMessage()).isNull();
+  }
 
-        // Then
-        assertThat(result.valid()).isFalse();
-        assertThat(result.errorMessage()).contains("RSSI -101 dBm outside valid range [-100, 0]");
-    }
+  @Test
+  void validateRssi_NullRssi_ReturnsInvalid() {
+    // When
+    DataValidationService.ValidationResult result = validationService.validateRssi(null);
 
-    @Test
-    void validateBssid_ValidBssid_ReturnsSuccess() {
-        // When
-        DataValidationService.ValidationResult result = validationService.validateBssid("b8:f8:53:c0:1e:ff");
+    // Then
+    assertThat(result.valid()).isFalse();
+    assertThat(result.errorMessage()).isEqualTo("RSSI is null");
+  }
 
-        // Then
-        assertThat(result.valid()).isTrue();
-        assertThat(result.errorMessage()).isNull();
-    }
+  @Test
+  void validateRssi_TooLowRssi_ReturnsInvalid() {
+    // When
+    DataValidationService.ValidationResult result = validationService.validateRssi(-101);
 
-    @Test
-    void validateBssid_ValidBssidWithHyphens_ReturnsSuccess() {
-        // When
-        DataValidationService.ValidationResult result = validationService.validateBssid("b8-f8-53-c0-1e-ff");
+    // Then
+    assertThat(result.valid()).isFalse();
+    assertThat(result.errorMessage()).contains("RSSI -101 dBm outside valid range [-100, 0]");
+  }
 
-        // Then
-        assertThat(result.valid()).isTrue();
-        assertThat(result.errorMessage()).isNull();
-    }
+  @Test
+  void validateBssid_ValidBssid_ReturnsSuccess() {
+    // When
+    DataValidationService.ValidationResult result =
+        validationService.validateBssid("b8:f8:53:c0:1e:ff");
 
-    @Test
-    void validateBssid_NullBssid_ReturnsInvalid() {
-        // When
-        DataValidationService.ValidationResult result = validationService.validateBssid(null);
+    // Then
+    assertThat(result.valid()).isTrue();
+    assertThat(result.errorMessage()).isNull();
+  }
 
-        // Then
-        assertThat(result.valid()).isFalse();
-        assertThat(result.errorMessage()).isEqualTo("BSSID is null or empty");
-    }
+  @Test
+  void validateBssid_ValidBssidWithHyphens_ReturnsSuccess() {
+    // When
+    DataValidationService.ValidationResult result =
+        validationService.validateBssid("b8-f8-53-c0-1e-ff");
 
-    @Test
-    void validateBssid_InvalidFormat_ReturnsInvalid() {
-        // When
-        DataValidationService.ValidationResult result = validationService.validateBssid("invalid-bssid");
+    // Then
+    assertThat(result.valid()).isTrue();
+    assertThat(result.errorMessage()).isNull();
+  }
 
-        // Then
-        assertThat(result.valid()).isFalse();
-        assertThat(result.errorMessage()).contains("Invalid BSSID format");
-    }
+  @Test
+  void validateBssid_NullBssid_ReturnsInvalid() {
+    // When
+    DataValidationService.ValidationResult result = validationService.validateBssid(null);
 
-    @Test
-    void validateBssid_BroadcastAddress_ReturnsInvalid() {
-        // When
-        DataValidationService.ValidationResult result = validationService.validateBssid("ff:ff:ff:ff:ff:ff");
+    // Then
+    assertThat(result.valid()).isFalse();
+    assertThat(result.errorMessage()).isEqualTo("BSSID is null or empty");
+  }
 
-        // Then
-        assertThat(result.valid()).isFalse();
-        assertThat(result.errorMessage()).contains("Invalid BSSID format");
-    }
+  @Test
+  void validateBssid_InvalidFormat_ReturnsInvalid() {
+    // When
+    DataValidationService.ValidationResult result =
+        validationService.validateBssid("invalid-bssid");
 
-    @Test
-    void validateTimestamp_ValidTimestamp_ReturnsSuccess() {
-        // When
-        DataValidationService.ValidationResult result = validationService.validateTimestamp(System.currentTimeMillis());
+    // Then
+    assertThat(result.valid()).isFalse();
+    assertThat(result.errorMessage()).contains("Invalid BSSID format");
+  }
 
-        // Then
-        assertThat(result.valid()).isTrue();
-        assertThat(result.errorMessage()).isNull();
-    }
+  @Test
+  void validateBssid_BroadcastAddress_ReturnsInvalid() {
+    // When
+    DataValidationService.ValidationResult result =
+        validationService.validateBssid("ff:ff:ff:ff:ff:ff");
 
-    @Test
-    void validateTimestamp_NullTimestamp_ReturnsInvalid() {
-        // When
-        DataValidationService.ValidationResult result = validationService.validateTimestamp(null);
+    // Then
+    assertThat(result.valid()).isFalse();
+    assertThat(result.errorMessage()).contains("Invalid BSSID format");
+  }
 
-        // Then
-        assertThat(result.valid()).isFalse();
-        assertThat(result.errorMessage()).isEqualTo("Timestamp is null");
-    }
+  @Test
+  void validateTimestamp_ValidTimestamp_ReturnsSuccess() {
+    // When
+    DataValidationService.ValidationResult result =
+        validationService.validateTimestamp(System.currentTimeMillis());
 
-    @Test
-    void validateTimestamp_FutureTimestamp_ReturnsInvalid() {
-        // When
-        DataValidationService.ValidationResult result = validationService.validateTimestamp(System.currentTimeMillis() + 100000);
+    // Then
+    assertThat(result.valid()).isTrue();
+    assertThat(result.errorMessage()).isNull();
+  }
 
-        // Then
-        assertThat(result.valid()).isFalse();
-        assertThat(result.errorMessage()).isEqualTo("Timestamp is in the future");
-    }
+  @Test
+  void validateTimestamp_NullTimestamp_ReturnsInvalid() {
+    // When
+    DataValidationService.ValidationResult result = validationService.validateTimestamp(null);
 
-    @Test
-    void validateTimestamp_TooOldTimestamp_ReturnsInvalid() {
-        // Given
-        long oneYearAndAMillisecondAgo = System.currentTimeMillis() - (ONE_YEAR_MILLIS + 1);
+    // Then
+    assertThat(result.valid()).isFalse();
+    assertThat(result.errorMessage()).isEqualTo("Timestamp is null");
+  }
 
-        // When
-        DataValidationService.ValidationResult result = validationService.validateTimestamp(oneYearAndAMillisecondAgo);
+  @Test
+  void validateTimestamp_FutureTimestamp_ReturnsInvalid() {
+    // When
+    DataValidationService.ValidationResult result =
+        validationService.validateTimestamp(System.currentTimeMillis() + 100000);
 
-        // Then
-        assertThat(result.valid()).isFalse();
-        assertThat(result.errorMessage()).isEqualTo("Timestamp is more than a year old");
-    }
-    
-    @Test
-    void detectMobileHotspot_Disabled_ReturnsNotChecked() {
-        // Given
-        when(mobileHotspot.enabled()).thenReturn(false);
+    // Then
+    assertThat(result.valid()).isFalse();
+    assertThat(result.errorMessage()).isEqualTo("Timestamp is in the future");
+  }
 
-        // When
-        DataValidationService.MobileHotspotResult result = validationService.detectMobileHotspot("b8:f8:53:c0:1e:ff");
+  @Test
+  void validateTimestamp_TooOldTimestamp_ReturnsInvalid() {
+    // Given
+    long oneYearAndAMillisecondAgo = System.currentTimeMillis() - (ONE_YEAR_MILLIS + 1);
 
-        // Then
-        assertThat(result.checked()).isFalse();
-        assertThat(result.detected()).isFalse();
-        assertThat(result.detectedOui()).isNull();
-        assertThat(result.action()).isNull();
-    }
+    // When
+    DataValidationService.ValidationResult result =
+        validationService.validateTimestamp(oneYearAndAMillisecondAgo);
 
-    @Test
-    void detectMobileHotspot_ValidBssid_ReturnsNotDetected() {
-        // When
-        DataValidationService.MobileHotspotResult result = validationService.detectMobileHotspot("b8:f8:53:c0:1e:ff");
+    // Then
+    assertThat(result.valid()).isFalse();
+    assertThat(result.errorMessage()).isEqualTo("Timestamp is more than a year old");
+  }
 
-        // Then
-        assertThat(result.checked()).isTrue();
-        assertThat(result.detected()).isFalse();
-        assertThat(result.detectedOui()).isNull();
-        assertThat(result.action()).isNull();
-    }
+  @Test
+  void detectMobileHotspot_Disabled_ReturnsNotChecked() {
+    // Given
+    when(mobileHotspot.enabled()).thenReturn(false);
 
-    @Test
-    void detectMobileHotspot_KnownMobileOui_ReturnsDetected() {
-        // When
-        DataValidationService.MobileHotspotResult result = validationService.detectMobileHotspot("00:11:22:aa:bb:cc");
+    // When
+    DataValidationService.MobileHotspotResult result =
+        validationService.detectMobileHotspot("b8:f8:53:c0:1e:ff");
 
-        // Then
-        assertThat(result.checked()).isTrue();
-        assertThat(result.detected()).isTrue();
-        assertThat(result.detectedOui()).isEqualTo("00:11:22");
-        assertThat(result.action()).isEqualTo(DataFilteringConfigurationProperties.MobileHotspotAction.EXCLUDE);
-    }
-} 
+    // Then
+    assertThat(result.checked()).isFalse();
+    assertThat(result.detected()).isFalse();
+    assertThat(result.detectedOui()).isNull();
+    assertThat(result.action()).isNull();
+  }
+
+  @Test
+  void detectMobileHotspot_ValidBssid_ReturnsNotDetected() {
+    // When
+    DataValidationService.MobileHotspotResult result =
+        validationService.detectMobileHotspot("b8:f8:53:c0:1e:ff");
+
+    // Then
+    assertThat(result.checked()).isTrue();
+    assertThat(result.detected()).isFalse();
+    assertThat(result.detectedOui()).isNull();
+    assertThat(result.action()).isNull();
+  }
+
+  @Test
+  void detectMobileHotspot_KnownMobileOui_ReturnsDetected() {
+    // When
+    DataValidationService.MobileHotspotResult result =
+        validationService.detectMobileHotspot("00:11:22:aa:bb:cc");
+
+    // Then
+    assertThat(result.checked()).isTrue();
+    assertThat(result.detected()).isTrue();
+    assertThat(result.detectedOui()).isEqualTo("00:11:22");
+    assertThat(result.action())
+        .isEqualTo(DataFilteringConfigurationProperties.MobileHotspotAction.EXCLUDE);
+  }
+}

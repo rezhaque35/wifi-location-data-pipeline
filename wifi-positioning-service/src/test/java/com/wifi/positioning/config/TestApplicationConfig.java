@@ -10,5 +10,5 @@ import org.springframework.context.annotation.Import;
 @ComponentScan(basePackages = "com.wifi.positioning")
 @Import(TestDynamoDBConfig.class)
 public class TestApplicationConfig {
-    // Empty configuration class that enables component scanning and auto-configuration
-} 
+  // Empty configuration class that enables component scanning and auto-configuration
+}

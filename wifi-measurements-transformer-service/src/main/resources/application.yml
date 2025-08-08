@@ -2,12 +2,28 @@ spring:
   application:
     name: wifi-measurements-transformer-service
   
+  # Jackson JSON Processing Configuration
+  # Controls how JSON serialization/deserialization works throughout the application
+  # Used by ObjectMapper for SQS message parsing, WiFi data processing, and Firehose output
   jackson:
+    # Exclude null fields from JSON output to reduce payload size
+    # Important for Firehose efficiency and S3 storage optimization
     default-property-inclusion: non_null
+    
+    # JSON Serialization Settings (Java objects → JSON)
     serialization:
+      # Use ISO-8601 format instead of timestamps for better readability and debugging
+      # Example: "2024-01-15T10:30:00Z" instead of 1705312200000
       write-dates-as-timestamps: false
+      # Allow serialization of empty objects without throwing exceptions
+      # Prevents errors when processing incomplete WiFi scan data
       fail-on-empty-beans: false
+    
+    # JSON Deserialization Settings (JSON → Java objects)
     deserialization:
+      # Ignore unknown JSON properties during parsing
+      # Makes the service robust when processing varied WiFi scan data formats
+      # Prevents parsing failures due to schema evolution or vendor-specific fields
       fail-on-unknown-properties: false
   
   task:
@@ -17,9 +33,6 @@ spring:
         max-size: 10
         queue-capacity: 100
         keep-alive: 60s
-    scheduling:
-      pool:
-        size: 2
 
 # Server Configuration
 server:
@@ -31,7 +44,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,env,loggers,prometheus,shutdown
+        include: health,info,metrics,env,loggers
       base-path: /
   endpoint:
     health:
@@ -40,10 +53,7 @@ management:
         enabled: true
     metrics:
       enabled: true
-    prometheus:
-      enabled: true
-    shutdown:
-      enabled: true
+
   health:
     livenessstate:
       enabled: true
@@ -69,10 +79,7 @@ management:
     firehose-delivery:
       delivery-timeout-threshold: 10  # 10 minutes - fails liveness if no delivery activity
       delivery-rate-threshold: 0.05  # Minimum delivery rate in batches per minute
-  metrics:
-    export:
-      prometheus:
-        enabled: true
+
 
 # Logging Configuration
 logging:
@@ -158,20 +165,4 @@ processing:
   deduplication-window-seconds: 5
   enable-data-sanitization: true
   max-retry-attempts: 3
-  retry-base-delay-millis: 1000
-
-# Memory Management Configuration
-memory-management:
-  enabled: false
-  memory-pressure-threshold: 0.8  # 80% heap usage threshold
-  max-batch-memory-bytes: 104857600  # 100MB max memory for batch accumulation
-  memory-check-interval-ms: 5000  # Check memory every 5 seconds
-  enable-batch-throttling: true
-  min-throttled-batch-size: 10  # Minimum batch size when throttling
-  enable-performance-profiling: true
-  enable-streaming-serialization: true
-  gc-optimization:
-    enabled: true
-    suggest-gc-on-pressure: false  # Avoid explicit GC in production
-    log-gc-events: true
-    gc-pause-interval-ms: 100  # 100ms pause between large batches 
+  retry-base-delay-millis: 1000 

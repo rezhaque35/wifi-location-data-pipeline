@@ -24,11 +24,7 @@ sqs:
   max-retries: 2
 
 s3:
-  region: us-east-1
-  bucket-name: test-bucket
   max-file-size: 1048576  # 1MB for tests
-  connection-timeout-seconds: 5
-  read-timeout-seconds: 10
 
 # AWS Configuration for LocalStack
 spring:
@@ -85,21 +81,6 @@ processing:
   max-retry-attempts: 2
   retry-base-delay-millis: 100
 
-# Test Memory Management Configuration (reduced for testing)
-memory-management:
-  enabled: true
-  memory-pressure-threshold: 0.9  # Higher threshold for tests
-  max-batch-memory-bytes: 10485760  # 10MB max memory for batch accumulation
-  memory-check-interval-ms: 1000  # Check memory every 1 second in tests
-  enable-batch-throttling: true
-  min-throttled-batch-size: 2  # Very small for tests
-  enable-performance-profiling: false  # Disable for tests to reduce overhead
-  enable-streaming-serialization: true
-  gc-optimization:
-    enabled: false  # Disable GC optimization in tests
-    suggest-gc-on-pressure: false
-    log-gc-events: false
-    gc-pause-interval-ms: 50
 
 # Test logging
 logging:

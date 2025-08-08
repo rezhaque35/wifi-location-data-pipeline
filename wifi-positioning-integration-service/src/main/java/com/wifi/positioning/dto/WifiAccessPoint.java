@@ -1,17 +1,16 @@
 package com.wifi.positioning.dto;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.*;
-import java.util.List;
 import java.util.Set;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.*;
+
 /**
- * WiFi access point model with DynamoDB mapping annotations.
- * This class serves as the unified model for WiFi access points in the system,
- * with the necessary annotations for DynamoDB persistence.
+ * WiFi access point model with DynamoDB mapping annotations. This class serves as the unified model
+ * for WiFi access points in the system, with the necessary annotations for DynamoDB persistence.
  * Contains all the fields required for positioning calculations.
  */
 @Data
@@ -20,173 +19,167 @@ import java.util.Set;
 @Builder
 @DynamoDbBean
 public class WifiAccessPoint {
-    /**
-     * Status constants for access point operational states
-     */
-    public static final String STATUS_ACTIVE = "active";
-    public static final String STATUS_ERROR = "error";
-    public static final String STATUS_EXPIRED = "expired";
-    public static final String STATUS_WARNING = "warning";
-    public static final String STATUS_WIFI_HOTSPOT = "wifi-hotspot";
-    public static final String STATUS_VERIFIED = "verified";
-    public static final String STATUS_TEST = "test";
-    public static final String STATUS_IMPORTED= "imported";
-    
-    /**
-     * Set of valid access point statuses for fast lookup during positioning calculations.
-     * Access points with these statuses are considered reliable enough for positioning.
-     */
-    public static final Set<String> VALID_AP_STATUSES = Set.of(
-        STATUS_ACTIVE,
-        STATUS_WARNING,
-        STATUS_VERIFIED,
-        STATUS_TEST,
-        STATUS_IMPORTED
-    );
+  /** Status constants for access point operational states */
+  public static final String STATUS_ACTIVE = "active";
 
-    private String macAddress;
-    private String version;
-    private Double latitude;
-    private Double longitude;
-    private Double altitude;
-    private Double horizontalAccuracy;
-    private Double verticalAccuracy;
-    private Double confidence;
-    private String ssid;
-    private Integer frequency;
-    private String vendor;
-    private String status;
-    private String geohash;
+  public static final String STATUS_ERROR = "error";
+  public static final String STATUS_EXPIRED = "expired";
+  public static final String STATUS_WARNING = "warning";
+  public static final String STATUS_WIFI_HOTSPOT = "wifi-hotspot";
+  public static final String STATUS_VERIFIED = "verified";
+  public static final String STATUS_TEST = "test";
+  public static final String STATUS_IMPORTED = "imported";
 
-    @DynamoDbPartitionKey
-    @DynamoDbAttribute("mac_addr")
-    public String getMacAddress() {
-        return macAddress;
-    }
+  /**
+   * Set of valid access point statuses for fast lookup during positioning calculations. Access
+   * points with these statuses are considered reliable enough for positioning.
+   */
+  public static final Set<String> VALID_AP_STATUSES =
+      Set.of(STATUS_ACTIVE, STATUS_WARNING, STATUS_VERIFIED, STATUS_TEST, STATUS_IMPORTED);
 
-    public void setMacAddress(String macAddress) {
-        this.macAddress = macAddress;
-    }
+  private String macAddress;
+  private String version;
+  private Double latitude;
+  private Double longitude;
+  private Double altitude;
+  private Double horizontalAccuracy;
+  private Double verticalAccuracy;
+  private Double confidence;
+  private String ssid;
+  private Integer frequency;
+  private String vendor;
+  private String status;
+  private String geohash;
 
-    @DynamoDbAttribute("version")
-    public String getVersion() {
-        return version;
-    }
+  @DynamoDbPartitionKey
+  @DynamoDbAttribute("mac_addr")
+  public String getMacAddress() {
+    return macAddress;
+  }
 
-    public void setVersion(String version) {
-        this.version = version;
-    }
+  public void setMacAddress(String macAddress) {
+    this.macAddress = macAddress;
+  }
 
-    @DynamoDbSecondaryPartitionKey(indexNames = "GeohashIndex")
-    @DynamoDbSecondarySortKey(indexNames = "SSIDIndex")
-    @DynamoDbAttribute("geohash")
-    public String getGeohash() {
-        return geohash;
-    }
+  @DynamoDbAttribute("version")
+  public String getVersion() {
+    return version;
+  }
 
-    public void setGeohash(String geohash) {
-        this.geohash = geohash;
-    }
+  public void setVersion(String version) {
+    this.version = version;
+  }
 
-    @DynamoDbSecondaryPartitionKey(indexNames = "SSIDIndex")
-    @DynamoDbSecondarySortKey(indexNames = "GeohashIndex")
-    @DynamoDbAttribute("ssid")
-    public String getSsid() {
-        return ssid;
-    }
+  @DynamoDbSecondaryPartitionKey(indexNames = "GeohashIndex")
+  @DynamoDbSecondarySortKey(indexNames = "SSIDIndex")
+  @DynamoDbAttribute("geohash")
+  public String getGeohash() {
+    return geohash;
+  }
 
-    public void setSsid(String ssid) {
-        this.ssid = ssid;
-    }
+  public void setGeohash(String geohash) {
+    this.geohash = geohash;
+  }
 
-    @DynamoDbSecondaryPartitionKey(indexNames = "StatusIndex")
-    @DynamoDbAttribute("status")
-    public String getStatus() {
-        return status;
-    }
+  @DynamoDbSecondaryPartitionKey(indexNames = "SSIDIndex")
+  @DynamoDbSecondarySortKey(indexNames = "GeohashIndex")
+  @DynamoDbAttribute("ssid")
+  public String getSsid() {
+    return ssid;
+  }
 
-    public void setStatus(String status) {
-        this.status = status;
-    }
+  public void setSsid(String ssid) {
+    this.ssid = ssid;
+  }
 
-    @DynamoDbAttribute("latitude")
-    public Double getLatitude() {
-        return latitude;
-    }
+  @DynamoDbSecondaryPartitionKey(indexNames = "StatusIndex")
+  @DynamoDbAttribute("status")
+  public String getStatus() {
+    return status;
+  }
 
-    public void setLatitude(Double latitude) {
-        this.latitude = latitude;
-    }
+  public void setStatus(String status) {
+    this.status = status;
+  }
 
-    @DynamoDbAttribute("longitude")
-    public Double getLongitude() {
-        return longitude;
-    }
+  @DynamoDbAttribute("latitude")
+  public Double getLatitude() {
+    return latitude;
+  }
 
-    public void setLongitude(Double longitude) {
-        this.longitude = longitude;
-    }
+  public void setLatitude(Double latitude) {
+    this.latitude = latitude;
+  }
 
-    @DynamoDbAttribute("altitude")
-    public Double getAltitude() {
-        return altitude;
-    }
+  @DynamoDbAttribute("longitude")
+  public Double getLongitude() {
+    return longitude;
+  }
 
-    public void setAltitude(Double altitude) {
-        this.altitude = altitude;
-    }
+  public void setLongitude(Double longitude) {
+    this.longitude = longitude;
+  }
 
-    @DynamoDbAttribute("horizontal_accuracy")
-    public Double getHorizontalAccuracy() {
-        return horizontalAccuracy;
-    }
+  @DynamoDbAttribute("altitude")
+  public Double getAltitude() {
+    return altitude;
+  }
 
-    public void setHorizontalAccuracy(Double horizontalAccuracy) {
-        this.horizontalAccuracy = horizontalAccuracy;
-    }
+  public void setAltitude(Double altitude) {
+    this.altitude = altitude;
+  }
 
-    @DynamoDbAttribute("vertical_accuracy")
-    public Double getVerticalAccuracy() {
-        return verticalAccuracy;
-    }
+  @DynamoDbAttribute("horizontal_accuracy")
+  public Double getHorizontalAccuracy() {
+    return horizontalAccuracy;
+  }
 
-    public void setVerticalAccuracy(Double verticalAccuracy) {
-        this.verticalAccuracy = verticalAccuracy;
-    }
+  public void setHorizontalAccuracy(Double horizontalAccuracy) {
+    this.horizontalAccuracy = horizontalAccuracy;
+  }
 
-    @DynamoDbAttribute("confidence")
-    public Double getConfidence() {
-        return confidence;
-    }
+  @DynamoDbAttribute("vertical_accuracy")
+  public Double getVerticalAccuracy() {
+    return verticalAccuracy;
+  }
 
-    public void setConfidence(Double confidence) {
-        this.confidence = confidence;
-    }
+  public void setVerticalAccuracy(Double verticalAccuracy) {
+    this.verticalAccuracy = verticalAccuracy;
+  }
 
-    @DynamoDbAttribute("frequency")
-    public Integer getFrequency() {
-        return frequency;
-    }
+  @DynamoDbAttribute("confidence")
+  public Double getConfidence() {
+    return confidence;
+  }
 
-    public void setFrequency(Integer frequency) {
-        this.frequency = frequency;
-    }
+  public void setConfidence(Double confidence) {
+    this.confidence = confidence;
+  }
 
-    @DynamoDbAttribute("vendor")
-    public String getVendor() {
-        return vendor;
-    }
+  @DynamoDbAttribute("frequency")
+  public Integer getFrequency() {
+    return frequency;
+  }
 
-    public void setVendor(String vendor) {
-        this.vendor = vendor;
-    }
+  public void setFrequency(Integer frequency) {
+    this.frequency = frequency;
+  }
 
-    /**
-     * Checks if this access point is a WiFi hotspot.
-     * 
-     * @return true if this is a hotspot, false otherwise
-     */
-    public boolean isHotspot() {
-        return STATUS_WIFI_HOTSPOT.equals(status);
-    }
-} 
+  @DynamoDbAttribute("vendor")
+  public String getVendor() {
+    return vendor;
+  }
+
+  public void setVendor(String vendor) {
+    this.vendor = vendor;
+  }
+
+  /**
+   * Checks if this access point is a WiFi hotspot.
+   *
+   * @return true if this is a hotspot, false otherwise
+   */
+  public boolean isHotspot() {
+    return STATUS_WIFI_HOTSPOT.equals(status);
+  }
+}
