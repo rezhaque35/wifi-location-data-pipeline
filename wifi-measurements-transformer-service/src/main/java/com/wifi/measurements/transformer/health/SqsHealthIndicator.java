@@ -49,7 +49,7 @@ import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
  *   <li>Recent connection success within acceptable timeframe
  * </ul>
  */
-@Component("sqs")
+@Component("sqsConnectivity")
 public class SqsHealthIndicator implements HealthIndicator {
 
   private static final Logger logger = LoggerFactory.getLogger(SqsHealthIndicator.class);

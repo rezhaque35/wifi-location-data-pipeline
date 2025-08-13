@@ -94,7 +94,7 @@ import com.wifi.measurements.transformer.service.SqsMonitoringService;
  * @see SqsMonitoringService for detailed monitoring capabilities
  * @see HealthIndicator for Spring Boot health check interface
  */
-@Component("sqsMessageProcessingActivity")
+@Component("messageProcessingActivity")
 public class SqsMessageProcessingActivityHealthIndicator implements HealthIndicator {
 
   private static final Logger logger =

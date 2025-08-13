@@ -51,6 +51,13 @@ management:
       show-details: always
       probes:
         enabled: true
+      group:
+        readiness:
+          include: sqsConnectivity,firehoseConnectivity
+          show-details: always
+        liveness:
+          include: messageProcessingActivity,deliveryActivity,memoryUsage
+          show-details: always
     metrics:
       enabled: true
 
@@ -59,26 +66,22 @@ management:
       enabled: true
     readinessstate:
       enabled: true
-    group:
-      liveness:
-        include:
-          - livenessState
-          - memory
-          - sqsMessageProcessingActivity
-          - firehoseDeliveryActivity
-        show-details: always
-      readiness:
-        include:
-          - readinessState
-          - sqs
-          - firehose
-        show-details: always
     sqs-message-processing:
       message-timeout-threshold: 5  # 5 minutes - fails liveness if no processing activity
       processing-rate-threshold: 0.1  # Minimum processing rate in messages per minute
     firehose-delivery:
       delivery-timeout-threshold: 10  # 10 minutes - fails liveness if no delivery activity
       delivery-rate-threshold: 0.05  # Minimum delivery rate in batches per minute
+
+# Enhanced Health Indicator Configuration
+health:
+  indicator:
+    # General health indicator settings
+    timeout-seconds: 5
+    memory-threshold-percentage: 90
+    retry-attempts: 3
+    enable-caching: true
+    cache-ttl-seconds: 30
 
 
 # Logging Configuration

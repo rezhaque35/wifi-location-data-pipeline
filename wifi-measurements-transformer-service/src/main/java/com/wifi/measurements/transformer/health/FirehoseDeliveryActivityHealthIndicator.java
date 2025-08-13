@@ -95,7 +95,7 @@ import com.wifi.measurements.transformer.service.FirehoseMonitoringService;
  * @see FirehoseMonitoringService for detailed monitoring capabilities
  * @see HealthIndicator for Spring Boot health check interface
  */
-@Component("firehoseDeliveryActivity")
+@Component("deliveryActivity")
 public class FirehoseDeliveryActivityHealthIndicator implements HealthIndicator {
 
   private static final Logger logger =

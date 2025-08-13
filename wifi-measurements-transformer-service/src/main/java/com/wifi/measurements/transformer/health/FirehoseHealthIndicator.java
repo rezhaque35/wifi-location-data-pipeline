@@ -53,7 +53,7 @@ import software.amazon.awssdk.services.firehose.model.DescribeDeliveryStreamResp
  *   <li>Recent stream connectivity within acceptable timeframe
  * </ul>
  */
-@Component("firehose")
+@Component("firehoseConnectivity")
 public class FirehoseHealthIndicator implements HealthIndicator {
 
   private static final Logger logger = LoggerFactory.getLogger(FirehoseHealthIndicator.class);
