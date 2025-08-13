@@ -19,7 +19,8 @@ import org.springframework.test.context.TestPropertySource;
     classes = WifiMeasurementsTransformerApplicationTest.TestConfiguration.class)
 @TestPropertySource(
     properties = {
-      "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.context.ConfigurationPropertiesAutoConfiguration"
+      "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.context.ConfigurationPropertiesAutoConfiguration",
+      "management.endpoint.health.validate-group-membership=false"
     })
 @ActiveProfiles("test")
 class WifiMeasurementsTransformerApplicationTest {
