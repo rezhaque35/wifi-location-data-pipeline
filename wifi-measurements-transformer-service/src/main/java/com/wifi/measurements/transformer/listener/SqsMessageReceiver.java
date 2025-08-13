@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.wifi.measurements.transformer.config.properties.SqsConfigurationProperties;
@@ -89,6 +90,7 @@ public class SqsMessageReceiver {
   private final SqsConfigurationProperties sqsConfig;
   private final MessageProcessor messageProcessor;
   private final SqsMonitoringService sqsMonitoringService;
+  private final String queueUrl;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   // Comprehensive metrics for monitoring and observability
@@ -138,7 +140,8 @@ public class SqsMessageReceiver {
       SqsConfigurationProperties sqsConfig,
       MessageProcessor messageProcessor,
       SqsMonitoringService sqsMonitoringService,
-      MeterRegistry meterRegistry) {
+      MeterRegistry meterRegistry,
+      @Value("#{@resolvedQueueUrl}") String queueUrl) {
     if (sqsAsyncClient == null) {
       throw new IllegalArgumentException("SqsAsyncClient cannot be null");
     }
@@ -159,6 +162,7 @@ public class SqsMessageReceiver {
     this.sqsConfig = sqsConfig;
     this.messageProcessor = messageProcessor;
     this.sqsMonitoringService = sqsMonitoringService;
+    this.queueUrl = queueUrl;
 
     // Initialize comprehensive metrics for monitoring and observability
     // These metrics provide insights into processing performance and error rates
@@ -229,7 +233,7 @@ public class SqsMessageReceiver {
       logger.info(
           "Starting SQS message receiver with configuration: "
               + "queueUrl={}, maxMessages={}, waitTimeSeconds={}, maxRetries={}",
-          sqsConfig.queueUrl(),
+          queueUrl,
           sqsConfig.maxMessages(),
           sqsConfig.waitTimeSeconds(),
           sqsConfig.maxRetries());
@@ -445,7 +449,7 @@ public class SqsMessageReceiver {
       // This optimizes message reception by reducing empty responses and API costs
       ReceiveMessageRequest receiveRequest =
           ReceiveMessageRequest.builder()
-              .queueUrl(sqsConfig.queueUrl())
+              .queueUrl(queueUrl)
               .maxNumberOfMessages(sqsConfig.maxMessages())
               .waitTimeSeconds(sqsConfig.waitTimeSeconds())
               .visibilityTimeout(sqsConfig.visibilityTimeoutSeconds())
@@ -606,7 +610,7 @@ public class SqsMessageReceiver {
 
       DeleteMessageBatchRequest deleteRequest =
           DeleteMessageBatchRequest.builder()
-              .queueUrl(sqsConfig.queueUrl())
+              .queueUrl(queueUrl)
               .entries(deleteEntries)
               .build();
 

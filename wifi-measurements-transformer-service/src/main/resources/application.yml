@@ -108,7 +108,10 @@ aws:
 
 # SQS Configuration
 sqs:
+  # Direct queue URL (for LocalStack development)
   queue-url: http://localhost:4566/000000000000/wifi-scan-events
+  # Queue name (for AWS production - when queue-url is not provided)
+  queue-name: wifi-scan-events
   max-messages: 10
   wait-time-seconds: 20
   visibility-timeout-seconds: 300

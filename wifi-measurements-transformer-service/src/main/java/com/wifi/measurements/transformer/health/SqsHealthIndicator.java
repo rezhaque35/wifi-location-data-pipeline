@@ -3,11 +3,11 @@ package com.wifi.measurements.transformer.health;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Component;
 
-import com.wifi.measurements.transformer.config.properties.SqsConfigurationProperties;
 import com.wifi.measurements.transformer.service.SqsMonitoringService;
 
 import software.amazon.awssdk.services.sqs.SqsClient;
@@ -56,16 +56,16 @@ public class SqsHealthIndicator implements HealthIndicator {
   private static final String QUEUE_URL_KEY = "queueUrl";
 
   private final SqsClient sqsClient;
-  private final SqsConfigurationProperties sqsConfig;
   private final SqsMonitoringService sqsMonitoringService;
+  private final String queueUrl;
 
   public SqsHealthIndicator(
       SqsClient sqsClient,
-      SqsConfigurationProperties sqsConfig,
-      SqsMonitoringService sqsMonitoringService) {
+      SqsMonitoringService sqsMonitoringService,
+      @Value("#{@resolvedQueueUrl}") String queueUrl) {
     this.sqsClient = sqsClient;
-    this.sqsConfig = sqsConfig;
     this.sqsMonitoringService = sqsMonitoringService;
+    this.queueUrl = queueUrl;
   }
 
   @Override
@@ -77,7 +77,7 @@ public class SqsHealthIndicator implements HealthIndicator {
       // Step 1: Comprehensive queue attributes check for readiness
       GetQueueAttributesRequest request =
           GetQueueAttributesRequest.builder()
-              .queueUrl(sqsConfig.queueUrl())
+              .queueUrl(queueUrl)
               .attributeNames(
                   QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES,
                   QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES_NOT_VISIBLE,
@@ -111,7 +111,7 @@ public class SqsHealthIndicator implements HealthIndicator {
       Health.Builder healthBuilder = isReady ? Health.up() : Health.down();
 
       return healthBuilder
-          .withDetail(QUEUE_URL_KEY, sqsConfig.queueUrl())
+          .withDetail(QUEUE_URL_KEY, queueUrl)
           .withDetail("queueAccessible", queueAccessible)
           .withDetail("queueConnected", queueConnected)
           .withDetail("approximateMessages", approximateMessages)
@@ -140,7 +140,7 @@ public class SqsHealthIndicator implements HealthIndicator {
     } catch (Exception e) {
       logger.error("SQS readiness check failed", e);
       return Health.down()
-          .withDetail(QUEUE_URL_KEY, sqsConfig.queueUrl())
+          .withDetail(QUEUE_URL_KEY, queueUrl)
           .withDetail("queueAccessible", false)
           .withDetail("queueConnected", false)
           .withDetail("error", e.getMessage())

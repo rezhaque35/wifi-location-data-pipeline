@@ -353,6 +353,7 @@ class SqsMessageReceiverIntegrationTest {
     SqsConfigurationProperties testConfig =
         new SqsConfigurationProperties(
             queueUrl, // queueUrl
+            null, // queueName (not needed for tests)
             10, // maxMessages
             1, // waitTimeSeconds (short for tests)
             30, // visibilityTimeoutSeconds
@@ -477,7 +478,7 @@ class SqsMessageReceiverIntegrationTest {
     SqsMonitoringService mockSqsMonitoringService = mock(SqsMonitoringService.class);
 
     return new SqsMessageReceiver(
-        sqsAsyncClient, testConfig, messageProcessor, mockSqsMonitoringService, meterRegistry);
+        sqsAsyncClient, testConfig, messageProcessor, mockSqsMonitoringService, meterRegistry, queueUrl);
   }
 
   private void sendMessageToQueue(String messageBody) {

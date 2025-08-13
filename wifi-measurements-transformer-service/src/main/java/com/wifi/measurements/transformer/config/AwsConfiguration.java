@@ -22,6 +22,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 
 /**
  * AWS SDK v2 Configuration for SQS and S3 services.
@@ -111,6 +112,43 @@ public class AwsConfiguration {
     }
 
     return builder.build();
+  }
+
+  /**
+   * Environment-agnostic SQS queue URL resolver.
+   * 
+   * <p>Resolves queue URL based on configuration:
+   * <ul>
+   *   <li>If queue-url is provided: uses it directly (LocalStack compatibility)
+   *   <li>If queue-name is provided: constructs URL using AWS SQS service (AWS standard)
+   * </ul>
+   */
+  @Bean
+  public String resolvedQueueUrl(
+      SqsClient sqsClient,
+      SqsConfigurationProperties sqsConfig) {
+    
+    // Use direct URL if provided (LocalStack development)
+    if (sqsConfig.hasDirectUrl()) {
+      return sqsConfig.queueUrl();
+    }
+    
+    // Construct URL from queue name (AWS production)
+    if (sqsConfig.hasQueueName()) {
+      try {
+        var request = GetQueueUrlRequest.builder()
+            .queueName(sqsConfig.queueName())
+            .build();
+        
+        return sqsClient.getQueueUrl(request).queueUrl();
+      } catch (Exception e) {
+        throw new IllegalStateException(
+            "Failed to resolve queue URL for queue name: " + sqsConfig.queueName(), e);
+      }
+    }
+    
+    // This should never happen due to validation in SqsConfigurationProperties
+    throw new IllegalStateException("Neither queue URL nor queue name is configured");
   }
 
   /** Unified S3 client that adapts to environment. */

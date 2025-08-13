@@ -7,9 +7,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import com.wifi.measurements.transformer.config.properties.SqsConfigurationProperties;
 
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
@@ -60,7 +59,7 @@ public class SqsMonitoringService {
   private static final Logger logger = LoggerFactory.getLogger(SqsMonitoringService.class);
 
   private final SqsClient sqsClient;
-  private final SqsConfigurationProperties sqsConfig;
+  private final String queueUrl;
 
   // Activity tracking
   private final AtomicReference<Instant> lastMessageReceivedTime =
@@ -80,11 +79,13 @@ public class SqsMonitoringService {
    * Creates a new SqsMonitoringService with required dependencies.
    *
    * @param sqsClient AWS SQS client for queue operations
-   * @param sqsConfig SQS configuration properties
+   * @param queueUrl Resolved SQS queue URL
    */
-  public SqsMonitoringService(SqsClient sqsClient, SqsConfigurationProperties sqsConfig) {
+  public SqsMonitoringService(
+      SqsClient sqsClient, 
+      @Value("#{@resolvedQueueUrl}") String queueUrl) {
     this.sqsClient = sqsClient;
-    this.sqsConfig = sqsConfig;
+    this.queueUrl = queueUrl;
   }
 
   /**
@@ -96,7 +97,7 @@ public class SqsMonitoringService {
     try {
       GetQueueAttributesRequest request =
           GetQueueAttributesRequest.builder()
-              .queueUrl(sqsConfig.queueUrl())
+              .queueUrl(queueUrl)
               .attributeNames(QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES)
               .build();
 

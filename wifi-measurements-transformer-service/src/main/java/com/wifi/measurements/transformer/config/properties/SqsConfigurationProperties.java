@@ -2,22 +2,23 @@ package com.wifi.measurements.transformer.config.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.util.StringUtils;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 /**
  * Configuration properties for SQS message processing.
  *
  * <p>Configures SQS client settings including long polling, batch processing, and visibility
- * timeout management.
+ * timeout management. Supports both direct queue URL (LocalStack) and queue name (AWS) approaches.
  */
 @ConfigurationProperties(prefix = "sqs")
 @Validated
 public record SqsConfigurationProperties(
-    @NotBlank(message = "SQS queue URL is required") String queueUrl,
+    String queueUrl,
+    String queueName,
     @NotNull(message = "Max messages is required")
         @Min(value = 1, message = "Max messages must be at least 1")
         @Max(value = 10, message = "Max messages cannot exceed 10")
@@ -38,5 +39,30 @@ public record SqsConfigurationProperties(
         @Min(value = 1, message = "Max retries must be at least 1")
         @Max(value = 10, message = "Max retries cannot exceed 10")
         Integer maxRetries) {
-  // No default constructor - all properties must be explicitly configured
+  
+  /**
+   * Validates that either queueUrl or queueName is provided.
+   * 
+   * @throws IllegalArgumentException if neither queueUrl nor queueName is provided
+   */
+  public SqsConfigurationProperties {
+    if (!StringUtils.hasText(queueUrl) && !StringUtils.hasText(queueName)) {
+      throw new IllegalArgumentException(
+          "Either 'sqs.queue-url' or 'sqs.queue-name' must be provided");
+    }
+  }
+  
+  /**
+   * Returns true if a direct queue URL is configured (typically for LocalStack).
+   */
+  public boolean hasDirectUrl() {
+    return StringUtils.hasText(queueUrl);
+  }
+  
+  /**
+   * Returns true if only queue name is configured (AWS standard approach).
+   */
+  public boolean hasQueueName() {
+    return StringUtils.hasText(queueName);
+  }
 }

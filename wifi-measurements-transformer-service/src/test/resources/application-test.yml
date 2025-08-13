@@ -17,6 +17,7 @@ aws:
 # Test-specific overrides - queue URL will be overridden by @DynamicPropertySource
 sqs:
   queue-url: http://localhost:4566/000000000000/fallback-queue  # Will be overridden
+  queue-name: fallback-queue  # For testing AWS-style queue name resolution
   max-messages: 5
   wait-time-seconds: 1
   visibility-timeout-seconds: 30
