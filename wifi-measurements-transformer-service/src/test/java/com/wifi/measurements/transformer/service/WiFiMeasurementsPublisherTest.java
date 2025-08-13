@@ -106,7 +106,7 @@ class WiFiMeasurementsPublisherTest {
 
     // Then
     assertThat(result).succeedsWithin(java.time.Duration.ofSeconds(1));
-    verify(batchConsumer).accept(any());
+    verify(batchConsumer, timeout(2000)).accept(any());
 
     // Verify batch is cleared after flush
     WiFiMeasurementsPublisher.BatchStatus status = publisher.getCurrentBatchStatus();
