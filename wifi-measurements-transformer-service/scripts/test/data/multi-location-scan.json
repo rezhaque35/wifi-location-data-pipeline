@@ -1,0 +1,109 @@
+{
+  "osVersion": "15:apple/iPhone16,2/iPhone16,2:15.0/21A329:user/release-keys",
+  "model": "iPhone 15 Pro",
+  "device": "iPhone16,2",
+  "manufacturer": "Apple",
+  "osName": "iOS",
+  "sdkInt": "15",
+  "appNameVersion": "com.verizon.wifiloc.app/0.1.0.10000",
+  "dataVersion": "15",
+  "wifiConnectedEvents": [
+    {
+      "timestamp": 1731091615562,
+      "eventId": "iphone-15-pro-event-001",
+      "eventType": "CONNECTED",
+      "wifiConnectedInfo": {
+        "bssid": "00:11:22:33:44:55",
+        "ssid": "VerizonFiOS-5G",
+        "linkSpeed": 1200,
+        "frequency": 5805,
+        "rssi": -42,
+        "channelWidth": 160,
+        "centerFreq0": 5775,
+        "capabilities": "WPA3-SAE",
+        "is80211mcResponder": true,
+        "isPasspointNetwork": false
+      },
+      "location": {
+        "latitude": 40.7589,
+        "longitude": -73.9851,
+        "altitude": 25.0,
+        "accuracy": 5.0,
+        "time": 1731091614415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      }
+    }
+  ],
+  "scanResults": [
+    {
+      "timestamp": 1731091615562,
+      "location": {
+        "latitude": 40.7589,
+        "longitude": -73.9851,
+        "altitude": 25.0,
+        "accuracy": 5.0,
+        "time": 1731091614415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      },
+      "results": [
+        {
+          "ssid": "VerizonFiOS-5G",
+          "bssid": "00:11:22:33:44:55",
+          "scantime": 1731091613712,
+          "rssi": -42,
+          "frequency": 5805
+        },
+        {
+          "ssid": "Starbucks_WiFi",
+          "bssid": "aa:bb:cc:dd:ee:ff",
+          "scantime": 1731091613713,
+          "rssi": -65,
+          "frequency": 2412
+        },
+        {
+          "ssid": "ATT_WiFi",
+          "bssid": "11:22:33:44:55:66",
+          "scantime": 1731091613714,
+          "rssi": -78,
+          "frequency": 5180
+        }
+      ]
+    },
+    {
+      "timestamp": 1731091616562,
+      "location": {
+        "latitude": 40.7505,
+        "longitude": -73.9934,
+        "altitude": 30.0,
+        "accuracy": 8.0,
+        "time": 1731091615415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 2.5,
+        "bearing": 45.0
+      },
+      "results": [
+        {
+          "ssid": "VerizonFiOS-5G",
+          "bssid": "00:11:22:33:44:55",
+          "scantime": 1731091614712,
+          "rssi": -55,
+          "frequency": 5805
+        },
+        {
+          "ssid": "NYC_Public_WiFi",
+          "bssid": "99:88:77:66:55:44",
+          "scantime": 1731091614713,
+          "rssi": -72,
+          "frequency": 2437
+        }
+      ]
+    }
+  ]
+}

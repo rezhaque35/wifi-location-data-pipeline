@@ -1,0 +1,114 @@
+{
+  "osVersion": "14:samsung/a53xsqw/a53x:14/UP1A.231005.007/A536VSQSADXC1:user/release-keys",
+  "model": "SM-A536V",
+  "device": "a53x",
+  "manufacturer": "samsung",
+  "osName": "Android",
+  "sdkInt": "34",
+  "appNameVersion": "com.verizon.wifiloc.app/0.1.0.10000",
+  "dataVersion": "15",
+  "wifiConnectedEvents": [
+    {
+      "timestamp": 1731091615562,
+      "eventId": "9a930a02-f0cc-4e6d-9b95-c18b4d5a542a",
+      "eventType": "CONNECTED",
+      "wifiConnectedInfo": {
+        "bssid": "b8:f8:53:c0:1e:ff",
+        "ssid": "TestNetwork1",
+        "linkSpeed": 351,
+        "frequency": 5660,
+        "rssi": -58,
+        "channelWidth": 80,
+        "centerFreq0": 5650,
+        "capabilities": "WPA2-PSK",
+        "is80211mcResponder": true,
+        "isPasspointNetwork": false
+      },
+      "location": {
+        "latitude": 40.6768816,
+        "longitude": -74.416391,
+        "altitude": 15.5,
+        "accuracy": 10.0,
+        "time": 1731091614415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      }
+    },
+    {
+      "timestamp": 1731091615563,
+      "eventId": "9a930a02-f0cc-4e6d-9b95-c18b4d5a542b",
+      "eventType": "CONNECTED",
+      "wifiConnectedInfo": {
+        "bssid": "aa:bb:cc:dd:ee:ff",
+        "ssid": "TestNetwork2",
+        "linkSpeed": 433,
+        "frequency": 5180,
+        "rssi": -45,
+        "channelWidth": 80,
+        "centerFreq0": 5170,
+        "capabilities": "WPA3-SAE",
+        "is80211mcResponder": true,
+        "isPasspointNetwork": true
+      },
+      "location": {
+        "latitude": 40.6768817,
+        "longitude": -74.416392,
+        "altitude": 16.2,
+        "accuracy": 8.5,
+        "time": 1731091614416,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      }
+    }
+  ],
+  "scanResults": [
+    {
+      "timestamp": 1731091615562,
+      "location": {
+        "latitude": 40.6768816,
+        "longitude": -74.416391,
+        "altitude": 15.5,
+        "accuracy": 10.0,
+        "time": 1731091614415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      },
+      "results": [
+        {
+          "ssid": "TestNetwork1",
+          "bssid": "b8:f8:53:c0:1e:ff",
+          "scantime": 1731091613712,
+          "rssi": -61,
+          "frequency": 5660
+        },
+        {
+          "ssid": "TestNetwork2",
+          "bssid": "aa:bb:cc:dd:ee:ff",
+          "scantime": 1731091613713,
+          "rssi": -48,
+          "frequency": 5180
+        },
+        {
+          "ssid": "TestNetwork3",
+          "bssid": "11:22:33:44:55:66",
+          "scantime": 1731091613714,
+          "rssi": -72,
+          "frequency": 2412
+        },
+        {
+          "ssid": "TestNetwork4",
+          "bssid": "99:88:77:66:55:44",
+          "scantime": 1731091613715,
+          "rssi": -85,
+          "frequency": 2437
+        }
+      ]
+    }
+  ]
+}
