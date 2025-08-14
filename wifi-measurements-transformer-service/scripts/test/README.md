@@ -37,6 +37,8 @@ A flexible test script that reads test data from JSON files instead of using har
 - Lists available test files with metadata
 - Same comprehensive testing as the original script
 - More maintainable and reusable
+- **Raw file mode**: Upload JSON files directly without compression/encoding
+- **Standard mode**: Compress and encode files (default behavior)
 
 **Usage:**
 ```bash
@@ -55,6 +57,9 @@ A flexible test script that reads test data from JSON files instead of using har
 # Show only summary (skip verbose output)
 ./test-with-data-file.sh --summary-only sample-wifi-scan.json
 
+# Upload raw JSON file without compression/encoding
+./test-with-data-file.sh --raw-file sample-wifi-scan.json
+
 # Get help
 ./test-with-data-file.sh --help
 ```
@@ -62,6 +67,19 @@ A flexible test script that reads test data from JSON files instead of using har
 ### 3. `test-end-to-end-flow.sh` (Original)
 
 The original test script with hardcoded test data. Still useful for quick testing with predefined data.
+
+## Processing Modes
+
+### Standard Mode (Default)
+- **Behavior**: Compresses and base64-encodes JSON files before S3 upload
+- **Use Case**: Simulates production environment where files are compressed/encoded
+- **Command**: `./test-with-data-file.sh sample-wifi-scan.json`
+
+### Raw File Mode
+- **Behavior**: Uploads JSON files directly to S3 without compression/encoding
+- **Use Case**: Testing with raw JSON files, debugging, or when compression isn't needed
+- **Command**: `./test-with-data-file.sh --raw-file sample-wifi-scan.json`
+- **Benefits**: Faster processing, easier debugging, direct file inspection
 
 **Usage:**
 ```bash
@@ -226,6 +244,11 @@ cd wifi-measurements-transformer-service/scripts
 ### Test with Specific Data File
 ```bash
 ./test-with-data-file.sh multi-location-scan.json
+```
+
+### Test with Raw JSON File (No Compression)
+```bash
+./test-with-data-file.sh --raw-file sample-wifi-scan.json
 ```
 
 ### List Available Test Files

@@ -37,6 +37,7 @@ SKIP_CLEANUP=false
 SUMMARY_ONLY=false
 DATA_FILE=""
 LIST_FILES=false
+RAW_FILE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -52,6 +53,10 @@ while [[ $# -gt 0 ]]; do
             LIST_FILES=true
             shift
             ;;
+        --raw-file|--no-encode)
+            RAW_FILE=true
+            shift
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS] [DATA_FILE]"
             echo ""
@@ -59,6 +64,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-cleanup    Skip cleanup of S3 files and local test files"
             echo "  --summary-only    Show only processing summary (skip verbose content)"
             echo "  --list-files, -l  List available test data files and exit"
+            echo "  --raw-file        Upload file directly to S3 without compression/encoding"
             echo "  --help, -h        Show this help message"
             echo ""
             echo "Arguments:"
@@ -70,6 +76,7 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 sample-wifi-scan.json             # Use specific test file"
             echo "  $0 --list-files                      # List available test files"
             echo "  $0 --skip-cleanup multi-location-scan.json  # Use file and skip cleanup"
+            echo "  $0 --raw-file sample-wifi-scan.json  # Upload raw JSON without encoding"
             exit 0
             ;;
         *)
@@ -87,7 +94,11 @@ done
 # Test configuration
 TEST_FILE_PREFIX="test-stream"
 TEST_TIMESTAMP=$(date +"%Y/%m/%d/%H")
-TEST_FILE_NAME="${TEST_FILE_PREFIX}-$(date +"%Y-%m-%d-%H-%M-%S")-$(uuidgen | cut -d'-' -f1).txt"
+if [ "$RAW_FILE" = true ]; then
+    TEST_FILE_NAME="${TEST_FILE_PREFIX}-$(date +"%Y-%m-%d-%H-%M-%S")-$(uuidgen | cut -d'-' -f1).json"
+else
+    TEST_FILE_NAME="${TEST_FILE_PREFIX}-$(date +"%Y-%m-%d-%H-%M-%S")-$(uuidgen | cut -d'-' -f1).txt"
+fi
 S3_KEY="${TEST_FILE_PREFIX}/${TEST_TIMESTAMP}/${TEST_FILE_NAME}"
 
 # AWS CLI configuration for LocalStack
@@ -222,24 +233,41 @@ prepare_test_data() {
     
     local source_file="$TEST_DATA_DIR/$DATA_FILE"
     
-    # Copy source file to temp location for processing
-    cp "$source_file" /tmp/test-wifi-scan.json
-    
-    # Compress and encode the test data
-    gzip -c /tmp/test-wifi-scan.json | base64 -w 0 > /tmp/test-encoded.txt
-    
-    print_status $GREEN "✅ Test data prepared from: $DATA_FILE"
+    if [ "$RAW_FILE" = true ]; then
+        print_status $YELLOW "📁 Raw file mode: Uploading JSON directly without compression/encoding"
+        # Copy source file to temp location for direct upload
+        cp "$source_file" /tmp/test-wifi-scan.json
+        cp "$source_file" /tmp/test-encoded.txt
+        print_status $GREEN "✅ Raw JSON file prepared for direct upload: $DATA_FILE"
+    else
+        print_status $YELLOW "🔒 Standard mode: Compressing and encoding file"
+        # Copy source file to temp location for processing
+        cp "$source_file" /tmp/test-wifi-scan.json
+        
+        # Compress and encode the test data
+        gzip -c /tmp/test-wifi-scan.json | base64 -w 0 > /tmp/test-encoded.txt
+        print_status $GREEN "✅ Test data compressed and encoded from: $DATA_FILE"
+    fi
 }
 
 # Function to upload test data to S3
 upload_test_data() {
-    print_status $BLUE "📤 Uploading test data to S3..."
+    if [ "$RAW_FILE" = true ]; then
+        print_status $BLUE "📤 Uploading raw JSON file to S3..."
+        print_status $YELLOW "📁 File will be uploaded as-is without compression/encoding"
+    else
+        print_status $BLUE "📤 Uploading compressed and encoded test data to S3..."
+    fi
     
     # Upload to S3
     aws --endpoint-url=$LOCALSTACK_ENDPOINT s3 cp /tmp/test-encoded.txt \
         s3://$S3_BUCKET_NAME/$S3_KEY
     
-    print_status $GREEN "✅ Test data uploaded to s3://$S3_BUCKET_NAME/$S3_KEY"
+    if [ "$RAW_FILE" = true ]; then
+        print_status $GREEN "✅ Raw JSON file uploaded to s3://$S3_BUCKET_NAME/$S3_KEY"
+    else
+        print_status $GREEN "✅ Compressed test data uploaded to s3://$S3_BUCKET_NAME/$S3_KEY"
+    fi
 }
 
 # Function to create and send S3 event to SQS
@@ -572,6 +600,7 @@ display_test_summary() {
     echo ""
     echo "📋 Test Configuration:"
     echo "  Test Data File: $DATA_FILE"
+    echo "  Processing Mode: $([ "$RAW_FILE" = true ] && echo "Raw JSON (no encoding)" || echo "Compressed & Encoded")"
     echo "  LocalStack Endpoint: $LOCALSTACK_ENDPOINT"
     echo "  S3 Source Bucket: s3://$S3_BUCKET_NAME"
     echo "  S3 Destination Bucket: s3://$S3_FIREHOSE_DESTINATION_BUCKET"
