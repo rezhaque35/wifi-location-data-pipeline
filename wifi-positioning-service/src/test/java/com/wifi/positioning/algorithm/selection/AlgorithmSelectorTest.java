@@ -63,6 +63,37 @@ class AlgorithmSelectorTest {
     algorithmSelector = new AlgorithmSelector();
   }
 
+  /**
+   * Helper method to check if a reason indicates weight below threshold and extract the weight.
+   * Handles both old format "Weight=0.25:" and new format "DISQUALIFIED (below threshold 0.40) . Weight Calculation: Weight=0.25:"
+   */
+  private boolean hasWeightBelowThreshold(String reason, double threshold) {
+    try {
+      // New format: "DISQUALIFIED (below threshold 0.40) . Weight Calculation: Weight=0.25:"
+      if (reason.contains("DISQUALIFIED") && reason.contains("below threshold") && reason.contains("Weight Calculation:")) {
+        int weightCalcIndex = reason.indexOf("Weight Calculation:");
+        if (weightCalcIndex != -1) {
+          String weightPart = reason.substring(weightCalcIndex + "Weight Calculation:".length()).trim();
+          if (weightPart.startsWith("Weight=")) {
+            int colonIndex = weightPart.indexOf(":");
+            if (colonIndex != -1) {
+              double weight = Double.parseDouble(weightPart.substring(7, colonIndex));
+              return weight < threshold;
+            }
+          }
+        }
+      }
+      // Old format: "Weight=0.25:"
+      else if (reason.startsWith("Weight=")) {
+        double weight = Double.parseDouble(reason.substring(7, reason.indexOf(":")));
+        return weight < threshold;
+      }
+    } catch (Exception e) {
+      // Ignore parsing errors
+    }
+    return false;
+  }
+
   @Nested
   @DisplayName("Hard Constraints Phase Tests")
   class HardConstraintsPhaseTests {
@@ -104,19 +135,7 @@ class AlgorithmSelectorTest {
       if (!weights.containsKey(logDistanceAlgorithm)) {
         boolean hasWeightBelowThresholdReason =
             reasons.get(logDistanceAlgorithm).stream()
-                .anyMatch(
-                    reason -> {
-                      if (reason.startsWith("Weight=")) {
-                        try {
-                          double weight =
-                              Double.parseDouble(reason.substring(7, reason.indexOf(":")));
-                          return weight < 0.4;
-                        } catch (Exception e) {
-                          return false;
-                        }
-                      }
-                      return false;
-                    });
+                .anyMatch(reason -> hasWeightBelowThreshold(reason, 0.4));
         assertTrue(
             hasWeightBelowThresholdReason,
             "Log Distance algorithm should be excluded due to weight below threshold");
@@ -190,19 +209,7 @@ class AlgorithmSelectorTest {
       if (!weights.containsKey(proximityAlgorithm)) {
         boolean hasWeightBelowThresholdReason =
             reasons.get(proximityAlgorithm).stream()
-                .anyMatch(
-                    reason -> {
-                      if (reason.startsWith("Weight=")) {
-                        try {
-                          double weight =
-                              Double.parseDouble(reason.substring(7, reason.indexOf(":")));
-                          return weight < 0.4;
-                        } catch (Exception e) {
-                          return false;
-                        }
-                      }
-                      return false;
-                    });
+                .anyMatch(reason -> hasWeightBelowThreshold(reason, 0.4));
         assertTrue(
             hasWeightBelowThresholdReason,
             "Proximity algorithm should be excluded due to weight below threshold");
@@ -268,19 +275,7 @@ class AlgorithmSelectorTest {
       if (!weights.containsKey(proximityAlgorithm)) {
         boolean hasWeightBelowThresholdReason =
             reasons.get(proximityAlgorithm).stream()
-                .anyMatch(
-                    reason -> {
-                      if (reason.startsWith("Weight=")) {
-                        try {
-                          double weight =
-                              Double.parseDouble(reason.substring(7, reason.indexOf(":")));
-                          return weight < 0.4;
-                        } catch (Exception e) {
-                          return false;
-                        }
-                      }
-                      return false;
-                    });
+                .anyMatch(reason -> hasWeightBelowThreshold(reason, 0.4));
         assertTrue(
             hasWeightBelowThresholdReason,
             "Proximity algorithm should be excluded due to weight below threshold");
@@ -311,19 +306,7 @@ class AlgorithmSelectorTest {
       if (!weights.containsKey(logDistanceAlgorithm)) {
         boolean hasWeightBelowThresholdReason =
             reasons.get(logDistanceAlgorithm).stream()
-                .anyMatch(
-                    reason -> {
-                      if (reason.startsWith("Weight=")) {
-                        try {
-                          double weight =
-                              Double.parseDouble(reason.substring(7, reason.indexOf(":")));
-                          return weight < 0.4;
-                        } catch (Exception e) {
-                          return false;
-                        }
-                      }
-                      return false;
-                    });
+                .anyMatch(reason -> hasWeightBelowThreshold(reason, 0.4));
         assertTrue(
             hasWeightBelowThresholdReason,
             "Log Distance algorithm should be excluded due to weight below threshold");
@@ -395,19 +378,7 @@ class AlgorithmSelectorTest {
       if (!weights.containsKey(proximityAlgorithm)) {
         boolean hasWeightBelowThresholdReason =
             reasons.get(proximityAlgorithm).stream()
-                .anyMatch(
-                    reason -> {
-                      if (reason.startsWith("Weight=")) {
-                        try {
-                          double weight =
-                              Double.parseDouble(reason.substring(7, reason.indexOf(":")));
-                          return weight < 0.4;
-                        } catch (Exception e) {
-                          return false;
-                        }
-                      }
-                      return false;
-                    });
+                .anyMatch(reason -> hasWeightBelowThreshold(reason, 0.4));
         assertTrue(
             hasWeightBelowThresholdReason,
             "Proximity algorithm should be excluded due to weight below threshold or be selected");

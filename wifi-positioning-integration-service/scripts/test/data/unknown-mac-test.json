@@ -1,0 +1,53 @@
+{
+  "sourceRequest": {
+    "svcHeader": {
+      "authToken": "test-token-unknown-mac"
+    },
+    "svcBody": {
+      "svcReq": {
+        "clientId": "unknown-mac-test-client",
+        "requestId": "unknown-mac-test-$(date +%s)",
+        "wifiInfo": [
+          {
+            "id": "FF:FF:FF:FF:FF:01",
+            "signalStrength": -65.0,
+            "frequency": 2437,
+            "ssid": "Unknown_AP_1"
+          },
+          {
+            "id": "FF:FF:FF:FF:FF:02",
+            "signalStrength": -70.0,
+            "frequency": 5180,
+            "ssid": "Unknown_AP_2"
+          },
+          {
+            "id": "00:11:22:33:44:01",
+            "signalStrength": -60.0,
+            "frequency": 2437,
+            "ssid": "Known_AP_1"
+          }
+        ],
+        "cellInfo": []
+      }
+    }
+  },
+  "sourceResponse": {
+    "success": true,
+    "locationInfo": {
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "accuracy": 50.0,
+      "confidence": 0.65
+    },
+    "requestId": "unknown-mac-client-response"
+  },
+  "options": {
+    "calculationDetail": true,
+    "processingMode": "sync"
+  },
+  "metadata": {
+    "correlationId": "unknown-mac-test-$(date +%s)",
+    "testCase": "unknown-mac-test",
+    "description": "Test with mix of known and unknown MAC addresses to verify AP enrichment behavior"
+  }
+}

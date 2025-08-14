@@ -1,0 +1,65 @@
+{
+  "sourceRequest": {
+    "svcHeader": {
+      "authToken": "test-token-mixed-status"
+    },
+    "svcBody": {
+      "svcReq": {
+        "clientId": "mixed-status-test-client",
+        "requestId": "mixed-status-test-$(date +%s)",
+        "wifiInfo": [
+          {
+            "id": "00:11:22:33:44:41",
+            "signalStrength": -65.0,
+            "frequency": 2437,
+            "ssid": "StatusTest_41"
+          },
+          {
+            "id": "00:11:22:33:44:42",
+            "signalStrength": -70.0,
+            "frequency": 2437,
+            "ssid": "StatusTest_42"
+          },
+          {
+            "id": "00:11:22:33:44:43",
+            "signalStrength": -75.0,
+            "frequency": 2437,
+            "ssid": "StatusTest_43"
+          },
+          {
+            "id": "00:11:22:33:44:44",
+            "signalStrength": -80.0,
+            "frequency": 2437,
+            "ssid": "StatusTest_44"
+          },
+          {
+            "id": "00:11:22:33:44:45",
+            "signalStrength": -85.0,
+            "frequency": 2437,
+            "ssid": "StatusTest_45"
+          }
+        ],
+        "cellInfo": []
+      }
+    }
+  },
+  "sourceResponse": {
+    "success": true,
+    "locationInfo": {
+      "latitude": 37.7820,
+      "longitude": -122.4260,
+      "accuracy": 20.0,
+      "confidence": 0.75
+    },
+    "requestId": "mixed-status-client-response"
+  },
+  "options": {
+    "calculationDetail": true,
+    "processingMode": "sync"
+  },
+  "metadata": {
+    "correlationId": "mixed-status-test-$(date +%s)",
+    "testCase": "mixed-status-aps",
+    "description": "Test with APs having different statuses: active, warning, error, expired, wifi-hotspot"
+  }
+}

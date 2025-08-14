@@ -1,0 +1,99 @@
+Request
+{
+    "svcHeader": {
+        "authToken": "MyToken"
+    },
+    "svcBody": {
+        "svcReq": {
+            "clientId": "BLABLA",
+            "requestId": "6335bcbf2b914777",
+            "wifiInfo": [
+                {
+                    "id": "88:b4:a6:f6:c3:1a",
+                    "signalStrength": -53
+                },
+                {
+                    "id": "ec:a9:40:27:fa:20",
+                    "signalStrength": -56
+                },
+                {
+                    "id": "58:cb:52:b4:bf:ef",
+                    "signalStrength": -58
+                },
+                {
+                    "id": "bc:e9:2f:45:41:f5",
+                    "signalStrength": -66
+                },
+                {
+                    "id": "f8:5e:42:f4:58:30",
+                    "signalStrength": -69
+                },
+                {
+                    "id": "d2:3f:27:40:1d:74",
+                    "signalStrength": -70
+                },
+                {
+                    "id": "88:b4:a6:fd:b3:59",
+                    "signalStrength": -72
+                },
+                {
+                    "id": "7c:78:b2:ac:61:9b",
+                    "signalStrength": -73
+                },
+                {
+                    "id": "6c:63:9c:81:86:40",
+                    "signalStrength": -74
+                },
+                {
+                    "id": "fa:f5:32:d9:bc:f1",
+                    "signalStrength": -79
+                },
+                {
+                    "id": "f8:f5:32:d9:bc:f0",
+                    "signalStrength": -81
+                }
+            ],
+            "cellInfo": [
+                {
+                    "id": 0,
+                    "broadcastId": 0,
+                    "networkId": 0,
+                    "cellType": "bla",
+                    "signalStrength": -112
+                }
+            ]
+        }
+    }
+}'
+
+Response Sucess
+{
+    "svcBody": {
+        "svcRes": {
+            "locationInfo": {
+                "latitude": 34.090169,
+                "longitude": -84.236067,
+                "accuracy": 100.0
+            }
+        },
+        "requestId": "123123",
+        "transactionId": "123"
+    }
+}
+
+Response Failure
+{
+  "svcBody": {
+    "svcError": {
+      "errors": [
+        {
+          "code": 1401,
+          "message": "WHY",
+          "description": "What to do."
+        }
+      ]
+    },
+    "requestId": "123",
+    "transactionId": "123"
+  }
+}

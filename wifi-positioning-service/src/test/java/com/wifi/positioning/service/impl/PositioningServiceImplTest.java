@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.wifi.positioning.algorithm.PositioningAlgorithm;
 import com.wifi.positioning.algorithm.WifiPositioningCalculator;
 import com.wifi.positioning.algorithm.selection.SelectionContext;
+import com.wifi.positioning.dto.CalculationInfo;
 import com.wifi.positioning.dto.Position;
 import com.wifi.positioning.dto.WifiAccessPoint;
 import com.wifi.positioning.dto.WifiPositioningRequest;
@@ -281,16 +282,19 @@ public class PositioningServiceImplTest {
 
     // Assert
     assertNotNull(response.calculationInfo());
-    // Check for AP Filtering section
-    assertTrue(response.calculationInfo().contains("AP Filtering:"));
-    // Check for active AP info
-    assertTrue(response.calculationInfo().contains("active: 1 APs, used in calculation"));
-    // Check for error AP info
-    assertTrue(response.calculationInfo().contains("error: 1 APs, filtered out"));
-    // Check for AP list
-    assertTrue(response.calculationInfo().contains("AP List:"));
-    // Check for algorithm calculation info
-    assertTrue(response.calculationInfo().contains("Algorithm calculation info here"));
+    // Check access point summary information
+    assertTrue(response.calculationInfo().accessPointSummary().total() > 0);
+    assertTrue(response.calculationInfo().accessPointSummary().used() >= 0);
+    // Check for status counts
+    var statusCounts = response.calculationInfo().accessPointSummary().statusCounts();
+    assertNotNull(statusCounts);
+    assertTrue(statusCounts.size() > 0);
+    // Check access points information
+    assertNotNull(response.calculationInfo().accessPoints());
+    assertTrue(response.calculationInfo().accessPoints().size() > 0);
+    // Check algorithm selection information
+    assertNotNull(response.calculationInfo().algorithmSelection());
+    assertTrue(response.calculationInfo().algorithmSelection().size() > 0);
   }
 
   @Test

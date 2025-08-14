@@ -1,0 +1,65 @@
+{
+  "sourceRequest": {
+    "svcHeader": {
+      "authToken": "test-token-high-density"
+    },
+    "svcBody": {
+      "svcReq": {
+        "clientId": "high-density-test-client",
+        "requestId": "high-density-test-$(date +%s)",
+        "wifiInfo": [
+          {
+            "id": "00:11:22:33:44:11",
+            "signalStrength": -65.0,
+            "frequency": 5320,
+            "ssid": "HighDensity_Test_11"
+          },
+          {
+            "id": "00:11:22:33:44:12",
+            "signalStrength": -66.5,
+            "frequency": 5320,
+            "ssid": "HighDensity_Test_12"
+          },
+          {
+            "id": "00:11:22:33:44:13",
+            "signalStrength": -68.0,
+            "frequency": 5320,
+            "ssid": "HighDensity_Test_13"
+          },
+          {
+            "id": "00:11:22:33:44:14",
+            "signalStrength": -69.5,
+            "frequency": 5320,
+            "ssid": "HighDensity_Test_14"
+          },
+          {
+            "id": "00:11:22:33:44:15",
+            "signalStrength": -71.0,
+            "frequency": 5320,
+            "ssid": "HighDensity_Test_15"
+          }
+        ],
+        "cellInfo": []
+      }
+    }
+  },
+  "sourceResponse": {
+    "success": true,
+    "locationInfo": {
+      "latitude": 37.7760,
+      "longitude": -122.4200,
+      "accuracy": 12.0,
+      "confidence": 0.88
+    },
+    "requestId": "high-density-client-response"
+  },
+  "options": {
+    "calculationDetail": true,
+    "processingMode": "sync"
+  },
+  "metadata": {
+    "correlationId": "high-density-test-$(date +%s)",
+    "testCase": "high-density-cluster",
+    "description": "High-density AP cluster test using 5 APs for maximum likelihood algorithm testing"
+  }
+}

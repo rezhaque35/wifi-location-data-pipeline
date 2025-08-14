@@ -1,0 +1,53 @@
+{
+  "sourceRequest": {
+    "svcHeader": {
+      "authToken": "test-token-trilateration"
+    },
+    "svcBody": {
+      "svcReq": {
+        "clientId": "trilateration-test-client",
+        "requestId": "trilateration-test-$(date +%s)",
+        "wifiInfo": [
+          {
+            "id": "00:11:22:33:44:01",
+            "signalStrength": -65.0,
+            "frequency": 2437,
+            "ssid": "SingleAP_Test"
+          },
+          {
+            "id": "00:11:22:33:44:02",
+            "signalStrength": -70.0,
+            "frequency": 5180,
+            "ssid": "DualAP_Test"
+          },
+          {
+            "id": "00:11:22:33:44:03",
+            "signalStrength": -68.0,
+            "frequency": 2462,
+            "ssid": "TriAP_Test"
+          }
+        ],
+        "cellInfo": []
+      }
+    }
+  },
+  "sourceResponse": {
+    "success": true,
+    "locationInfo": {
+      "latitude": 37.7750,
+      "longitude": -122.4195,
+      "accuracy": 8.5,
+      "confidence": 0.92
+    },
+    "requestId": "trilateration-client-response"
+  },
+  "options": {
+    "calculationDetail": true,
+    "processingMode": "sync"
+  },
+  "metadata": {
+    "correlationId": "trilateration-test-$(date +%s)",
+    "testCase": "trilateration",
+    "description": "Trilateration test using three APs: 00:11:22:33:44:01, 00:11:22:33:44:02, 00:11:22:33:44:03"
+  }
+}

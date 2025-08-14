@@ -3,7 +3,6 @@ package com.wifi.positioning.algorithm.selection;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -31,9 +30,7 @@ public class AlgorithmSelector {
   // Weight threshold for finalist selection
   private static final double HIGH_CONFIDENCE_THRESHOLD = 0.8;
 
-  // Signal strength thresholds
-  private static final double EXTREMELY_WEAK_SIGNAL_THRESHOLD = -95.0;
-
+ 
   // Predefined algorithm sets for constraints
   private static final String DISQUALIFIED_INSUFFICIENT_APS = "DISQUALIFIED (insufficient APs)";
   private static final String DISQUALIFIED_COLLINEAR = "DISQUALIFIED (collinear APs)";
@@ -69,13 +66,14 @@ public class AlgorithmSelector {
   /** Initialize algorithms for very weak signal scenario (only proximity) */
   private static SelectedAlgorithms initializeVeryWeakSignalAlgorithms() {
     Set<PositioningAlgorithmType> eligibleTypes = Set.of(PositioningAlgorithmType.PROXIMITY);
-    Map<PositioningAlgorithmType, List<String>> reasons = createReasonMap();
+    Map<PositioningAlgorithmType, SelectionReasoning> reasons = createReasonMap(eligibleTypes);
 
     for (PositioningAlgorithmType type : PositioningAlgorithmType.values()) {
+      SelectionReasoning sr = reasons.get(type);
       if (type == PositioningAlgorithmType.PROXIMITY) {
-        reasons.get(type).add(ONLY_VIABLE_FOR_WEAK);
+        sr.reasonings().add(ONLY_VIABLE_FOR_WEAK);
       } else {
-        reasons.get(type).add(DISQUALIFIED_SIGNAL_TOO_WEAK);
+        sr.reasonings().add(DISQUALIFIED_SIGNAL_TOO_WEAK);
       }
     }
 
@@ -86,15 +84,16 @@ public class AlgorithmSelector {
   private static SelectedAlgorithms initializeSingleApAlgorithms() {
     Set<PositioningAlgorithmType> eligibleTypes =
         Set.of(PositioningAlgorithmType.PROXIMITY, PositioningAlgorithmType.LOG_DISTANCE);
-    Map<PositioningAlgorithmType, List<String>> reasons = createReasonMap();
+    Map<PositioningAlgorithmType, SelectionReasoning> reasons = createReasonMap(eligibleTypes);
 
     for (PositioningAlgorithmType type : PositioningAlgorithmType.values()) {
+      SelectionReasoning sr = reasons.get(type);
       if (type == PositioningAlgorithmType.PROXIMITY) {
-        reasons.get(type).add(VALID_FOR_SINGLE_AP);
+        sr.reasonings().add(VALID_FOR_SINGLE_AP);
       } else if (type == PositioningAlgorithmType.LOG_DISTANCE) {
-        reasons.get(type).add(VALID_FOR_SINGLE_AP_WITH_MODEL);
+        sr.reasonings().add(VALID_FOR_SINGLE_AP_WITH_MODEL);
       } else {
-        reasons.get(type).add(DISQUALIFIED_INSUFFICIENT_APS);
+        sr.reasonings().add(DISQUALIFIED_INSUFFICIENT_APS);
       }
     }
 
@@ -112,15 +111,16 @@ public class AlgorithmSelector {
             PositioningAlgorithmType.RSSI_RATIO,
             PositioningAlgorithmType.WEIGHTED_CENTROID,
             PositioningAlgorithmType.LOG_DISTANCE);
-    Map<PositioningAlgorithmType, List<String>> reasons = createReasonMap();
+    Map<PositioningAlgorithmType, SelectionReasoning> reasons = createReasonMap(eligibleTypes);
 
     for (PositioningAlgorithmType type : PositioningAlgorithmType.values()) {
+      SelectionReasoning sr = reasons.get(type);
       if (eligibleTypes.contains(type)) {
-        reasons.get(type).add(VALID_FOR_TWO_APS);
+        sr.reasonings().add(VALID_FOR_TWO_APS);
       } else if (type == PositioningAlgorithmType.TRILATERATION) {
-        reasons.get(type).add(TRILAT_REQUIRES_3_APS);
+        sr.reasonings().add(TRILAT_REQUIRES_3_APS);
       } else if (type == PositioningAlgorithmType.MAXIMUM_LIKELIHOOD) {
-        reasons.get(type).add(ML_REQUIRES_4_APS);
+        sr.reasonings().add(ML_REQUIRES_4_APS);
       }
     }
 
@@ -133,13 +133,14 @@ public class AlgorithmSelector {
         new HashSet<>(Arrays.asList(PositioningAlgorithmType.values()));
     eligibleTypes.remove(PositioningAlgorithmType.MAXIMUM_LIKELIHOOD);
 
-    Map<PositioningAlgorithmType, List<String>> reasons = createReasonMap();
+    Map<PositioningAlgorithmType, SelectionReasoning> reasons = createReasonMap(eligibleTypes);
 
     for (PositioningAlgorithmType type : PositioningAlgorithmType.values()) {
+      SelectionReasoning sr = reasons.get(type);
       if (eligibleTypes.contains(type)) {
-        reasons.get(type).add(VALID_FOR_THREE_APS);
+        sr.reasonings().add(VALID_FOR_THREE_APS);
       } else {
-        reasons.get(type).add(ML_REQUIRES_4_APS);
+        sr.reasonings().add(ML_REQUIRES_4_APS);
       }
     }
 
@@ -150,20 +151,22 @@ public class AlgorithmSelector {
   private static SelectedAlgorithms initializeFourPlusApsAlgorithms() {
     Set<PositioningAlgorithmType> eligibleTypes =
         new HashSet<>(Arrays.asList(PositioningAlgorithmType.values()));
-    Map<PositioningAlgorithmType, List<String>> reasons = createReasonMap();
+    Map<PositioningAlgorithmType, SelectionReasoning> reasons = createReasonMap(eligibleTypes);
 
     for (PositioningAlgorithmType type : PositioningAlgorithmType.values()) {
-      reasons.get(type).add(VALID_FOR_FOUR_PLUS_APS);
+      reasons.get(type).reasonings().add(VALID_FOR_FOUR_PLUS_APS);
     }
 
     return new SelectedAlgorithms(eligibleTypes, reasons);
   }
 
-  /** Helper method to create a reason map with empty lists for all algorithm types */
-  private static Map<PositioningAlgorithmType, List<String>> createReasonMap() {
-    Map<PositioningAlgorithmType, List<String>> reasons = new HashMap<>();
+  /** Helper to create structured reason map initialized with selected flag by eligibility */
+  private static Map<PositioningAlgorithmType, SelectionReasoning> createReasonMap(
+      Set<PositioningAlgorithmType> eligibleTypes) {
+    Map<PositioningAlgorithmType, SelectionReasoning> reasons = new HashMap<>();
     for (PositioningAlgorithmType type : PositioningAlgorithmType.values()) {
-      reasons.put(type, new ArrayList<>());
+      boolean selected = eligibleTypes != null && eligibleTypes.contains(type);
+      reasons.put(type, new SelectionReasoning(type, selected, new ArrayList<>()));
     }
     return reasons;
   }
@@ -185,9 +188,20 @@ public class AlgorithmSelector {
    * Record to hold the result of algorithm selection after applying hard constraints Contains both
    * eligible algorithm types and the reasons for inclusion/exclusion
    */
+  public record SelectionReasoning(
+      PositioningAlgorithmType type, boolean selected, List<String> reasonings) {}
+
+  /**
+   * Record to hold the result of algorithm selection including both selected algorithms 
+   * and updated selection reasons.
+   */
+  private record AlgorithmSelection(
+      Set<WeightedAlgorithm> selectedAlgorithms,
+      Map<PositioningAlgorithmType, SelectionReasoning> updatedReasons) {}
+
   record SelectedAlgorithms(
       Set<PositioningAlgorithmType> eligibleAlgorithmTypes,
-      Map<PositioningAlgorithmType, List<String>> reasons) {
+      Map<PositioningAlgorithmType, SelectionReasoning> reasons) {
     /**
      * Creates a copy of this SelectedAlgorithms but applies a filter to the eligible algorithms.
      * Algorithms that don't pass the filter will be removed and given the specified reason.
@@ -203,14 +217,18 @@ public class AlgorithmSelector {
       Set<PositioningAlgorithmType> filteredTypes =
           eligibleAlgorithmTypes.stream().filter(filter).collect(Collectors.toSet());
 
-      // Create a deep copy of reasons
-      Map<PositioningAlgorithmType, List<String>> newReasons = new HashMap<>();
-      reasons.forEach((type, reasonList) -> newReasons.put(type, new ArrayList<>(reasonList)));
-
-      // Add reasons for excluded algorithms
-      eligibleAlgorithmTypes.stream()
-          .filter(type -> !filter.test(type))
-          .forEach(type -> newReasons.get(type).add(reasonForExclusion));
+      // Create a deep copy of reasons and update selection flags
+      Map<PositioningAlgorithmType, SelectionReasoning> newReasons = new HashMap<>();
+      for (Map.Entry<PositioningAlgorithmType, SelectionReasoning> entry : reasons.entrySet()) {
+        PositioningAlgorithmType type = entry.getKey();
+        SelectionReasoning existing = entry.getValue();
+        List<String> updated = new ArrayList<>(existing.reasonings());
+        boolean stillSelected = filteredTypes.contains(type);
+        if (!stillSelected) {
+          updated.add(reasonForExclusion);
+        }
+        newReasons.put(type, new SelectionReasoning(type, stillSelected, updated));
+      }
 
       return new SelectedAlgorithms(filteredTypes, newReasons);
     }
@@ -231,7 +249,7 @@ public class AlgorithmSelector {
    * Record to hold the result of algorithm weight calculation including the algorithm, its
    * calculated weight and the reason formula
    */
-  private record WeightedAlgorithm(PositioningAlgorithm algorithm, double weight, String reason) {}
+  private record WeightedAlgorithm(PositioningAlgorithm algorithm, double weight, String weightCalculation) {}
 
   /**
    * Apply algorithm weighting based on various factors Returns a list of weight results using a
@@ -267,12 +285,12 @@ public class AlgorithmSelector {
     double weight = baseWeight * signalMultiplier * geometricMultiplier * distributionMultiplier;
 
     // Create reason with the complete formula
-    String reason =
+    String weightCalculation =
         String.format(
             "Weight=%1$.2f: base(%2$.2f) × signal(%3$.2f) × geometric(%4$.2f) × distribution(%5$.2f)",
             weight, baseWeight, signalMultiplier, geometricMultiplier, distributionMultiplier);
 
-    return new WeightedAlgorithm(algorithm, weight, reason);
+    return new WeightedAlgorithm(algorithm, weight, weightCalculation);
   }
 
   /**
@@ -297,28 +315,18 @@ public class AlgorithmSelector {
     // -------------- PHASE ONE: HARD CONSTRAINTS ----------------
     SelectedAlgorithms eligibleAlgorithms = selectAlgorithmsBasedOnHardConstraints(context);
 
-    logger.debug(
-        "After hard constraints, eligible algorithms: {}",
-        eligibleAlgorithms.eligibleAlgorithmTypes.stream()
-            .map(type -> type.getImplementation().getName())
-            .collect(Collectors.joining(", ")));
 
     // -------------- PHASE TWO: ALGORITHM WEIGHTING ----------------
     Set<WeightedAlgorithm> weightedAlgorithms =
         applyAlgorithmWeighting(eligibleAlgorithms, context);
 
     // -------------- PHASE THREE: FINALIST SELECTION ----------------
-    Set<WeightedAlgorithm> finalSelectedAlgorithms =
-        applyFinalistSelection(weightedAlgorithms, context);
+    AlgorithmSelection finalSelectedAlgorithms =
+        applyFinalistSelection(weightedAlgorithms, eligibleAlgorithms.reasons);
 
-    logger.debug(
-        "Final algorithm selection: {}",
-        weightedAlgorithms.stream()
-            .map(e -> e.algorithm().getName() + "=" + e.weight())
-            .collect(Collectors.joining(", ")));
-
+ 
     return createAlgorithmSelectionInfo(
-        finalSelectedAlgorithms, mergeReasons(eligibleAlgorithms, weightedAlgorithms));
+        finalSelectedAlgorithms);
   }
 
   /**
@@ -329,81 +337,240 @@ public class AlgorithmSelector {
    * Select top 3 algorithms
    *
    * @param weightedAlgorithms The set of weighted algorithms after phase two
-   * @param context The selection context
+   * @param selectionReasons Map of selection reasons to update with discard info
    * @return A filtered set of finalist algorithms
    */
-  private Set<WeightedAlgorithm> applyFinalistSelection(
-      Set<WeightedAlgorithm> weightedAlgorithms, SelectionContext context) {
+  private AlgorithmSelection applyFinalistSelection(
+      Set<WeightedAlgorithm> weightedAlgorithms, Map<PositioningAlgorithmType, SelectionReasoning> selectionReasons) {
 
     logger.debug("Applying finalist selection phase");
 
-    // ---------- STEP 1: THRESHOLD FILTER ----------
-    // Remove algorithms with weight below 0.4
-    double minimumWeightThreshold =
-        weightedAlgorithms.size() == 1
-            ? weightedAlgorithms.stream().findFirst().map(WeightedAlgorithm::weight).orElse(0.4)
-            : 0.4;
-    weightedAlgorithms =
-        weightedAlgorithms.stream()
-            .filter(algorithm -> algorithm.weight() >= minimumWeightThreshold)
-            .collect(Collectors.toSet());
-
-    logger.debug(
-        "After threshold filter (min weight {}): {} algorithms remain",
-        minimumWeightThreshold,
-        weightedAlgorithms.size());
-
-    // ---------- STEP 2: ADAPTIVE SELECTION ----------
-    // Find the highest weight
-    Optional<WeightedAlgorithm> highestWeighted =
-        weightedAlgorithms.stream().max(Comparator.comparingDouble(WeightedAlgorithm::weight));
-
-    if (highestWeighted.isPresent() && highestWeighted.get().weight() > HIGH_CONFIDENCE_THRESHOLD) {
-      // High confidence scenario: Use highest weighted algorithm with at most one backup
-      logger.debug(
-          "High confidence algorithm detected with weight > {}: {}",
-          HIGH_CONFIDENCE_THRESHOLD,
-          highestWeighted.get().algorithm().getName());
-
-      // Limit to top 2 algorithms (primary + one backup)
-      weightedAlgorithms =
-          weightedAlgorithms.stream()
-              .sorted(Comparator.comparingDouble(WeightedAlgorithm::weight).reversed())
-              .limit(2)
-              .collect(Collectors.toSet());
-
-      logger.debug("Limited to primary algorithm with one backup due to high confidence");
-    } else if (weightedAlgorithms.size() > 3) {
-      // No high confidence algorithm, but more than 3 candidates
-      // Select top 3 algorithms
-      weightedAlgorithms =
-          weightedAlgorithms.stream()
-              .sorted(Comparator.comparingDouble(WeightedAlgorithm::weight).reversed())
-              .limit(3)
-              .collect(Collectors.toSet());
-
-      logger.debug("Limited to top 3 algorithms (no high confidence algorithm)");
-    }
-
-    return weightedAlgorithms;
+    AlgorithmSelection algorithmSelection = applyThresholdFilter(weightedAlgorithms, selectionReasons);
+    
+ 
+    
+    return applyAdaptiveSelection(algorithmSelection);
   }
 
   /**
-   * Creates the final AlgorithmSelectionInfo from the list of weighted algorithms and reasons
-   *
-   * @param weightedAlgorithms List of algorithms with their weights
-   * @param reasons Map of reasons for algorithm selection
-   * @return AlgorithmSelectionInfo containing the algorithms, weights and reasons
+   * Applies threshold filtering to remove algorithms with weights below the minimum threshold.
+   * 
+   * @param weightedAlgorithms The algorithms to filter
+   * @param selectionReasons Map to record discard reasons
+   * @return AlgorithmSelection containing both filtered algorithms and updated reasons
    */
-  private AlgorithmSelectionInfo createAlgorithmSelectionInfo(
-      Set<WeightedAlgorithm> weightedAlgorithms, Map<PositioningAlgorithm, List<String>> reasons) {
+  private AlgorithmSelection applyThresholdFilter(
+      Set<WeightedAlgorithm> weightedAlgorithms, Map<PositioningAlgorithmType, SelectionReasoning> selectionReasons) {
+    
+    double minimumWeightThreshold = calculateMinimumWeightThreshold(weightedAlgorithms);
+    
+    Set<WeightedAlgorithm> belowThreshold = findAlgorithmsBelowThreshold(weightedAlgorithms, minimumWeightThreshold);
+    Map<PositioningAlgorithmType, SelectionReasoning> updatedReasons = 
+        recordThresholdDiscards(belowThreshold, minimumWeightThreshold, selectionReasons);
+    
+    Set<WeightedAlgorithm> aboveThreshold = filterAlgorithmsAboveThreshold(weightedAlgorithms, minimumWeightThreshold);
+    
+    logger.debug("After threshold filter (min weight {}): {} algorithms remain", 
+                 minimumWeightThreshold, aboveThreshold.size());
+    
+    return new AlgorithmSelection(aboveThreshold, updatedReasons);
+  }
 
-    // Convert weightedAlgorithms list to a map of algorithm -> weight
+  /**
+   * Applies adaptive selection strategy based on the highest algorithm weight.
+   * 
+   * @param weightedAlgorithms Algorithms that passed threshold filtering
+   * @param selectionReasons Map to record discard reasons
+   * @return Final selected algorithms
+   */
+  private AlgorithmSelection applyAdaptiveSelection( AlgorithmSelection algorithmSelection) {
+    
+    Optional<WeightedAlgorithm> highestWeighted = findHighestWeightedAlgorithm(algorithmSelection.selectedAlgorithms());
+    
+    if (isHighConfidenceScenario(highestWeighted)) {
+      return applyHighConfidenceSelection(algorithmSelection);
+    } else if (algorithmSelection.selectedAlgorithms().size() > 3) {
+      return applyNormalConfidenceSelection(algorithmSelection);
+    } else {
+      return algorithmSelection; // Use all algorithms if 3 or fewer
+    }
+  }
+
+  /**
+   * Selects top algorithms for high confidence scenarios (top 2 algorithms).
+   */
+  private AlgorithmSelection applyHighConfidenceSelection( AlgorithmSelection algorithmSelection){
+    
+    logger.debug("High confidence scenario: selecting top 2 algorithms");
+    return selectTopAlgorithms(algorithmSelection, 2, "DISQUALIFIED (not in top 2 High Confidence)");
+  }
+
+  /**
+   * Selects top algorithms for normal confidence scenarios (top 3 algorithms).
+   */
+  private AlgorithmSelection applyNormalConfidenceSelection(
+      AlgorithmSelection algorithmSelection) {
+    
+    logger.debug("Normal confidence scenario: selecting top 3 algorithms");
+    return selectTopAlgorithms(algorithmSelection, 3, "DISQUALIFIED (not in top 3 below High Confidence)");
+  }
+
+  /**
+   * Generic method to select top N algorithms and record discard reasons for the rest.
+   */
+  private AlgorithmSelection selectTopAlgorithms(
+      AlgorithmSelection algorithmSelection, int topN, String discardReason) {
+    
+    List<WeightedAlgorithm> sorted = sortAlgorithmsByWeightDescending(algorithmSelection.selectedAlgorithms());
+    Set<WeightedAlgorithm> kept = new HashSet<>(sorted.subList(0, Math.min(topN, sorted.size())));
+    Set<WeightedAlgorithm> discarded = createDiscardedSet(sorted, kept);
+    
+    var updatedReasons = recordSelectionDiscards(discarded, discardReason, algorithmSelection.updatedReasons());
+    
+    return new AlgorithmSelection(kept, updatedReasons);
+  }
+
+  // Helper methods for better readability and DRY principle
+  
+  private double calculateMinimumWeightThreshold(Set<WeightedAlgorithm> weightedAlgorithms) {
+    return weightedAlgorithms.size() == 1
+        ? weightedAlgorithms.stream().findFirst().map(WeightedAlgorithm::weight).orElse(0.4)
+        : 0.4;
+  }
+
+  private Set<WeightedAlgorithm> findAlgorithmsBelowThreshold(Set<WeightedAlgorithm> algorithms, double threshold) {
+    return algorithms.stream()
+        .filter(wa -> wa.weight() < threshold)
+        .collect(Collectors.toSet());
+  }
+
+  private Set<WeightedAlgorithm> filterAlgorithmsAboveThreshold(Set<WeightedAlgorithm> algorithms, double threshold) {
+    return algorithms.stream()
+        .filter(algorithm -> algorithm.weight() >= threshold)
+        .collect(Collectors.toSet());
+  }
+
+  private Optional<WeightedAlgorithm> findHighestWeightedAlgorithm(Set<WeightedAlgorithm> algorithms) {
+    return algorithms.stream().max(Comparator.comparingDouble(WeightedAlgorithm::weight));
+  }
+
+  private boolean isHighConfidenceScenario(Optional<WeightedAlgorithm> highestWeighted) {
+    return highestWeighted.isPresent() && highestWeighted.get().weight() > HIGH_CONFIDENCE_THRESHOLD;
+  }
+
+  private List<WeightedAlgorithm> sortAlgorithmsByWeightDescending(Set<WeightedAlgorithm> algorithms) {
+    return algorithms.stream()
+        .sorted(Comparator.comparingDouble(WeightedAlgorithm::weight).reversed())
+        .toList();
+  }
+
+  private Set<WeightedAlgorithm> createDiscardedSet(List<WeightedAlgorithm> sorted, Set<WeightedAlgorithm> kept) {
+    Set<WeightedAlgorithm> discarded = new HashSet<>(sorted);
+    discarded.removeAll(kept);
+    return discarded;
+  }
+
+  private Map<PositioningAlgorithmType, SelectionReasoning> recordThresholdDiscards(Set<WeightedAlgorithm> discarded, double threshold, 
+                                      Map<PositioningAlgorithmType, SelectionReasoning> selectionReasons) {
+    for (WeightedAlgorithm wa : discarded) {
+      // Format to maintain test compatibility: tests expect reasons starting with "Weight="
+      String reason = String.format("DISQUALIFIED  (below threshold %.2f) . Weight Calculation: %s", 
+           threshold, wa.weightCalculation());
+      PositioningAlgorithmType type = findTypeForAlgorithm(wa.algorithm());
+      if (type != null) {
+        selectionReasons.computeIfPresent(type, (k, v) -> appendDiscardReason(v, reason));
+      }
+    }
+    return selectionReasons;
+  }
+
+    private Map<PositioningAlgorithmType, SelectionReasoning> recordSelectionDiscards(Set<WeightedAlgorithm> discarded, String baseReason, 
+                                      Map<PositioningAlgorithmType, SelectionReasoning> selectionReasons) {
+    for (WeightedAlgorithm wa : discarded) {
+      String reason = String.format("%s. Weight Calculation: %s", baseReason, wa.weightCalculation());
+      PositioningAlgorithmType type = findTypeForAlgorithm(wa.algorithm());
+      if (type != null) {
+        selectionReasons.computeIfPresent(type, (k, v) -> appendDiscardReason(v, reason));
+      }
+    }
+    return selectionReasons;
+  }
+
+
+
+  /**
+   * Finds the PositioningAlgorithmType for a given algorithm implementation.
+   *
+   * @param algorithm The algorithm implementation to find the type for
+   * @return The matching PositioningAlgorithmType, or null if not found
+   */
+  private PositioningAlgorithmType findTypeForAlgorithm(PositioningAlgorithm algorithm) {
+    for (PositioningAlgorithmType type : PositioningAlgorithmType.values()) {
+      if (type.getImplementation().getClass().equals(algorithm.getClass())) {
+        return type;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Creates the final AlgorithmSelectionInfo from the AlgorithmSelection.
+   * Adds "Selected. Weight Calculation: ..." reasons for selected algorithms.
+   *
+   * @param algorithmSelection The final algorithm selection with algorithms and reasons
+   * @return AlgorithmSelectionInfo containing the algorithms, weights and updated reasons
+   */
+  private AlgorithmSelectionInfo createAlgorithmSelectionInfo(AlgorithmSelection algorithmSelection) {
+
+    // Extract selected algorithms and their weights
     Map<PositioningAlgorithm, Double> algorithmWeights =
-        weightedAlgorithms.stream()
+        algorithmSelection.selectedAlgorithms().stream()
             .collect(Collectors.toMap(WeightedAlgorithm::algorithm, WeightedAlgorithm::weight));
 
-    return new AlgorithmSelectionInfo(algorithmWeights, reasons);
+    // Build reasons map and append "Selected" reasons for selected algorithms
+    Map<PositioningAlgorithm, List<String>> algorithmReasons = buildFinalReasons(algorithmSelection);
+
+    return new AlgorithmSelectionInfo(algorithmWeights, algorithmReasons);
+  }
+
+  /**
+   * Builds the final reasons map by converting from PositioningAlgorithmType-based reasons
+   * to PositioningAlgorithm-based reasons, and adding "Selected" reasons for chosen algorithms.
+   *
+   * @param algorithmSelection The algorithm selection containing reasons and selected algorithms
+   * @return Map of algorithms to their selection reasons
+   */
+  private Map<PositioningAlgorithm, List<String>> buildFinalReasons(AlgorithmSelection algorithmSelection) {
+    Map<PositioningAlgorithm, List<String>> algorithmReasons = new HashMap<>();
+    
+    // Convert SelectionReasoning map to algorithm-based reasons map
+    for (PositioningAlgorithmType type : PositioningAlgorithmType.values()) {
+      PositioningAlgorithm algorithm = type.getImplementation();
+      List<String> reasons = new ArrayList<>();
+      
+      // Add existing reasons from the selection process
+      algorithmSelection.updatedReasons().computeIfPresent(type, (k, v) -> {
+        if (v.reasonings() != null) {
+          reasons.addAll(v.reasonings());
+        }
+        return v;
+      });
+      
+      // Add "Selected" reason if this algorithm was chosen
+      algorithmSelection.selectedAlgorithms().stream()
+          .filter(wa -> wa.algorithm().getClass().equals(algorithm.getClass()))
+          .findFirst()
+          .ifPresent(selectedAlgorithm -> {
+            String selectedReason = String.format(
+                "SELECTED. Weight Calculation: %s", 
+                selectedAlgorithm.weightCalculation());
+            reasons.add(selectedReason);
+          });
+      
+      algorithmReasons.put(algorithm, reasons);
+    }
+    
+    return algorithmReasons;
   }
 
   /**
@@ -468,43 +635,57 @@ public class AlgorithmSelector {
     };
   }
 
-  /** Check if all signals in the scan results are extremely weak */
-  private boolean areAllSignalsExtremelyWeak(List<WifiScanResult> validScans) {
-    return validScans.stream()
-        .allMatch(scan -> scan.signalStrength() <= EXTREMELY_WEAK_SIGNAL_THRESHOLD);
-  }
-
+ 
   private Map<PositioningAlgorithm, List<String>> mergeReasons(
       SelectedAlgorithms eligibleAlgorithms, Set<WeightedAlgorithm> weightedAlgorithms) {
 
     // Create a map from algorithm to its weight reason
     Map<PositioningAlgorithm, String> weightedAlgorithmsMap =
         weightedAlgorithms.stream()
-            .collect(Collectors.toMap(WeightedAlgorithm::algorithm, WeightedAlgorithm::reason));
+            .collect(Collectors.toMap(WeightedAlgorithm::algorithm, WeightedAlgorithm::weightCalculation));
 
-    // Process each algorithm type
-    Map<PositioningAlgorithm, List<String>> collect =
-        Arrays.stream(PositioningAlgorithmType.values())
-            .map(
-                algorithm -> {
-                  List<String> reasonList =
-                      new ArrayList<>(
-                          eligibleAlgorithms.reasons.getOrDefault(algorithm, List.of()));
-                  return Pair.of(algorithm, reasonList);
-                })
-            .map(
-                P -> {
-                  PositioningAlgorithm algorithm = P.getKey().getImplementation();
-                  List<String> reasonList = P.getValue();
-                  // Add weight reasons if available
-                  if (weightedAlgorithmsMap.containsKey(algorithm)) {
-                    reasonList.add(weightedAlgorithmsMap.get(algorithm));
-                  }
-                  return Pair.of(algorithm, reasonList);
-                })
-            .collect(Collectors.toMap(Pair::getKey, Pair::getValue));
+    // Build flattened reasons combining hard-constraint reasons and weight formulas
+    Map<PositioningAlgorithm, List<String>> collect = new HashMap<>();
+    for (PositioningAlgorithmType type : PositioningAlgorithmType.values()) {
+      PositioningAlgorithm algo = type.getImplementation();
+      List<String> reasonList = new ArrayList<>();
+
+      eligibleAlgorithms.reasons.computeIfPresent(type, (k, v) -> {
+        if (v.reasonings() != null) {
+          reasonList.addAll(v.reasonings());
+        }
+        return v;
+      });
+
+      weightedAlgorithmsMap.computeIfPresent(algo, (k, v) -> {
+        reasonList.add(v);
+        return v;
+      });
+
+      collect.put(algo, reasonList);
+    }
     return collect;
   }
 
-  /** Merge hard constraint reasons for a specific algorithm type */
+  /**
+   * Appends a discard reason to the SelectionReasoning for the given algorithm.
+   *
+   * @param selectionReasons Map of selection reasons to update
+   * @param algorithm The algorithm that was discarded
+   * @param reason The reason for discarding the algorithm
+   */
+  private SelectionReasoning appendDiscardReason(
+      SelectionReasoning selectionReason,
+      String reason) {
+
+    
+    // Create a new list with existing reasons plus the new reason
+    List<String> updatedReasons = new ArrayList<>(selectionReason.reasonings());
+    updatedReasons.add(reason);
+    
+    // Create new SelectionReasoning with updated reasons list
+    return new SelectionReasoning(selectionReason.type(), false, updatedReasons);
+   
+  }
+
 }

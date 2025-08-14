@@ -1,0 +1,41 @@
+{
+  "sourceRequest": {
+    "svcHeader": {
+      "authToken": "test-token-single-ap"
+    },
+    "svcBody": {
+      "svcReq": {
+        "clientId": "single-ap-test-client",
+        "requestId": "single-ap-test-$(date +%s)",
+        "wifiInfo": [
+          {
+            "id": "00:11:22:33:44:01",
+            "signalStrength": -65.0,
+            "frequency": 2437,
+            "ssid": "SingleAP_Test"
+          }
+        ],
+        "cellInfo": []
+      }
+    }
+  },
+  "sourceResponse": {
+    "success": true,
+    "locationInfo": {
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "accuracy": 50.0,
+      "confidence": 0.65
+    },
+    "requestId": "single-ap-client-response"
+  },
+  "options": {
+    "calculationDetail": true,
+    "processingMode": "sync"
+  },
+  "metadata": {
+    "correlationId": "single-ap-test-$(date +%s)",
+    "testCase": "single-ap-proximity",
+    "description": "Single AP proximity detection test using MAC 00:11:22:33:44:01"
+  }
+}

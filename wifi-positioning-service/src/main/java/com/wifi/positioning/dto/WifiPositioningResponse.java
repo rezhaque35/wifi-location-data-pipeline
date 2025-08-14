@@ -21,10 +21,10 @@ public record WifiPositioningResponse(
     WifiPosition wifiPosition,
 
     // Calculation information (optional)
-    String calculationInfo) {
+    CalculationInfo calculationInfo) {
   /** Creates a success response with position data. */
   public static WifiPositioningResponse success(
-      WifiPositioningRequest request, WifiPosition wifiPosition, String calculationInfo) {
+      WifiPositioningRequest request, WifiPosition wifiPosition, CalculationInfo calculationInfo) {
     return new WifiPositioningResponse(
         "SUCCESS",
         "Request processed successfully",

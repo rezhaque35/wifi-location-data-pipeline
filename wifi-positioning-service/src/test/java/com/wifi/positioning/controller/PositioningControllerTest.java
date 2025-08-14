@@ -100,7 +100,7 @@ class PositioningControllerTest {
             TEST_APPLICATION,
             Instant.now().toEpochMilli(),
             wifiPosition,
-            "Calculation info");
+            null); // Using null for test since we're not testing calculationInfo structure
 
     // Create an error response for testing
     errorResponse = WifiPositioningResponse.error("Error message", testRequest);

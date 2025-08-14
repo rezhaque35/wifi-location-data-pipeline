@@ -50,7 +50,7 @@ extract_json_value() {
     # Handle different fields based on their location in the JSON
     case "$field" in
         # Top-level fields
-        result|message|requestId|client|application|timestamp|calculationInfo)
+        result|message|requestId|client|application|timestamp)
             echo "$cleaned_json" | jq -r ".$field // \"\"" 2>/dev/null || echo ""
             ;;
         # Fields in wifiPosition object
@@ -60,6 +60,22 @@ extract_json_value() {
         # Handle methodsUsed array
         methodsUsed)
             echo "$cleaned_json" | jq -r ".wifiPosition.methodsUsed | if . == null then \"\" else join(\", \") end" 2>/dev/null || echo ""
+            ;;
+        # Handle structured calculationInfo fields
+        calculationInfo)
+            echo "$cleaned_json" | jq -r ".calculationInfo // \"\"" 2>/dev/null || echo ""
+            ;;
+        calculationInfo.accessPointSummary.total)
+            echo "$cleaned_json" | jq -r ".calculationInfo.accessPointSummary.total // \"\"" 2>/dev/null || echo ""
+            ;;
+        calculationInfo.accessPointSummary.used)
+            echo "$cleaned_json" | jq -r ".calculationInfo.accessPointSummary.used // \"\"" 2>/dev/null || echo ""
+            ;;
+        calculationInfo.accessPoints.count)
+            echo "$cleaned_json" | jq -r ".calculationInfo.accessPoints | length" 2>/dev/null || echo "0"
+            ;;
+        calculationInfo.algorithmSelection.count)
+            echo "$cleaned_json" | jq -r ".calculationInfo.algorithmSelection | length" 2>/dev/null || echo "0"
             ;;
         # Default case
         *)
@@ -110,6 +126,265 @@ check_non_zero_altitude() {
     return 1  # Invalid altitude handling
 }
 
+# Function to validate calculationInfo structure
+validate_calculation_info_structure() {
+    local response=$1
+    
+    # Clean the JSON by removing control characters
+    local cleaned_json=$(echo "$response" | tr -d '\000-\037')
+    
+    # Check if calculationInfo exists
+    local calc_info=$(echo "$cleaned_json" | jq -r ".calculationInfo // \"not_present\"" 2>/dev/null || echo "not_present")
+    if [[ "$calc_info" == "not_present" ]] || [[ "$calc_info" == "null" ]]; then
+        echo "calculationInfo not found in response"
+        return 1
+    fi
+    
+    # Check required structure
+    local access_points=$(echo "$cleaned_json" | jq -r ".calculationInfo.accessPoints // \"not_present\"" 2>/dev/null || echo "not_present")
+    local access_point_summary=$(echo "$cleaned_json" | jq -r ".calculationInfo.accessPointSummary // \"not_present\"" 2>/dev/null || echo "not_present")
+    local selection_context=$(echo "$cleaned_json" | jq -r ".calculationInfo.selectionContext // \"not_present\"" 2>/dev/null || echo "not_present")
+    local algorithm_selection=$(echo "$cleaned_json" | jq -r ".calculationInfo.algorithmSelection // \"not_present\"" 2>/dev/null || echo "not_present")
+    
+    local validation_errors=()
+    
+    if [[ "$access_points" == "not_present" ]] || [[ "$access_points" == "null" ]]; then
+        validation_errors+=("calculationInfo.accessPoints not found")
+    fi
+    
+    if [[ "$access_point_summary" == "not_present" ]] || [[ "$access_point_summary" == "null" ]]; then
+        validation_errors+=("calculationInfo.accessPointSummary not found")
+    fi
+    
+    if [[ "$selection_context" == "not_present" ]] || [[ "$selection_context" == "null" ]]; then
+        validation_errors+=("calculationInfo.selectionContext not found")
+    fi
+    
+    if [[ "$algorithm_selection" == "not_present" ]] || [[ "$algorithm_selection" == "null" ]]; then
+        validation_errors+=("calculationInfo.algorithmSelection not found")
+    fi
+    
+    if [ ${#validation_errors[@]} -eq 0 ]; then
+        return 0  # Structure validation passed
+    else
+        printf '%s\n' "${validation_errors[@]}"
+        return 1  # Structure validation failed
+    fi
+}
+
+# Function to validate access point summary data
+validate_access_point_summary() {
+    local response=$1
+    local expected_min_total=${2:-1}
+    
+    # Clean the JSON by removing control characters
+    local cleaned_json=$(echo "$response" | tr -d '\000-\037')
+    
+    local total=$(echo "$cleaned_json" | jq -r ".calculationInfo.accessPointSummary.total // \"\"" 2>/dev/null || echo "")
+    local used=$(echo "$cleaned_json" | jq -r ".calculationInfo.accessPointSummary.used // \"\"" 2>/dev/null || echo "")
+    local status_counts=$(echo "$cleaned_json" | jq -r ".calculationInfo.accessPointSummary.statusCounts // \"\"" 2>/dev/null || echo "")
+    
+    local validation_errors=()
+    
+    if [[ -z "$total" ]] || [[ "$total" == "null" ]]; then
+        validation_errors+=("accessPointSummary.total not found")
+    elif ! check_range "$total" "$expected_min_total" "999"; then
+        validation_errors+=("accessPointSummary.total $total not >= $expected_min_total")
+    fi
+    
+    if [[ -z "$used" ]] || [[ "$used" == "null" ]]; then
+        validation_errors+=("accessPointSummary.used not found")
+    elif ! check_range "$used" "1" "$total"; then
+        validation_errors+=("accessPointSummary.used $used not in range 1-$total")
+    fi
+    
+    if [[ -z "$status_counts" ]] || [[ "$status_counts" == "null" ]]; then
+        validation_errors+=("accessPointSummary.statusCounts not found")
+    fi
+    
+    if [ ${#validation_errors[@]} -eq 0 ]; then
+        return 0  # Summary validation passed
+    else
+        printf '%s\n' "${validation_errors[@]}"
+        return 1  # Summary validation failed
+    fi
+}
+
+# Function to validate algorithm selection data
+validate_algorithm_selection() {
+    local response=$1
+    local expected_algorithms="$2"
+    
+    # Clean the JSON by removing control characters
+    local cleaned_json=$(echo "$response" | tr -d '\000-\037')
+    
+    local algorithm_selection=$(echo "$cleaned_json" | jq -r ".calculationInfo.algorithmSelection // \"\"" 2>/dev/null || echo "")
+    
+    local validation_errors=()
+    
+    if [[ -z "$algorithm_selection" ]] || [[ "$algorithm_selection" == "null" ]]; then
+        validation_errors+=("algorithmSelection not found")
+        printf '%s\n' "${validation_errors[@]}"
+        return 1
+    fi
+    
+    # Check if we have selected algorithms
+    local selected_algorithms=$(echo "$cleaned_json" | jq -r '.calculationInfo.algorithmSelection[] | select(.selected == true) | .algorithm' 2>/dev/null || echo "")
+    
+    if [[ -z "$selected_algorithms" ]]; then
+        validation_errors+=("No selected algorithms found")
+    else
+        # Check if expected algorithms are present (case-insensitive and flexible matching)
+        for expected_algorithm in $expected_algorithms; do
+            local algorithm_found=false
+            
+            # Convert expected algorithm to lowercase for comparison
+            local expected_lower=$(echo "$expected_algorithm" | tr '[:upper:]' '[:lower:]')
+            
+            # Handle special cases for algorithm name matching
+            case "$expected_lower" in
+                "proximity")
+                    if echo "$selected_algorithms" | grep -qi "proximity"; then
+                        algorithm_found=true
+                    fi
+                    ;;
+                "weighted_centroid")
+                    if echo "$selected_algorithms" | grep -qi "weighted_centroid"; then
+                        algorithm_found=true
+                    fi
+                    ;;
+                "rssi ratio" | "rssiratio" | "rssi_ratio")
+                    if echo "$selected_algorithms" | grep -qi "rssi.*ratio\|rssiratio"; then
+                        algorithm_found=true
+                    fi
+                    ;;
+                "trilateration")
+                    if echo "$selected_algorithms" | grep -qi "trilateration"; then
+                        algorithm_found=true
+                    fi
+                    ;;
+                "maximum_likelihood")
+                    if echo "$selected_algorithms" | grep -qi "maximum_likelihood"; then
+                        algorithm_found=true
+                    fi
+                    ;;
+                "log_distance" | "log_distance_path_loss")
+                    if echo "$selected_algorithms" | grep -qi "log_distance"; then
+                        algorithm_found=true
+                    fi
+                    ;;
+                *)
+                    # Generic case-insensitive check
+                    if echo "$selected_algorithms" | grep -qi "$expected_lower"; then
+                        algorithm_found=true
+                    fi
+                    ;;
+            esac
+            
+            if [[ "$algorithm_found" != "true" ]]; then
+                validation_errors+=("Expected algorithm $expected_algorithm not selected. Selected: $selected_algorithms")
+            fi
+        done
+    fi
+    
+    if [ ${#validation_errors[@]} -eq 0 ]; then
+        return 0  # Algorithm selection validation passed
+    else
+        printf '%s\n' "${validation_errors[@]}"
+        return 1  # Algorithm selection validation failed
+    fi
+}
+
+# Function to validate that calculationInfo contains only the expected access points and usage consistency
+validate_expected_access_points() {
+    local response=$1
+    local request_payload="$2"
+    local allow_filtering="${3:-false}"  # Optional parameter to allow AP filtering
+    
+    # Clean the JSON by removing control characters
+    local cleaned_response=$(echo "$response" | tr -d '\000-\037')
+    local cleaned_request=$(echo "$request_payload" | tr -d '\000-\037')
+    
+    local validation_errors=()
+    
+    # Extract MAC addresses from the request payload
+    local request_macs=$(echo "$cleaned_request" | jq -r '.wifiScanResults[].macAddress' 2>/dev/null | sort)
+    local request_count=$(echo "$request_macs" | wc -l | tr -d ' ')
+    
+    # Extract BSSIDs from the response calculationInfo
+    local response_bssids=$(echo "$cleaned_response" | jq -r '.calculationInfo.accessPoints[].bssid' 2>/dev/null | sort)
+    local response_count=$(echo "$response_bssids" | wc -l | tr -d ' ')
+    
+    # Validate that the counts match
+    if [[ "$request_count" != "$response_count" ]]; then
+        validation_errors+=("AP count mismatch: requested $request_count APs, got $response_count in calculationInfo")
+    fi
+    
+    # Validate that each requested MAC address appears in the response
+    while IFS= read -r mac; do
+        if [[ -n "$mac" ]]; then
+            if ! echo "$response_bssids" | grep -q "^$mac$"; then
+                validation_errors+=("Requested AP $mac not found in calculationInfo.accessPoints")
+            else
+                # Check AP usage status
+                local ap_usage=$(echo "$cleaned_response" | jq -r --arg mac "$mac" '.calculationInfo.accessPoints[] | select(.bssid == $mac) | .usage' 2>/dev/null || echo "")
+                local ap_status=$(echo "$cleaned_response" | jq -r --arg mac "$mac" '.calculationInfo.accessPoints[] | select(.bssid == $mac) | .status' 2>/dev/null || echo "")
+                
+                # If filtering is not allowed, all APs should be used
+                if [[ "$allow_filtering" == "false" ]] && [[ "$ap_usage" != "used" ]]; then
+                    validation_errors+=("Requested AP $mac was not used in calculation (usage: $ap_usage, status: $ap_status)")
+                fi
+                
+                # Validate logical consistency: filtered APs should have non-active status
+                if [[ "$ap_usage" == "filtered" ]] && [[ "$ap_status" == "active" ]]; then
+                    validation_errors+=("AP $mac has inconsistent status: usage=filtered but status=active")
+                fi
+            fi
+        fi
+    done <<< "$request_macs"
+    
+    # Validate that each response BSSID was actually requested
+    while IFS= read -r bssid; do
+        if [[ -n "$bssid" ]]; then
+            if ! echo "$request_macs" | grep -q "^$bssid$"; then
+                validation_errors+=("Unexpected AP $bssid found in calculationInfo.accessPoints (not in request)")
+            fi
+        fi
+    done <<< "$response_bssids"
+    
+    # Validate that accessPointSummary.total matches the actual count
+    local summary_total=$(echo "$cleaned_response" | jq -r '.calculationInfo.accessPointSummary.total' 2>/dev/null || echo "")
+    if [[ "$summary_total" != "$response_count" ]]; then
+        validation_errors+=("accessPointSummary.total ($summary_total) does not match actual AP count ($response_count)")
+    fi
+    
+    # Validate that accessPointSummary.used matches the number of APs with usage="used"
+    local used_count=$(echo "$cleaned_response" | jq -r '.calculationInfo.accessPoints[] | select(.usage == "used") | .bssid' 2>/dev/null | wc -l | tr -d ' ')
+    local summary_used=$(echo "$cleaned_response" | jq -r '.calculationInfo.accessPointSummary.used' 2>/dev/null || echo "")
+    if [[ "$summary_used" != "$used_count" ]]; then
+        validation_errors+=("accessPointSummary.used ($summary_used) does not match actual used AP count ($used_count)")
+    fi
+    
+    # If filtering is not allowed, validate that all requested APs are used
+    if [[ "$allow_filtering" == "false" ]] && [[ "$used_count" != "$request_count" ]]; then
+        validation_errors+=("Not all requested APs were used: requested $request_count, used $used_count")
+    fi
+    
+    # Validate that filtered + used counts add up correctly
+    local filtered_count=$(echo "$cleaned_response" | jq -r '.calculationInfo.accessPoints[] | select(.usage == "filtered") | .bssid' 2>/dev/null | wc -l | tr -d ' ')
+    local total_processed=$((used_count + filtered_count))
+    if [[ "$total_processed" != "$request_count" ]]; then
+        validation_errors+=("Usage counts don't add up: used($used_count) + filtered($filtered_count) = $total_processed, but requested $request_count")
+    fi
+    
+    if [ ${#validation_errors[@]} -eq 0 ]; then
+        return 0  # AP validation passed
+    else
+        printf '%s\n' "${validation_errors[@]}"
+        return 1  # AP validation failed
+    fi
+}
+
 # Function to validate response against detailed criteria
 validate_response() {
     local response=$1
@@ -121,6 +396,7 @@ validate_response() {
     local expected_methods=$7
     local check_2d_positioning=${8:-false}
     local check_non_zero_alt=${9:-false}
+    local request_payload="${10:-}"
     
     local validation_errors=()
     
@@ -162,6 +438,33 @@ validate_response() {
             done
         else
             validation_errors+=("methodsUsed not found in response")
+        fi
+        
+        # Validate calculationInfo structure
+        if ! calc_info_validation=$(validate_calculation_info_structure "$response"); then
+            validation_errors+=("$calc_info_validation")
+        else
+            # If structure validation passed, validate the content
+            if ! summary_validation=$(validate_access_point_summary "$response" "1"); then
+                validation_errors+=("$summary_validation")
+            fi
+            
+            if ! algorithm_validation=$(validate_algorithm_selection "$response" "$expected_methods"); then
+                validation_errors+=("$algorithm_validation")
+            fi
+            
+            # Validate that only expected APs are in the calculationInfo
+            if [[ -n "$request_payload" ]]; then
+                # Check if this is a filtering test (based on request ID)
+                local allow_filtering="false"
+                if echo "$request_payload" | grep -q "status-filtering\|error-handling\|data-quality"; then
+                    allow_filtering="true"
+                fi
+                
+                if ! ap_validation=$(validate_expected_access_points "$response" "$request_payload" "$allow_filtering"); then
+                    validation_errors+=("$ap_validation")
+                fi
+            fi
         fi
         
         # If we need to check 2D positioning specifically
@@ -230,9 +533,9 @@ run_test() {
         -d "$payload" \
         http://localhost:8080/wifi-positioning-service/api/positioning/calculate)
     
-    # Validate the response against all criteria
+    # Validate the response against all criteria, including expected APs
     validation_errors=()
-    if ! validation_output=$(validate_response "$response" "$expected_result" "$horiz_acc_min" "$horiz_acc_max" "$confidence_min" "$confidence_max" "$expected_methods" "$check_2d_positioning" "$check_non_zero_alt"); then
+    if ! validation_output=$(validate_response "$response" "$expected_result" "$horiz_acc_min" "$horiz_acc_max" "$confidence_min" "$confidence_max" "$expected_methods" "$check_2d_positioning" "$check_non_zero_alt" "$payload"); then
         validation_errors=($validation_output)
         format_output "$payload" "$response" false
     else
@@ -290,7 +593,7 @@ run_test '{
     "client": "test-client",
     "requestId": "test-request-2",
     "application": "wifi-positioning-test-suite"
-}' "SUCCESS" 55 70 0.40 0.60 "weighted_centroid rssi ratio" false false
+}' "SUCCESS" 55 70 0.40 0.60 "weighted_centroid rssiratio" false false
 
 # Test Case 3: Three APs - Trilateration
 # Base weights: Trilateration: 1.0, Weighted Centroid: 0.8, RSSI Ratio: 0.7
@@ -324,7 +627,7 @@ run_test '{
     "client": "test-client",
     "requestId": "test-request-3",
     "application": "wifi-positioning-test-suite"
-}' "SUCCESS" 90 105 0.35 0.55 "weighted_centroid rssi ratio" false false
+}' "SUCCESS" 90 105 0.35 0.55 "weighted_centroid rssiratio" false false
 
 # Test Case 4: Multiple APs - Maximum Likelihood
 # Base weights: Maximum Likelihood: 1.0, Weighted Centroid: 0.7
@@ -496,7 +799,7 @@ run_test '{
     "client": "test-client",
     "requestId": "test-request-16-20",
     "application": "wifi-positioning-test-suite"
-}' "SUCCESS" 60 75 0.35 0.55 "weighted_centroid rssi ratio" false false
+}' "SUCCESS" 60 75 0.35 0.55 "weighted_centroid rssiratio" false false
 
 echo -e "\n${BLUE}SECTION 3: TEMPORAL AND ENVIRONMENTAL TEST CASES${NC}"
 echo -e "${BLUE}====================================================${NC}"
@@ -526,7 +829,7 @@ run_test '{
     "client": "test-client",
     "requestId": "test-request-21-25",
     "application": "wifi-positioning-test-suite"
-}' "SUCCESS" 45 60 0.35 0.55 "weighted_centroid rssi ratio" false false
+}' "SUCCESS" 45 60 0.35 0.55 "weighted_centroid rssiratio" false false
 
 # Test Case 26-30: Log-Distance Path Loss
 # Base weights: RSSI Ratio: 1.0, Weighted Centroid: 0.8
@@ -553,7 +856,7 @@ run_test '{
     "client": "test-client",
     "requestId": "test-request-26-30",
     "application": "wifi-positioning-test-suite"
-}' "SUCCESS" 20 35 0.40 0.60 "weighted_centroid rssi ratio" false false
+}' "SUCCESS" 20 35 0.40 0.60 "weighted_centroid rssiratio" false false
 
 # Test Case 31-35: Stable Signal Quality
 # Base weights: RSSI Ratio: 1.0, Weighted Centroid: 0.8
@@ -581,7 +884,7 @@ run_test '{
     "client": "test-client",
     "requestId": "test-request-31-35",
     "application": "wifi-positioning-test-suite"
-}' "SUCCESS" 5 15 0.65 0.80 "weighted_centroid rssi ratio" false false
+}' "SUCCESS" 5 15 0.65 0.80 "weighted_centroid rssiratio" false false
 
 echo -e "\n${BLUE}SECTION 4: ERROR AND EDGE CASES${NC}"
 echo -e "${BLUE}====================================================${NC}"
@@ -738,7 +1041,7 @@ run_test '{
     "requestId": "test-request-2d-2",
     "application": "wifi-positioning-test-suite",
     "calculationDetail": true
-}' "SUCCESS" 5 70 0.40 0.60 "weighted_centroid rssi ratio" true false
+}' "SUCCESS" 5 70 0.40 0.60 "weighted_centroid rssiratio" true false
 
 # Test Case 53-55: Three APs Test (Using existing data but 2D positioning)
 # Testing the algorithm's ability to properly work with 3D data
@@ -770,7 +1073,7 @@ run_test '{
     "requestId": "test-request-2d-3",
     "application": "wifi-positioning-test-suite",
     "calculationDetail": true
-}' "SUCCESS" 4 105 0.35 0.55 "weighted_centroid rssi ratio" true false
+}' "SUCCESS" 4 105 0.35 0.55 "weighted_centroid rssiratio" true false
 
 # Test Case 56-57: Mixed Data Test (Testing algorithms with a mix of AP data)
 # Testing the algorithm's handling of mixed data
@@ -796,7 +1099,7 @@ run_test '{
     "requestId": "test-request-mixed-data",
     "application": "wifi-positioning-test-suite",
     "calculationDetail": true
-}' "SUCCESS" 5 80 0.40 0.60 "weighted_centroid rssi ratio" false true
+}' "SUCCESS" 5 80 0.40 0.60 "weighted_centroid rssiratio" false true
 
 # Print test summary
 echo -e "\n${CYAN}====================================================${NC}"

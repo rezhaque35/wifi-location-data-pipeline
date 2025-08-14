@@ -68,7 +68,7 @@ public class TestPositioningService implements PositioningService {
             request.wifiScanResults().size(),
             50L);
 
-    return WifiPositioningResponse.success(request, wifiPosition, "Test positioning calculation");
+    return WifiPositioningResponse.success(request, wifiPosition, null); // Using null for test
   }
 
   private boolean containsMacAddress(List<WifiScanResult> scanResults, String macToFind) {

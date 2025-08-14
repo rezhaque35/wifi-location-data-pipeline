@@ -9,7 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
+import com.wifi.positioning.algorithm.PositioningAlgorithm;
 import com.wifi.positioning.algorithm.WifiPositioningCalculator;
+import com.wifi.positioning.algorithm.selection.SelectionContext;
+import com.wifi.positioning.dto.CalculationInfo;
 import com.wifi.positioning.dto.Position;
 import com.wifi.positioning.dto.WifiAccessPoint;
 import com.wifi.positioning.dto.WifiPositioningRequest;
@@ -93,6 +96,62 @@ public class PositioningServiceImpl implements PositioningService {
   private final WifiAccessPointRepository accessPointRepository;
   private final SignalPhysicsValidator signalPhysicsValidator;
 
+  // ===== INNER RECORDS FOR DATA TRANSFER =====
+  
+  /**
+   * Holds the result of request validation.
+   */
+  private record ValidationResult(boolean isValid, String errorMessage) {
+    static ValidationResult valid() {
+      return new ValidationResult(true, null);
+    }
+    
+    static ValidationResult invalid(String errorMessage) {
+      return new ValidationResult(false, errorMessage);
+    }
+  }
+
+  /**
+   * Holds prepared positioning data including scan results and access points.
+   */
+  private record PositioningData(
+      List<WifiScanResult> scanResults,
+      List<WifiAccessPoint> knownAccessPoints,
+      List<WifiAccessPoint> validAccessPoints,
+      boolean isViable,
+      String errorMessage) {
+    
+    static PositioningData viable(
+        List<WifiScanResult> scanResults,
+        List<WifiAccessPoint> knownAccessPoints,
+        List<WifiAccessPoint> validAccessPoints) {
+      return new PositioningData(scanResults, knownAccessPoints, validAccessPoints, true, null);
+    }
+    
+    static PositioningData notViable(String errorMessage) {
+      return new PositioningData(null, null, null, false, errorMessage);
+    }
+  }
+
+  /**
+   * Holds the result of position calculation.
+   */
+  private record CalculationResult(
+      WifiPositioningCalculator.PositioningResult positioningResult,
+      long calculationTimeMs,
+      boolean isSuccessful) {
+    
+    static CalculationResult successful(
+        WifiPositioningCalculator.PositioningResult positioningResult,
+        long calculationTimeMs) {
+      return new CalculationResult(positioningResult, calculationTimeMs, true);
+    }
+    
+    static CalculationResult failed() {
+      return new CalculationResult(null, 0, false);
+    }
+  }
+
   @Autowired
   public PositioningServiceImpl(
       WifiPositioningCalculator calculator,
@@ -105,100 +164,180 @@ public class PositioningServiceImpl implements PositioningService {
 
   @Override
   public WifiPositioningResponse calculatePosition(WifiPositioningRequest request) {
+    logIncomingRequest(request);
+    
+    try {
+      ValidationResult validation = validateRequest(request);
+      if (!validation.isValid()) {
+        return handleValidationError(validation.errorMessage(), request);
+      }
+
+      PositioningData positioningData = preparePositioningData(request.wifiScanResults());
+      if (!positioningData.isViable()) {
+        return handleDataPreparationError(positioningData.errorMessage(), request);
+      }
+
+      CalculationResult calculationResult = performPositionCalculation(positioningData);
+      if (!calculationResult.isSuccessful()) {
+        return handleCalculationError(request);
+      }
+
+      WifiPositioningResponse response = buildSuccessResponse(
+          calculationResult, positioningData, request);
+      logSuccessResponse(request, response);
+      return response;
+
+    } catch (Exception e) {
+      return handleUnexpectedException(e, request);
+    }
+  }
+
+  // ===== HIGH-LEVEL FLOW METHODS =====
+
+  /**
+   * Logs the incoming positioning request.
+   */
+  private void logIncomingRequest(WifiPositioningRequest request) {
     logger.info(
         "Calculating position for {} WiFi scan results from client {} if application {} with requestId {}",
         request.wifiScanResults().size(),
         request.client(),
         request.application(),
         request.requestId());
-
-    // Log full request details
     logger.debug("Full positioning request: {}", request);
-
-    // Check if we have any scan results
-    if (request.wifiScanResults().isEmpty()) {
-      logger.warn(ERROR_NO_SCAN_RESULTS);
-      WifiPositioningResponse response =
-          WifiPositioningResponse.error(ERROR_NO_SCAN_RESULTS, request);
-      logger.info("Returning error response for requestId {}: {}", request.requestId(), response);
-      return response;
-    }
-
-    try {
-      List<WifiScanResult> scanResults = request.wifiScanResults();
-
-      // Check if the signal physics is valid
-      if (!signalPhysicsValidator.isPhysicallyPossible(scanResults)) {
-        logger.warn(ERROR_INVALID_SIGNAL_PHYSICS);
-        WifiPositioningResponse response =
-            WifiPositioningResponse.error(ERROR_INVALID_SIGNAL_PHYSICS, request);
-        logger.info("Returning error response for requestId {}: {}", request.requestId(), response);
-        return response;
-      }
-
-      // Lookup known APs using their MAC addresses
-      List<WifiAccessPoint> knownAPs = lookupKnownAccessPoints(scanResults);
-
-      if (knownAPs.isEmpty()) {
-        logger.warn(ERROR_NO_KNOWN_ACCESS_POINTS);
-        WifiPositioningResponse response =
-            createPositionNotFoundResponse(scanResults.size(), request);
-        logger.info(
-            "Returning position not found response for requestId {}: {}",
-            request.requestId(),
-            response);
-        return response;
-      }
-
-      // Filter access points by status (only "active" or "warning" status should be used)
-      List<WifiAccessPoint> validStatusAPs = filterAPsByStatus(knownAPs);
-
-      if (validStatusAPs.isEmpty()) {
-        logger.warn(ERROR_NO_VALID_STATUS_ACCESS_POINTS);
-        WifiPositioningResponse response =
-            createPositionNotFoundResponse(scanResults.size(), request);
-        logger.info(
-            "Returning position not found response for requestId {}: {}",
-            request.requestId(),
-            response);
-        return response;
-      }
-
-      // Calculate position
-      long startTime = System.currentTimeMillis();
-      WifiPositioningCalculator.PositioningResult positioningResult =
-          calculator.calculatePosition(scanResults, validStatusAPs);
-      long calculationTime = System.currentTimeMillis() - startTime;
-
-      if (positioningResult == null || positioningResult.position() == null) {
-        logger.warn(ERROR_POSITION_CALCULATION_FAILED);
-        WifiPositioningResponse response =
-            createPositionNotFoundResponse(scanResults.size(), request);
-        logger.info(
-            "Returning position not found response for requestId {}: {}",
-            request.requestId(),
-            response);
-        return response;
-      }
-
-      WifiPositioningResponse response =
-          createSuccessResponse(
-              positioningResult, scanResults.size(), calculationTime, request, knownAPs);
-      logger.info(
-          "Returning successful positioning response for requestId {}: {}",
-          request.requestId(),
-          response);
-      return response;
-
-    } catch (Exception e) {
-      // For unhandled exceptions, return an error response
-      logger.error("Error calculating position", e);
-      WifiPositioningResponse response = WifiPositioningResponse.error(e.getMessage(), request);
-      logger.info(
-          "Returning exception error response for requestId {}: {}", request.requestId(), response);
-      return response;
-    }
   }
+
+  /**
+   * Validates the incoming positioning request.
+   */
+  private ValidationResult validateRequest(WifiPositioningRequest request) {
+    if (request.wifiScanResults().isEmpty()) {
+      return ValidationResult.invalid(ERROR_NO_SCAN_RESULTS);
+    }
+
+    if (!signalPhysicsValidator.isPhysicallyPossible(request.wifiScanResults())) {
+      return ValidationResult.invalid(ERROR_INVALID_SIGNAL_PHYSICS);
+    }
+
+    return ValidationResult.valid();
+  }
+
+  /**
+   * Prepares positioning data by looking up and filtering access points.
+   */
+  private PositioningData preparePositioningData(List<WifiScanResult> scanResults) {
+    List<WifiAccessPoint> knownAccessPoints = lookupKnownAccessPoints(scanResults);
+    
+    if (knownAccessPoints.isEmpty()) {
+      return PositioningData.notViable(ERROR_NO_KNOWN_ACCESS_POINTS);
+    }
+
+    List<WifiAccessPoint> validAccessPoints = filterAPsByStatus(knownAccessPoints);
+    
+    if (validAccessPoints.isEmpty()) {
+      return PositioningData.notViable(ERROR_NO_VALID_STATUS_ACCESS_POINTS);
+    }
+
+    return PositioningData.viable(scanResults, knownAccessPoints, validAccessPoints);
+  }
+
+  /**
+   * Performs the position calculation using the positioning calculator.
+   */
+  private CalculationResult performPositionCalculation(PositioningData data) {
+    long startTime = System.currentTimeMillis();
+    WifiPositioningCalculator.PositioningResult positioningResult =
+        calculator.calculatePosition(data.scanResults(), data.validAccessPoints());
+    long calculationTime = System.currentTimeMillis() - startTime;
+
+    if (positioningResult == null || positioningResult.position() == null) {
+      return CalculationResult.failed();
+    }
+
+    return CalculationResult.successful(positioningResult, calculationTime);
+  }
+
+  /**
+   * Builds a successful positioning response.
+   */
+  private WifiPositioningResponse buildSuccessResponse(
+      CalculationResult calculationResult,
+      PositioningData positioningData,
+      WifiPositioningRequest request) {
+    
+    return createSuccessResponse(
+        calculationResult.positioningResult(),
+        positioningData.scanResults().size(),
+        calculationResult.calculationTimeMs(),
+        request,
+        positioningData.knownAccessPoints());
+  }
+
+  // ===== ERROR HANDLING METHODS =====
+
+  /**
+   * Handles validation errors and returns appropriate response.
+   */
+  private WifiPositioningResponse handleValidationError(String errorMessage, WifiPositioningRequest request) {
+    logger.warn(errorMessage);
+    WifiPositioningResponse response = WifiPositioningResponse.error(errorMessage, request);
+    logErrorResponse(request, response);
+    return response;
+  }
+
+  /**
+   * Handles data preparation errors and returns appropriate response.
+   */
+  private WifiPositioningResponse handleDataPreparationError(String errorMessage, WifiPositioningRequest request) {
+    logger.warn(errorMessage);
+    WifiPositioningResponse response = createPositionNotFoundResponse(0, request);
+    logErrorResponse(request, response);
+    return response;
+  }
+
+  /**
+   * Handles calculation errors and returns appropriate response.
+   */
+  private WifiPositioningResponse handleCalculationError(WifiPositioningRequest request) {
+    logger.warn(ERROR_POSITION_CALCULATION_FAILED);
+    WifiPositioningResponse response = createPositionNotFoundResponse(0, request);
+    logErrorResponse(request, response);
+    return response;
+  }
+
+  /**
+   * Handles unexpected exceptions and returns appropriate response.
+   */
+  private WifiPositioningResponse handleUnexpectedException(Exception e, WifiPositioningRequest request) {
+    logger.error("Error calculating position", e);
+    WifiPositioningResponse response = WifiPositioningResponse.error(e.getMessage(), request);
+    logErrorResponse(request, response);
+    return response;
+  }
+
+  // ===== LOGGING METHODS =====
+
+  /**
+   * Logs successful positioning response.
+   */
+  private void logSuccessResponse(WifiPositioningRequest request, WifiPositioningResponse response) {
+    logger.info(
+        "Returning successful positioning response for requestId {}: {}",
+        request.requestId(),
+        response);
+  }
+
+  /**
+   * Logs error response.
+   */
+  private void logErrorResponse(WifiPositioningRequest request, WifiPositioningResponse response) {
+    logger.info(
+        "Returning error response for requestId {}: {}",
+        request.requestId(),
+        response);
+  }
+
+  // ===== DATA ACCESS AND FILTERING METHODS =====
 
   /**
    * Filter access points by status. Only APs with active or warning status should be used.
@@ -212,19 +351,12 @@ public class PositioningServiceImpl implements PositioningService {
             ap ->
                 ap.getStatus() != null
                     && WifiAccessPoint.VALID_AP_STATUSES.contains(ap.getStatus()))
-        .collect(Collectors.toList());
-  }
-
-  /** Create a response when position calculation fails */
-  private WifiPositioningResponse createPositionNotFoundResponse(
-      int apCount, WifiPositioningRequest request) {
-    String message = ERROR_POSITION_CALCULATION_FAILED;
-    return WifiPositioningResponse.error(message, request);
+        .toList();
   }
 
   /**
-   * Lookup known access points from the repository based on MAC addresses from scan results. Uses
-   * batch operation to optimize DynamoDB access.
+   * Lookup known access points from the repository based on MAC addresses from scan results.
+   * Uses batch operation to optimize DynamoDB access.
    */
   private List<WifiAccessPoint> lookupKnownAccessPoints(List<WifiScanResult> scanResults) {
     // Extract all MAC addresses from scan results
@@ -282,6 +414,17 @@ public class PositioningServiceImpl implements PositioningService {
   }
 
   /**
+   * Create a response when position calculation fails.
+   */
+  private WifiPositioningResponse createPositionNotFoundResponse(
+      int apCount, WifiPositioningRequest request) {
+    String message = ERROR_POSITION_CALCULATION_FAILED;
+    return WifiPositioningResponse.error(message, request);
+  }
+
+  // ===== RESPONSE BUILDING METHODS =====
+
+  /**
    * Creates a success response from the positioning result. This method handles: - Position
    * validation - Converting position to WifiPosition - Adding calculation details if requested
    *
@@ -309,49 +452,8 @@ public class PositioningServiceImpl implements PositioningService {
     // Get methods used from the positioning result
     List<String> methodsUsed = positioningResult.getMethodsUsedNames();
 
-    // Create AP filtering information
-    StringBuilder apFilteringInfo = new StringBuilder();
-    Map<String, Integer> statusCounts = new HashMap<>();
-
-    for (WifiAccessPoint ap : knownAPs) {
-      String status = ap.getStatus() != null ? ap.getStatus() : "unknown";
-      boolean used = WifiAccessPoint.VALID_AP_STATUSES.contains(status);
-
-      statusCounts.put(status, statusCounts.getOrDefault(status, 0) + 1);
-
-      apFilteringInfo
-          .append(ap.getMacAddress())
-          .append("(")
-          .append(status)
-          .append(":")
-          .append(used ? "used" : "filtered")
-          .append(") ");
-    }
-
-    // Build calculation info string
-    StringBuilder calculationInfo = new StringBuilder();
-    calculationInfo.append(positioningResult.getCalculationInfo());
-
-    // Add AP filtering information
-    calculationInfo.append("AP Filtering:\n");
-    for (Map.Entry<String, Integer> entry : statusCounts.entrySet()) {
-      calculationInfo
-          .append("  ")
-          .append(entry.getKey())
-          .append(": ")
-          .append(entry.getValue())
-          .append(" APs, ");
-
-      if (WifiAccessPoint.VALID_AP_STATUSES.contains(entry.getKey())) {
-        calculationInfo.append("used in calculation");
-      } else {
-        calculationInfo.append("filtered out");
-      }
-      calculationInfo.append("\n");
-    }
-
-    // Add detailed AP list if requested
-    calculationInfo.append("AP List: ").append(apFilteringInfo.toString()).append("\n");
+    // Build structured calculation info
+    CalculationInfo calculationInfo = buildCalculationInfo(positioningResult, knownAPs);
 
     // Create the WifiPosition from the positioning result
     WifiPosition wifiPosition =
@@ -366,12 +468,119 @@ public class PositioningServiceImpl implements PositioningService {
             apCount,
             calculationTime);
 
-    return WifiPositioningResponse.success(request, wifiPosition, calculationInfo.toString());
+    return WifiPositioningResponse.success(request, wifiPosition, calculationInfo);
   }
 
-  private WifiPositioningResponse createErrorResponse(
-      String message, WifiPositioningRequest request) {
-    // Implementation of createErrorResponse method
-    throw new UnsupportedOperationException("Method not implemented");
+  // ===== CALCULATION INFO BUILDING METHODS =====
+
+  /**
+   * Builds structured calculation information from positioning result and access points.
+   *
+   * @param positioningResult The result from the positioning calculation
+   * @param knownAPs List of all known access points
+   * @return Structured calculation information
+   */
+  private CalculationInfo buildCalculationInfo(
+      WifiPositioningCalculator.PositioningResult positioningResult,
+      List<WifiAccessPoint> knownAPs) {
+
+    // Build access points information
+    List<CalculationInfo.AccessPointInfo> accessPoints = buildAccessPointsInfo(knownAPs);
+
+    // Build access point summary
+    CalculationInfo.AccessPointSummary accessPointSummary = buildAccessPointSummary(accessPoints);
+
+    // Build selection context information
+    CalculationInfo.SelectionContextInfo selectionContext = buildSelectionContextInfo(positioningResult.selectionContext());
+
+    // Build algorithm selection information
+    List<CalculationInfo.AlgorithmSelectionInfo> algorithmSelection = buildAlgorithmSelectionInfo(
+        positioningResult.algorithmWeights(), positioningResult.selectionReasons());
+
+    return new CalculationInfo(accessPoints, accessPointSummary, selectionContext, algorithmSelection);
+  }
+
+  /**
+   * Builds access points information for calculation details.
+   */
+  private List<CalculationInfo.AccessPointInfo> buildAccessPointsInfo(List<WifiAccessPoint> knownAPs) {
+    return knownAPs.stream()
+        .map(ap -> {
+          String status = ap.getStatus() != null ? ap.getStatus() : "unknown";
+          boolean used = WifiAccessPoint.VALID_AP_STATUSES.contains(status);
+          String usage = used ? "used" : "filtered";
+
+          CalculationInfo.LocationInfo location = new CalculationInfo.LocationInfo(
+              ap.getLatitude(), ap.getLongitude(), ap.getAltitude());
+
+          return new CalculationInfo.AccessPointInfo(ap.getMacAddress(), location, status, usage);
+        })
+        .toList();
+  }
+
+  /**
+   * Builds access point summary with counts and usage statistics from the processed access points.
+   */
+  private CalculationInfo.AccessPointSummary buildAccessPointSummary(List<CalculationInfo.AccessPointInfo> accessPoints) {
+    Map<String, Integer> statusCounts = new HashMap<>();
+    int usedCount = 0;
+
+    for (CalculationInfo.AccessPointInfo ap : accessPoints) {
+      String status = ap.status();
+      statusCounts.put(status, statusCounts.getOrDefault(status, 0) + 1);
+      
+      // Count APs that are marked as "used" in their usage field
+      if ("used".equals(ap.usage())) {
+        usedCount++;
+      }
+    }
+
+    List<CalculationInfo.StatusCount> statusCountList = statusCounts.entrySet().stream()
+        .map(entry -> new CalculationInfo.StatusCount(entry.getKey(), entry.getValue()))
+        .sorted((a, b) -> a.status().compareTo(b.status())) // Sort for consistent output
+        .toList();
+
+    return new CalculationInfo.AccessPointSummary(accessPoints.size(), usedCount, statusCountList);
+  }
+
+  /**
+   * Builds selection context information from the positioning result.
+   */
+  private CalculationInfo.SelectionContextInfo buildSelectionContextInfo(SelectionContext context) {
+    if (context == null) {
+      return new CalculationInfo.SelectionContextInfo(null, null, null, null);
+    }
+
+    return new CalculationInfo.SelectionContextInfo(
+        context.getApCountFactor() != null ? context.getApCountFactor().toString() : null,
+        context.getSignalQuality() != null ? context.getSignalQuality().toString() : null,
+        context.getSignalDistribution() != null ? context.getSignalDistribution().toString() : null,
+        context.getGeometricQuality() != null ? context.getGeometricQuality().toString() : null
+    );
+  }
+
+  /**
+   * Builds algorithm selection information from weights and selection reasons.
+   */
+  private List<CalculationInfo.AlgorithmSelectionInfo> buildAlgorithmSelectionInfo(
+      Map<PositioningAlgorithm, Double> algorithmWeights,
+      Map<PositioningAlgorithm, List<String>> selectionReasons) {
+
+    // Get all unique algorithms from both maps
+    Set<PositioningAlgorithm> allAlgorithms = new HashSet<>();
+    if (algorithmWeights != null) allAlgorithms.addAll(algorithmWeights.keySet());
+    if (selectionReasons != null) allAlgorithms.addAll(selectionReasons.keySet());
+
+    return allAlgorithms.stream()
+        .map(algorithm -> {
+          boolean selected = algorithmWeights != null && algorithmWeights.containsKey(algorithm);
+          Double weight = algorithmWeights != null ? algorithmWeights.get(algorithm) : null;
+          List<String> reasons = selectionReasons != null ? 
+              selectionReasons.getOrDefault(algorithm, List.of()) : List.of();
+
+          return new CalculationInfo.AlgorithmSelectionInfo(
+              algorithm.getName(), selected, reasons, weight);
+        })
+        .toList();
   }
 }

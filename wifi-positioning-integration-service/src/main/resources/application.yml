@@ -7,14 +7,9 @@ spring:
 server:
   servlet:
     context-path: /wifi-positioning-integration-service
-  port: 8080
+  port: 8083
 
 # Default configuration (local)
-aws:
-  dynamodb:
-    endpoint: http://localhost:8000
-    region: us-east-1
-    table-name: wifi_access_points
 
 # Default logging configuration
 logging:
@@ -28,7 +23,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: '*'
+        include: health,info,metrics
       base-path: /
   endpoint:
     health:
@@ -36,21 +31,8 @@ management:
       show-details: always
       # Show health components for better debugging
       show-components: always
-      # Configure health groups for Kubernetes probes
-      group:
-        # Liveness probe - checks if the service is alive and should be restarted if failing
-        liveness:
-          include: serviceLiveness
-        # Readiness probe - checks if the service is ready to handle requests
-        readiness:
-          include: dynamoDBReadiness
-  # Health indicator configuration
-  health:
-    # Enable liveness and readiness state indicators
-    livenessstate:
-      enabled: true
-    readinessstate:
-      enabled: true
+      # Disable health group validation to prevent serviceLiveness errors
+      validate-group-membership: false
 
 springdoc:
   api-docs:
@@ -58,3 +40,22 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     operationsSorter: method
+
+# Integration Service Configuration
+integration:
+  positioning:
+    base-url: http://localhost:8080/wifi-positioning-service
+    path: /api/positioning/calculate
+    connect-timeout-ms: 300
+    read-timeout-ms: 800
+  processing:
+    default-mode: sync # or async
+    async:
+      enabled: false
+      queue-capacity: 1000
+      workers: 4
+  mapping:
+    drop-missing-frequency: true
+    default-frequency-mhz: 2412
+  logging:
+    include-payloads: false
