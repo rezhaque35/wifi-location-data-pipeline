@@ -90,11 +90,13 @@ check_prerequisites() {
     # Check if send-wifi-scan-messages.sh exists and is executable
     if [ -x "./send-wifi-scan-messages.sh" ]; then
         SEND_SCRIPT_PATH="./send-wifi-scan-messages.sh"
-    elif [ -x "./scripts/send-wifi-scan-messages.sh" ]; then
-        SEND_SCRIPT_PATH="./scripts/send-wifi-scan-messages.sh"
+    elif [ -x "./test/send-wifi-scan-messages.sh" ]; then
+        SEND_SCRIPT_PATH="./test/send-wifi-scan-messages.sh"
+    elif [ -x "../send-wifi-scan-messages.sh" ]; then
+        SEND_SCRIPT_PATH="../send-wifi-scan-messages.sh"
     else
         print_error "send-wifi-scan-messages.sh not found or not executable."
-        print_info "Make sure the script exists and run: chmod +x scripts/send-wifi-scan-messages.sh"
+        print_info "Make sure the script exists and run: chmod +x send-wifi-scan-messages.sh"
         exit 1
     fi
     

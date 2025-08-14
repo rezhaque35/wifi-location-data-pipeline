@@ -73,7 +73,7 @@ create_directories() {
     print_status "Creating directory structure..."
     
     # Create kafka secrets directory
-    mkdir -p scripts/kafka/secrets
+    mkdir -p kafka/secrets
     
     print_success "Directory structure created!"
 }
@@ -82,7 +82,7 @@ create_directories() {
 create_docker_compose() {
     print_status "Creating Docker Compose configuration..."
     
-    cat > scripts/docker-compose.yml << 'EOF'
+    cat > docker-compose.yml << 'EOF'
 version: '3.8'
 
 services:

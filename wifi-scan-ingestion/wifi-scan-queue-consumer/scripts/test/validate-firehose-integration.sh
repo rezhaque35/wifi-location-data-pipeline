@@ -247,7 +247,7 @@ wait_for_processing() {
             
             # Send a few messages to wake up the service
             print_info "Sending 3 recovery messages to wake up the consumer..."
-            if ./scripts/send-wifi-scan-messages.sh --count 3 --interval 1 --ssl > /dev/null 2>&1; then
+            if ./send-wifi-scan-messages.sh --count 3 --interval 1 > /dev/null 2>&1; then
                 print_info "Recovery messages sent successfully"
                 
                 # Wait for health to recover
@@ -341,7 +341,7 @@ send_test_messages() {
         
         local message="{\"timestamp\":\"$timestamp\",\"device_id\":\"$device_id\",\"wifi_scan_data\":{\"ssid\":\"$test_ssid\",\"signal_strength\":-$signal_strength,\"frequency\":2400,\"capabilities\":\"WPA2\"}}"
         
-        if ./send-test-message.sh "$message" "wifi-scan-data" --ssl > /dev/null 2>&1; then
+        if ./test/send-test-message.sh "$message" "wifi-scan-data" > /dev/null 2>&1; then
             ((success_count++))
             
             # Track the sent message
@@ -417,7 +417,7 @@ wait_for_processing() {
             
             # Send a few messages to wake up the service
             print_info "Sending 3 recovery messages to wake up the consumer..."
-            if ./scripts/send-wifi-scan-messages.sh --count 3 --interval 1 --ssl > /dev/null 2>&1; then
+            if ./send-wifi-scan-messages.sh --count 3 --interval 1 > /dev/null 2>&1; then
                 print_info "Recovery messages sent successfully"
                 
                 # Wait for health to recover

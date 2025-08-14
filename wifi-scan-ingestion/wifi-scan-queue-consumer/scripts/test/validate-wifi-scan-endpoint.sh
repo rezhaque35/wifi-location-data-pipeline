@@ -137,7 +137,7 @@ check_prerequisites() {
     print_info "Checking prerequisites..."
     
     # Check if service is running
-    if ! curl -s "${SERVICE_URL}/actuator/health" >/dev/null 2>&1; then
+    if ! curl -s "${SERVICE_URL}/frisco-location-wifi-scan-vmb-consumer/health" >/dev/null 2>&1; then
         print_error "Service is not running at ${SERVICE_URL}"
         return 1
     fi
