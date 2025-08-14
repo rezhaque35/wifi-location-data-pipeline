@@ -173,15 +173,18 @@
 - [ ] Add memory usage monitoring for Firehose batch accumulation
 
 ## Phase 9: Health Checks and Metrics ✅ **COMPLETED**
-- [x] **Implement readiness probe checking SQS and Firehose delivery stream connectivity**:
-  - [x] SqsHealthIndicator - Comprehensive SQS queue health monitoring with queue attributes, message counts, and visibility metrics
-  - [x] FirehoseHealthIndicator - Firehose delivery stream status monitoring with destination configuration and processing state
-- [x] **Create liveness probe monitoring application health and Firehose batch status**:
-  - [x] Enhanced actuator configuration with liveness and readiness state endpoints
-  - [x] Prometheus metrics export for comprehensive monitoring
-- [x] **Create health check endpoints with Firehose delivery stream status**:
-  - [x] /actuator/health/liveness - Application liveness status (memory, application state)
-  - [x] /actuator/health/readiness - Application readiness with SQS/Firehose connectivity
+- [x] **Simplified Health Architecture** - Implemented new health model separating connectivity from operational monitoring
+- [x] **Connectivity Health Indicators** (Readiness - Can go DOWN):
+  - [x] SqsConnectivityHealthIndicator - Only fails when SQS queue is unreachable
+  - [x] FirehoseConnectivityHealthIndicator - Only fails when Firehose delivery stream is unreachable
+- [x] **Activity Reporting Indicators** (Liveness - Always UP):
+  - [x] SqsActivityReportingIndicator - Reports SQS processing activity and metrics
+  - [x] FirehoseActivityReportingIndicator - Reports Firehose delivery activity and metrics
+  - [x] MemoryUsageReportingIndicator - Reports memory usage statistics
+- [x] **Health Check Caching** - 30-second cache for AWS API calls to avoid excessive requests
+- [x] **Health Check Endpoints**:
+  - [x] /actuator/health/readiness - Kubernetes readiness probe (SQS + Firehose connectivity only)
+  - [x] /actuator/health/liveness - Kubernetes liveness probe (activity monitoring, always UP)
   - [x] /actuator/health - Overall health status with detailed component information
 - [x] **Implement graceful shutdown handling with Firehose batch flushing**:
   - [x] GracefulShutdownService - Coordinated shutdown with SQS stop, processing completion wait, and Firehose batch flushing

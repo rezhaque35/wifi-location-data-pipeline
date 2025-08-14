@@ -363,9 +363,45 @@ Normalized `wifi_measurements` table with:
 
 ### Health Endpoints
 
-- `/actuator/health` - Application health status
-- `/actuator/health/readiness` - Kubernetes readiness probe (SQS + Firehose connectivity)
-- `/actuator/health/liveness` - Kubernetes liveness probe (application state + processing activity)
+The service provides comprehensive health monitoring with Kubernetes-ready probes:
+
+#### **Readiness Probe** (`/actuator/health/readiness`)
+- **Purpose**: Determines if the service is ready to receive traffic
+- **Components**: SQS and Firehose connectivity only
+- **Status**: DOWN only when SQS or Firehose is unreachable
+- **Use Case**: Kubernetes readiness probe, load balancer health checks
+
+#### **Liveness Probe** (`/actuator/health/liveness`)
+- **Purpose**: Determines if the application is alive and responsive
+- **Components**: Activity monitoring and memory usage (always UP for monitoring)
+- **Status**: Always UP - provides operational insights without failing health checks
+- **Use Case**: Kubernetes liveness probe, operational monitoring
+
+#### **Overall Health** (`/actuator/health`)
+- **Purpose**: Comprehensive health status with detailed component information
+- **Components**: All health indicators with detailed metrics
+- **Use Case**: Manual health checks, monitoring dashboards
+
+### Health Indicator Architecture
+
+The service implements a **simplified health model** that separates connectivity concerns from operational monitoring:
+
+#### **Connectivity Health Indicators** (Readiness)
+- **`sqsConnectivity`**: Only fails when SQS queue is unreachable
+- **`firehoseConnectivity`**: Only fails when Firehose delivery stream is unreachable
+
+#### **Activity Reporting Indicators** (Liveness - Always UP)
+- **`sqsActivityReporting`**: Reports SQS processing activity, rates, and success metrics
+- **`firehoseActivityReporting`**: Reports Firehose delivery activity, rates, and success metrics
+- **`memoryUsageReporting`**: Reports JVM memory usage statistics and recommendations
+
+### Key Benefits
+
+✅ **Service Stability**: Service only goes DOWN for genuine connectivity issues  
+✅ **Rich Monitoring**: Comprehensive operational metrics without affecting health status  
+✅ **Cached Lookups**: 30-second cache for AWS API calls to avoid excessive requests  
+✅ **Kubernetes Ready**: Proper separation of readiness vs liveness concerns  
+✅ **Operational Visibility**: Detailed insights for troubleshooting and performance monitoring
 
 ### Metrics
 
@@ -549,6 +585,34 @@ mvn test -Dtest=*IntegrationTest
     }
   ]
 }
+```
+
+### Health Check Configuration
+
+```yaml
+# Health check configuration
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: sqsConnectivity,firehoseConnectivity
+          show-details: always
+        liveness:
+          include: sqsActivityReporting,firehoseActivityReporting,memoryUsageReporting
+          show-details: always
+
+# Health indicator configuration
+health:
+  indicator:
+    timeout-seconds: 5
+    memory-threshold-percentage: 90
+    retry-attempts: 3
+    enable-caching: true
+    cache-ttl-seconds: 30  # Cache AWS API calls for 30 seconds
 ```
 
 ### Docker Deployment

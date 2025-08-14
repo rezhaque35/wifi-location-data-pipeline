@@ -448,6 +448,24 @@ PutRecordBatchRequest batchRequest = PutRecordBatchRequest.builder()
 - **Readiness Probe**: Check SQS connectivity and Firehose delivery stream availability
 - **Liveness Probe**: Monitor application health and thread pool status
 
+**Health Indicator Architecture**:
+The service implements a simplified health model that separates connectivity concerns from operational monitoring:
+
+#### **Connectivity Health Indicators** (Readiness - Can go DOWN)
+- **`sqsConnectivity`**: Only fails when SQS queue is unreachable
+- **`firehoseConnectivity`**: Only fails when Firehose delivery stream is unreachable
+
+#### **Activity Reporting Indicators** (Liveness - Always UP)
+- **`sqsActivityReporting`**: Reports SQS processing activity, rates, and success metrics
+- **`firehoseActivityReporting`**: Reports Firehose delivery activity, rates, and success metrics
+- **`memoryUsageReporting`**: Reports JVM memory usage statistics and recommendations
+
+**Key Benefits**:
+- ✅ **Service Stability**: Service only goes DOWN for genuine connectivity issues
+- ✅ **Rich Monitoring**: Comprehensive operational metrics without affecting health status
+- ✅ **Cached Lookups**: 30-second cache for AWS API calls to avoid excessive requests
+- ✅ **Kubernetes Ready**: Proper separation of readiness vs liveness concerns
+
 **Resource Limits**:
 ```yaml
 resources:
@@ -518,6 +536,15 @@ processing:
   max-memory-threshold: 3221225472  # 3GB
   enable-data-sanitization: true
   
+# Health Check Configuration
+health:
+  indicator:
+    timeout-seconds: 5
+    memory-threshold-percentage: 90
+    retry-attempts: 3
+    enable-caching: true
+    cache-ttl-seconds: 30  # Cache AWS API calls for 30 seconds
+
 # Monitoring Configuration
 monitoring:
   firehose-metrics-enabled: true

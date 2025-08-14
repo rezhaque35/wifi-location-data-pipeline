@@ -56,7 +56,7 @@ management:
           include: sqsConnectivity,firehoseConnectivity
           show-details: always
         liveness:
-          include: messageProcessingActivity,deliveryActivity,memoryUsage
+          include: sqsActivityReporting,firehoseActivityReporting,memoryUsageReporting
           show-details: always
     metrics:
       enabled: true
