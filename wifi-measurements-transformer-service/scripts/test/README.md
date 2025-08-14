@@ -76,10 +76,16 @@ The original test script with hardcoded test data. Still useful for quick testin
 - **Command**: `./test-with-data-file.sh sample-wifi-scan.json`
 
 ### Raw File Mode
-- **Behavior**: Uploads JSON files directly to S3 without compression/encoding
-- **Use Case**: Testing with raw JSON files, debugging, or when compression isn't needed
-- **Command**: `./test-with-data-file.sh --raw-file sample-wifi-scan.json`
-- **Benefits**: Faster processing, easier debugging, direct file inspection
+- **Behavior**: Uploads files directly to S3 without compression/encoding
+- **Use Case**: Testing with encoded files, raw binary files, or when JSON validation isn't needed
+- **Command**: `./test-with-data-file.sh --raw-file sample-raw-wifi-scan.txt`
+- **Benefits**: Faster processing, easier debugging, direct file inspection, skips JSON validation
+
+### Skip End Validation Mode
+- **Behavior**: Skips schema and data validation at the end of processing
+- **Use Case**: Troubleshooting production files, testing ingestion pipeline without validation overhead
+- **Command**: `./test-with-data-file.sh --skip-end-validation sample-raw-wifi-scan.txt`
+- **Benefits**: Faster execution, focus on pipeline flow rather than data quality, useful for debugging
 
 **Usage:**
 ```bash
@@ -246,9 +252,14 @@ cd wifi-measurements-transformer-service/scripts
 ./test-with-data-file.sh multi-location-scan.json
 ```
 
-### Test with Raw JSON File (No Compression)
+### Test with Raw/Encoded File (No Compression, No JSON Validation)
 ```bash
-./test-with-data-file.sh --raw-file sample-wifi-scan.json
+./test-with-data-file.sh --raw-file sample-raw-wifi-scan.txt
+```
+
+### Test with Production File (Skip End Validation for Troubleshooting)
+```bash
+./test-with-data-file.sh --raw-file --skip-end-validation production-wifi-scan.txt
 ```
 
 ### List Available Test Files

@@ -38,6 +38,7 @@ SUMMARY_ONLY=false
 DATA_FILE=""
 LIST_FILES=false
 RAW_FILE=false
+SKIP_VALIDATION=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -57,6 +58,14 @@ while [[ $# -gt 0 ]]; do
             RAW_FILE=true
             shift
             ;;
+        --skip-validation)
+            SKIP_VALIDATION=true
+            shift
+            ;;
+        --skip-end-validation)
+            SKIP_END_VALIDATION=true
+            shift
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS] [DATA_FILE]"
             echo ""
@@ -64,7 +73,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-cleanup    Skip cleanup of S3 files and local test files"
             echo "  --summary-only    Show only processing summary (skip verbose content)"
             echo "  --list-files, -l  List available test data files and exit"
-            echo "  --raw-file        Upload file directly to S3 without compression/encoding"
+            echo "  --raw-file        Upload file directly to S3 without compression/encoding (skips JSON validation)"
+            echo "  --skip-end-validation  Skip end validation (schema and data validation)"
             echo "  --help, -h        Show this help message"
             echo ""
             echo "Arguments:"
@@ -76,7 +86,8 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 sample-wifi-scan.json             # Use specific test file"
             echo "  $0 --list-files                      # List available test files"
             echo "  $0 --skip-cleanup multi-location-scan.json  # Use file and skip cleanup"
-            echo "  $0 --raw-file sample-wifi-scan.json  # Upload raw JSON without encoding"
+            echo "  $0 --raw-file sample-raw-wifi-scan.txt  # Upload encoded file without JSON validation"
+            echo "  $0 --raw-file --skip-end-validation production-file.txt  # Skip end validation for troubleshooting"
             exit 0
             ;;
         *)
@@ -198,20 +209,26 @@ select_test_data_file() {
     print_status $GREEN "✅ Using test data file: $DATA_FILE"
     echo "   Full path: $full_path"
     
-    # Validate JSON format
-    if ! jq empty "$full_path" 2>/dev/null; then
-        print_status $RED "❌ Invalid JSON format in file: $DATA_FILE"
-        exit 1
-    fi
-    
-    # Validate required fields
-    local required_fields=("wifiConnectedEvents" "scanResults")
-    for field in "${required_fields[@]}"; do
-        if ! jq -e ".$field" "$full_path" >/dev/null 2>&1; then
-            print_status $RED "❌ Missing required field '$field' in file: $DATA_FILE"
+    # Validate JSON format (skip for raw files)
+    if [ "$RAW_FILE" = false ]; then
+        if ! jq empty "$full_path" 2>/dev/null; then
+            print_status $RED "❌ Invalid JSON format in file: $DATA_FILE"
             exit 1
         fi
-    done
+        
+        # Validate required fields
+        local required_fields=("wifiConnectedEvents" "scanResults")
+        for field in "${required_fields[@]}"; do
+            if ! jq -e ".$field" "$full_path" >/dev/null 2>&1; then
+                print_status $RED "❌ Missing required field '$field' in file: $DATA_FILE"
+                exit 1
+            fi
+        done
+        
+        print_status $GREEN "✅ JSON format and required fields validation passed"
+    else
+        print_status $YELLOW "⚠️  Raw file mode: Skipping JSON validation"
+    fi
     
     print_status $GREEN "✅ Test data file validation passed"
 }
@@ -371,29 +388,38 @@ show_source_message_content() {
     print_status $BLUE "📤 SOURCE MESSAGE CONTENT (from $DATA_FILE)"
     echo "=========================================="
     
-    print_status $BLUE "Raw WiFi Scan Data (from test file):"
-    cat /tmp/test-wifi-scan.json | jq '.'
-    
-    echo ""
-    print_status $BLUE "Expected Record Counts from Source:"
-    
-    # Count expected CONNECTED records
-    EXPECTED_CONNECTED=$(cat /tmp/test-wifi-scan.json | jq '.wifiConnectedEvents | length')
-    echo "  CONNECTED Events: $EXPECTED_CONNECTED"
-    
-    # Count expected SCAN records  
-    EXPECTED_SCAN=$(cat /tmp/test-wifi-scan.json | jq '[.scanResults[].results[]] | length')
-    echo "  SCAN Results: $EXPECTED_SCAN"
-    
-    EXPECTED_TOTAL=$((EXPECTED_CONNECTED + EXPECTED_SCAN))
-    echo "  Expected Total Records: $EXPECTED_TOTAL"
-    
-    echo ""
-    print_status $BLUE "Expected BSSIDs:"
-    echo "  CONNECTED BSSIDs:"
-    cat /tmp/test-wifi-scan.json | jq -r '.wifiConnectedEvents[].wifiConnectedInfo.bssid' | sed 's/^/    /'
-    echo "  SCAN BSSIDs:"
-    cat /tmp/test-wifi-scan.json | jq -r '.scanResults[].results[].bssid' | sed 's/^/    /'
+    if [ "$RAW_FILE" = true ]; then
+        print_status $YELLOW "📁 Raw file mode: Source content is encoded/compressed"
+        print_status $BLUE "File size: $(stat -f%z /tmp/test-wifi-scan.json 2>/dev/null || stat -c%s /tmp/test-wifi-scan.json 2>/dev/null || echo 'unknown') bytes"
+        print_status $BLUE "File type: $(file /tmp/test-wifi-scan.json | cut -d: -f2-)"
+        echo ""
+        print_status $YELLOW "⚠️  Cannot analyze source content for expected records (file is encoded)"
+        print_status $YELLOW "   Processing summary will show only actual results"
+    else
+        print_status $BLUE "Raw WiFi Scan Data (from test file):"
+        cat /tmp/test-wifi-scan.json | jq '.'
+        
+        echo ""
+        print_status $BLUE "Expected Record Counts from Source:"
+        
+        # Count expected CONNECTED records
+        EXPECTED_CONNECTED=$(cat /tmp/test-wifi-scan.json | jq '.wifiConnectedEvents | length')
+        echo "  CONNECTED Events: $EXPECTED_CONNECTED"
+        
+        # Count expected SCAN records  
+        EXPECTED_SCAN=$(cat /tmp/test-wifi-scan.json | jq '[.scanResults[].results[]] | length')
+        echo "  SCAN Results: $EXPECTED_SCAN"
+        
+        EXPECTED_TOTAL=$((EXPECTED_CONNECTED + EXPECTED_SCAN))
+        echo "  Expected Total Records: $EXPECTED_TOTAL"
+        
+        echo ""
+        print_status $BLUE "Expected BSSIDs:"
+        echo "  CONNECTED BSSIDs:"
+        cat /tmp/test-wifi-scan.json | jq -r '.wifiConnectedEvents[].wifiConnectedInfo.bssid' | sed 's/^/    /'
+        echo "  SCAN BSSIDs:"
+        cat /tmp/test-wifi-scan.json | jq -r '.scanResults[].results[].bssid' | sed 's/^/    /'
+    fi
     
     echo ""
     print_status $GREEN "✅ Source message content displayed"
@@ -421,7 +447,46 @@ provide_processing_summary() {
     print_status $BLUE "📊 PROCESSING SUMMARY (Test File: $DATA_FILE)"
     echo "=========================================="
     
-    # Get source data expectations
+    if [ "$RAW_FILE" = true ]; then
+        print_status $YELLOW "📁 Raw file mode: Cannot provide expected vs actual comparison"
+        print_status $YELLOW "   Source file is encoded/compressed"
+        echo ""
+        
+        # Get actual results only
+        ACTUAL_TOTAL=$(cat /tmp/firehose-output.json | jq -s 'length')
+        ACTUAL_CONNECTED=$(cat /tmp/firehose-output.json | jq -s '[.[] | select(.connection_status == "CONNECTED")] | length')
+        ACTUAL_SCAN=$(cat /tmp/firehose-output.json | jq -s '[.[] | select(.connection_status == "SCAN")] | length')
+        
+        print_status $BLUE "📈 ACTUAL RECORD COUNTS:"
+        echo "  CONNECTED Records: $ACTUAL_CONNECTED"
+        echo "  SCAN Records: $ACTUAL_SCAN"
+        echo "  TOTAL Records: $ACTUAL_TOTAL"
+        
+        echo ""
+        print_status $BLUE "📋 ACTUAL BSSIDs BY CONNECTION STATUS:"
+        printf "    %-20s %-15s\n" "BSSID" "Connection Type"
+        printf "    %-20s %-15s\n" "===================" "============="
+        
+        # Show CONNECTED BSSIDs
+        cat /tmp/firehose-output.json | jq -s -r '.[] | select(.connection_status == "CONNECTED") | .bssid' | sort | uniq | while read -r bssid; do
+            if [ -n "$bssid" ]; then
+                printf "    %-20s %-15s\n" "$bssid" "CONNECTED"
+            fi
+        done
+        
+        # Show SCAN BSSIDs
+        cat /tmp/firehose-output.json | jq -s -r '.[] | select(.connection_status == "SCAN") | .bssid' | sort | uniq | while read -r bssid; do
+            if [ -n "$bssid" ]; then
+                printf "    %-20s %-15s\n" "$bssid" "SCAN"
+            fi
+        done
+        
+        echo ""
+        print_status $GREEN "✅ Raw file processing summary completed"
+        return 0
+    fi
+    
+    # Standard mode - get source data expectations
     EXPECTED_CONNECTED=$(cat /tmp/test-wifi-scan.json | jq '.wifiConnectedEvents | length')
     EXPECTED_SCAN=$(cat /tmp/test-wifi-scan.json | jq '[.scanResults[].results[]] | length')
     EXPECTED_TOTAL=$((EXPECTED_CONNECTED + EXPECTED_SCAN))
@@ -601,6 +666,7 @@ display_test_summary() {
     echo "📋 Test Configuration:"
     echo "  Test Data File: $DATA_FILE"
     echo "  Processing Mode: $([ "$RAW_FILE" = true ] && echo "Raw JSON (no encoding)" || echo "Compressed & Encoded")"
+    echo "  End Validation: $([ "$SKIP_END_VALIDATION" = true ] && echo "Skipped (troubleshooting)" || echo "Enabled")"
     echo "  LocalStack Endpoint: $LOCALSTACK_ENDPOINT"
     echo "  S3 Source Bucket: s3://$S3_BUCKET_NAME"
     echo "  S3 Destination Bucket: s3://$S3_FIREHOSE_DESTINATION_BUCKET"
@@ -684,7 +750,14 @@ main() {
     send_s3_event_to_sqs
     wait_for_processing
     check_firehose_destination
-    validate_schema_and_data
+    
+    # Skip end validation if requested
+    if [ "$SKIP_END_VALIDATION" = true ]; then
+        print_status $YELLOW "⏭️  Skipping end validation (--skip-end-validation flag provided)"
+        print_status $YELLOW "📁 Schema and data validation will be skipped for troubleshooting"
+    else
+        validate_schema_and_data
+    fi
     
     # Show analysis based on verbosity preference
     if [ "$SUMMARY_ONLY" = false ]; then
