@@ -376,4 +376,247 @@ Normalized `wifi_measurements` table with:
 
 - `sqs.messages.processed` - SQS message processing rate
 - `s3.files.processed` - File processing throughput
-- `
+- `firehose.records.written` - Records written to Firehose
+- `processing.errors` - Processing error rate
+- `memory.usage` - Memory usage metrics
+
+## S3 Event Format Support
+
+### Production S3 Event Notification Format
+
+This service processes **S3 Event Notifications** sent directly to SQS when files are uploaded to S3. The service has been updated to handle the actual AWS S3 Event Notification format used in production.
+
+#### Supported Event Format
+
+```json
+{
+  "Records": [
+    {
+      "eventVersion": "2.1",
+      "eventSource": "aws:s3",
+      "awsRegion": "us-east-2",
+      "eventTime": "2025-08-13T22:30:10.778Z",
+      "eventName": "ObjectCreated:Put",
+      "userIdentity": {
+        "principalId": "AWS:AROA4QWKES4Y24IUPAV2J:AWSFirehoseToS3"
+      },
+      "requestParameters": {
+        "sourceIPAddress": "10.20.19.21"
+      },
+      "responseElements": {
+        "x-amz-request-id": "8C3VR6DWXN808YJP",
+        "x-amz-id-2": "2BdlIpJXKQCEI7siGhF3KCU9M59dye7AJcn63aIjkANLeVX+9EFIJ7qzipO/g3RJFVIK5E7a20PqWDccojmXUmLJHK00bHFvRHDhbb9LMnw="
+      },
+      "s3": {
+        "s3SchemaVersion": "1.0",
+        "configurationId": "NjgyMTJiZTUtNDMwZC00OTVjLWIzOWEtM2UzZWM3MzYwNGE2",
+        "bucket": {
+          "name": "vsf-dev-oh-frisco-ingested-wifiscan-data",
+          "ownerIdentity": {
+            "principalId": "A3LJZCR20GC5IX"
+          },
+          "arn": "arn:aws:s3:::vsf-dev-oh-frisco-ingested-wifiscan-data"
+        },
+        "object": {
+          "key": "year%3D2025/month%3D08/day%3D13/hour%3D22/MVS-stream/frisco-wifiscan-mvs-stream-4-2025-08-13-22-29-19-176e8954-348c-4c9b-8798-1fc44872c0ad",
+          "size": 1049040,
+          "eTag": "af789ccf52246f4d7c9eea1925176409",
+          "sequencer": "00689D11F29F29282F"
+        }
+      }
+    }
+  ]
+}
+```
+
+### Stream Name Extraction
+
+The service intelligently extracts stream names from S3 object keys using a robust algorithm that handles various path formats:
+
+#### Supported Path Formats
+
+1. **Firehose partitioned (URL-encoded)**: `year%3D2025/month%3D08/day%3D13/hour%3D22/MVS-stream/file.txt` → `MVS-stream`
+2. **Firehose partitioned (non-encoded)**: `year=2025/month=08/day=13/hour=22/MVS-stream/file.txt` → `MVS-stream`  
+3. **Date-only**: `2025/08/13/22/MVS-stream/file.txt` → `MVS-stream`
+4. **Prefixed**: `someOtherStuff/2025/08/13/22/MVS-stream/file.txt` → `MVS-stream`
+5. **Simple**: `MVS-stream/file.txt` → `MVS-stream`
+
+#### URL Encoding Handling
+
+- ✅ **Automatic Detection**: Checks for `%` characters to determine if URL decoding is needed
+- ✅ **Graceful Handling**: Returns original key if URL decoding fails (robustness)  
+- ✅ **Mixed Formats**: Handles both encoded and non-encoded paths in the same system
+
+#### Algorithm
+
+The stream name is extracted as **the component immediately before the filename**, making it robust across different S3 key structures.
+
+### Recent Updates
+
+#### ✅ **2025-08: S3 Event Format Alignment**
+
+- **Updated from**: EventBridge format to direct S3 Event Notification format  
+- **Reason**: Match actual AWS production behavior where S3 events are sent directly to SQS
+- **Impact**: All tests, scripts, and integration code now use the correct format
+- **Stream Name Logic**: Simplified to always extract the component before the filename
+
+## Testing
+
+### Unit Tests
+
+Run the comprehensive test suite:
+
+```bash
+mvn test
+```
+
+**Current Coverage**: 18 unit tests for S3EventExtractor with 100% pass rate covering:
+- ✅ Valid S3 Event Notification parsing
+- ✅ Stream name extraction from various path formats  
+- ✅ URL encoding/decoding edge cases
+- ✅ Error handling for invalid JSON and malformed events
+- ✅ Field validation and data type checking
+
+### Integration Tests
+
+Run integration tests with LocalStack:
+
+```bash
+mvn test -Dtest=*IntegrationTest
+```
+
+**Integration Test Coverage**:
+- ✅ **SqsMessageReceiverIntegrationTest**: 7 tests for SQS message processing
+- ✅ **ComprehensiveIntegrationTest**: End-to-end pipeline validation  
+- ✅ **DataFilteringIntegrationTest**: Data filtering and validation
+- ✅ **FirehoseIntegrationServiceTest**: Firehose delivery testing
+
+## Development
+
+### Contributing
+
+1. Follow Java coding standards and use provided linting rules
+2. Ensure all tests pass before submitting PRs
+3. Update documentation for any API or format changes
+4. Test with both LocalStack and AWS environments when possible
+
+### Adding New Feed Processors
+
+1. Implement the `FeedProcessor` interface
+2. Register in `FeedProcessorFactory`  
+3. Add comprehensive unit tests
+4. Update configuration documentation
+
+## Deployment
+
+### Environment Requirements
+
+- **Java 17+** runtime
+- **Memory**: 4GB recommended (see Memory Requirements section)
+- **Network**: Access to SQS, S3, and Firehose endpoints
+- **Permissions**: SQS read/delete, S3 read, Firehose write
+
+### AWS IAM Permissions
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:DeleteMessageBatch",
+        "sqs:ChangeMessageVisibility"
+      ],
+      "Resource": "arn:aws:sqs:*:*:wifi-scan-events*"
+    },
+    {
+      "Effect": "Allow", 
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::ingested-wifiscan-data/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "firehose:PutRecord",
+        "firehose:PutRecordBatch"
+      ],
+      "Resource": "arn:aws:firehose:*:*:deliverystream/wifi-measurements-stream"
+    }
+  ]
+}
+```
+
+### Docker Deployment
+
+```dockerfile
+FROM openjdk:17-jre-slim
+
+COPY target/wifi-measurements-transformer-service-*.jar app.jar
+
+EXPOSE 8081
+
+ENV JAVA_OPTS="-Xmx4g -XX:+UseG1GC"
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app.jar"]
+```
+
+### Kubernetes Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wifi-measurements-transformer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: wifi-measurements-transformer
+  template:
+    metadata:
+      labels:
+        app: wifi-measurements-transformer
+    spec:
+      containers:
+      - name: app
+        image: wifi-measurements-transformer:latest
+        ports:
+        - containerPort: 8081
+        resources:
+          requests:
+            memory: "3Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi" 
+            cpu: "2"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        env:
+        - name: SQS_QUEUE_URL
+          value: "https://sqs.us-east-1.amazonaws.com/123456789012/wifi-scan-events"
+        - name: S3_BUCKET_NAME
+          value: "ingested-wifiscan-data"
+        - name: FIREHOSE_DELIVERY_STREAM_NAME
+          value: "wifi-measurements-stream"
+        - name: AWS_REGION
+          value: "us-east-1"
+```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

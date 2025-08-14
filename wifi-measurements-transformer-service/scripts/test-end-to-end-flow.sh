@@ -242,32 +242,45 @@ send_s3_event_to_sqs() {
     QUEUE_URL=$(aws --endpoint-url=$LOCALSTACK_ENDPOINT sqs get-queue-url \
         --queue-name $SQS_QUEUE_NAME --query 'QueueUrl' --output text)
     
-    # Create S3 event message
+    # Create S3 event message (S3 Event Notification format)
     cat > /tmp/s3-event.json << EOF
 {
-  "version": "0",
-  "id": "$(uuidgen)",
-  "detail-type": "Object Created",
-  "source": "aws.s3",
-  "account": "000000000000",
-  "time": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "region": "$AWS_REGION",
-  "resources": ["arn:aws:s3:::$S3_BUCKET_NAME"],
-  "detail": {
-    "version": "0",
-    "bucket": {"name": "$S3_BUCKET_NAME"},
-    "object": {
-      "key": "$S3_KEY",
-      "size": $(stat -f%z /tmp/comprehensive-encoded.txt),
-      "etag": "$(md5 -q /tmp/comprehensive-encoded.txt)",
-      "sequencer": "0062E99A88DC407460",
-      "version-id": "AZhScmWkZshiDT25IpYSNfoNoJhDpAVb"
-    },
-    "request-id": "$(uuidgen)",
-    "requester": "074255357339",
-    "source-ip-address": "127.0.0.1",
-    "reason": "PutObject"
-  }
+  "Records": [
+    {
+      "eventVersion": "2.1",
+      "eventSource": "aws:s3",
+      "awsRegion": "$AWS_REGION",
+      "eventTime": "$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")",
+      "eventName": "ObjectCreated:Put",
+      "userIdentity": {
+        "principalId": "AWS:AROA4QWKES4Y24IUPAV2J:AWSFirehoseToS3"
+      },
+      "requestParameters": {
+        "sourceIPAddress": "127.0.0.1"
+      },
+      "responseElements": {
+        "x-amz-request-id": "$(uuidgen | cut -d'-' -f1)",
+        "x-amz-id-2": "2BdlIpJXKQCEI7siGhF3KCU9M59dye7AJcn63aIjkANLeVX+9EFIJ7qzipO/g3RJFVIK5E7a20PqWDccojmXUmLJHK00bHFvRHDhbb9LMnw="
+      },
+      "s3": {
+        "s3SchemaVersion": "1.0",
+        "configurationId": "NjgyMTJiZTUtNDMwZC00OTVjLWIzOWEtM2UzZWM3MzYwNGE2",
+        "bucket": {
+          "name": "$S3_BUCKET_NAME",
+          "ownerIdentity": {
+            "principalId": "A3LJZCR20GC5IX"
+          },
+          "arn": "arn:aws:s3:::$S3_BUCKET_NAME"
+        },
+        "object": {
+          "key": "$S3_KEY",
+          "size": $(stat -f%z /tmp/comprehensive-encoded.txt),
+          "eTag": "$(md5 -q /tmp/comprehensive-encoded.txt)",
+          "sequencer": "0062E99A88DC407460"
+        }
+      }
+    }
+  ]
 }
 EOF
     

@@ -27,37 +27,62 @@ A Java microservice that processes WiFi scan data from SQS events, transforms th
 - **SQS Message Format**:
   ```json
   {
-    "version": "0",
-    "id": "bae85d73-bf72-4251-85c8-a2af9c4721f3",
-    "detail-type": "Object Created",
-    "source": "aws.s3",
-    "account": "000000000000",
-    "time": "2025-07-28T19:12:23Z",
-    "region": "us-east-1",
-    "resources": ["arn:aws:s3:::ingested-wifiscan-data"],
-    "detail": {
-      "version": "0",
-      "bucket": {"name": "ingested-wifiscan-data"},
-      "object": {
-        "key": "MVS-stream/2025/07/28/19/MVS-stream-2025-07-28-19-12-23-15993907-a5fe-4793-8182-064acc85cf20.txt",
-        "size": 2463,
-        "etag": "7cf201071659efefb45197abb52fcb92",
-        "sequencer": "0062E99A88DC407460",
-        "version-id": "AZhScmWkZshiDT25IpYSNfoNoJhDpAVb"
-      },
-      "request-id": "3ebe7d3d-fdc6-4821-a4b5-bf0ff1972450",
-      "requester": "074255357339",
-      "source-ip-address": "127.0.0.1",
-      "reason": "PutObject"
-    }
+    "Records": [
+      {
+        "eventVersion": "2.1",
+        "eventSource": "aws:s3",
+        "awsRegion": "us-east-2",
+        "eventTime": "2025-08-13T22:30:10.778Z",
+        "eventName": "ObjectCreated:Put",
+        "userIdentity": {
+          "principalId": "AWS:AROA4QWKES4Y24IUPAV2J:AWSFirehoseToS3"
+        },
+        "requestParameters": {
+          "sourceIPAddress": "10.20.19.21"
+        },
+        "responseElements": {
+          "x-amz-request-id": "8C3VR6DWXN808YJP",
+          "x-amz-id-2": "2BdlIpJXKQCEI7siGhF3KCU9M59dye7AJcn63aIjkANLeVX+9EFIJ7qzipO/g3RJFVIK5E7a20PqWDccojmXUmLJHK00HfRHDhbb9LMnw="
+        },
+        "s3": {
+          "s3SchemaVersion": "1.0",
+          "configurationId": "NjgyMTJiZTUtNDMwZC00OTVjLWIzOWEtM2UzZWM3MzYwNGE2",
+          "bucket": {
+            "name": "vsf-dev-oh-frisco-ingested-wifiscan-data",
+            "ownerIdentity": {
+              "principalId": "A3LJZCR20GC5IX"
+            },
+            "arn": "arn:aws:s3:::vsf-dev-oh-frisco-ingested-wifiscan-data"
+          },
+          "object": {
+            "key": "year%3D2025/month%3D08/day%3D13/hour%3D22/MVS-stream/frisco-wifiscan-mvs-stream-4-2025-08-13-22-29-19-176e8954-348c-4c9b-8798-1fc44872c0ad",
+            "size": 1049040,
+            "eTag": "af789ccf52246f4d7c9eea1925176409",
+            "sequencer": "00689D11F29F29282F"
+          }
+        }
+      }
+    ]
   }
   ```
+
+**Key Differences from Previous Requirements:**
+- **Event Structure**: Uses `Records` array containing S3 event notifications (not EventBridge format)
+- **Event Source**: `"aws:s3"` instead of `"aws.s3"`
+- **Event Type**: `"ObjectCreated:Put"` instead of `"Object Created"`
+- **S3 Object Details**: Located in `s3.object` path instead of `detail.object`
+- **Bucket Information**: Located in `s3.bucket` path instead of `detail.bucket`
+- **Object Key**: Contains URL-encoded partitioning structure (`year%3D2025/month%3D08/day%3D13/hour%3D22/`)
+- **Stream Detection**: Stream name extraction from object key prefix (e.g., `MVS-stream` from the path)
+
+> **📋 Note (Updated August 2025)**: This format has been validated against actual AWS production behavior. All implementation code, test scripts, and integration tests have been updated to use this correct S3 Event Notification format instead of the previous EventBridge-style format. The stream name extraction logic has been simplified to always extract the component immediately before the filename, making it robust across various S3 object key patterns.
 
 ### 2. Feed Processing Architecture
 ```
 SQS Event → Feed Detector → Feed-Specific Processor OR Default Processor
 ```
-- **Feed Detection**: Extract feed type from S3 object key prefix. For example, if the key is `"MVS-stream/2025/07/28/19/MVS-stream-2025-07-28-19-12-23-15993907-a5fe-4793-8182-064acc85cf20.txt"`, the stream name is the prefix `"MVS-stream"`
+- **Feed Detection**: Extract feed type from S3 object key prefix. The object key follows the pattern: `year%3D{year}/month%3D{month}/day%3D{day}/hour%3D{hour}/{stream-name}/{filename}`. For example, if the key is `"year%3D2025/month%3D08/day%3D13/hour%3D22/MVS-stream/frisco-wifiscan-mvs-stream-4-2025-08-13-22-29-19-176e8954-348c-4c9b-8798-1fc44872c0ad"`, the stream name is extracted as `"MVS-stream"` (the segment after the hour partition and before the filename).
+- **URL Decoding**: The object key contains URL-encoded partitioning (`%3D` = `=`, `%2F` = `/`), so the actual path structure is `year=2025/month=08/day=13/hour=22/MVS-stream/filename`.
 - **Processor Registry**: Map feed types to specific processor implementations
 - **Default Processor**: Handle unknown feeds with generic WiFi scan processing
 - **Processor Interface**: Common interface for all feed processors
@@ -325,6 +350,8 @@ global_detection_version = null
 - **Async Processing**: Use `@Async` and CompletableFuture for parallel operations
 - **Transaction Management**: Handle batch operations transactionally
 
+**S3 Event Structure Note**: The service receives S3 Event Notifications (not EventBridge events) with the structure `{"Records": [{"s3": {...}}]}`. This is the standard format when S3 is configured to send notifications directly to SQS queues.
+
 ### 2. SQS Integration (AWS SDK v2)
 ```java
 // Target configuration
@@ -521,7 +548,7 @@ Receive → Process → Transform → Firehose Write → Success: Delete | Failu
 ## Data Flow Architecture (Updated)
 
 ```
-SQS Events → Feed Detection → Feed Processor Factory
+SQS Events → S3 Event Extraction (Records[0].s3) → Feed Detection → Feed Processor Factory
                                       ↓
                             Default WiFi Processor
                                       ↓
@@ -549,6 +576,12 @@ S3 Download → Base64 Decode → Unzip → JSON Parse (Line by Line)
                                       ↓
                         S3 Tables (Iceberg/Parquet)
 ```
+
+**S3 Event Processing Details:**
+- **Event Extraction**: Parse `Records[0].s3.bucket.name` and `Records[0].s3.object.key`
+- **URL Decoding**: Decode object key to extract partitioning and stream name
+- **Stream Detection**: Extract stream name from decoded object key path
+- **File Processing**: Download and process the S3 object based on extracted information
 
 ## Development Environment Setup
 

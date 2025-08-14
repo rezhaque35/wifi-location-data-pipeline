@@ -504,33 +504,58 @@ class SqsMessageReceiverIntegrationTest {
     ObjectMapper mapper = new ObjectMapper();
     ObjectNode event = mapper.createObjectNode();
 
-    event.put("version", "0");
-    event.put("id", "550e8400-e29b-41d4-a716-446655440000"); // Valid UUID format
-    event.put("detail-type", "Object Created");
-    event.put("source", "aws.s3");
-    event.put("account", "000000000000");
-    event.put("time", "2025-07-29T11:00:00Z");
-    event.put("region", "us-east-1");
+    // Create Records array
+    var records = mapper.createArrayNode();
+    ObjectNode record = mapper.createObjectNode();
 
-    var resources = mapper.createArrayNode();
-    resources.add("arn:aws:s3:::ingested-wifiscan-data");
-    event.set("resources", resources);
+    // S3 Event Notification format
+    record.put("eventVersion", "2.1");
+    record.put("eventSource", "aws:s3");
+    record.put("awsRegion", "us-east-1");
+    record.put("eventTime", "2025-07-29T11:00:00.000Z");
+    record.put("eventName", "ObjectCreated:Put");
 
-    ObjectNode detail = mapper.createObjectNode();
-    detail.put("version", "0");
+    // User identity
+    ObjectNode userIdentity = mapper.createObjectNode();
+    userIdentity.put("principalId", "AWS:AROA4QWKES4Y24IUPAV2J:AWSFirehoseToS3");
+    record.set("userIdentity", userIdentity);
 
+    // Request parameters
+    ObjectNode requestParameters = mapper.createObjectNode();
+    requestParameters.put("sourceIPAddress", "10.20.19.21");
+    record.set("requestParameters", requestParameters);
+
+    // Response elements
+    ObjectNode responseElements = mapper.createObjectNode();
+    responseElements.put("x-amz-request-id", "8C3VR6DWXN808YJP");
+    responseElements.put("x-amz-id-2", "2BdlIpJXKQCEI7siGhF3KCU9M59dye7AJcn63aIjkANLeVX+9EFIJ7qzipO/g3RJFVIK5E7a20PqWDccojmXUmLJHK00bHFvRHDhbb9LMnw=");
+    record.set("responseElements", responseElements);
+
+    // S3 details
+    ObjectNode s3 = mapper.createObjectNode();
+    s3.put("s3SchemaVersion", "1.0");
+    s3.put("configurationId", "NjgyMTJiZTUtNDMwZC00OTVjLWIzOWEtM2UzZWM3MzYwNGE2");
+
+    // Bucket info
     ObjectNode bucket = mapper.createObjectNode();
     bucket.put("name", "ingested-wifiscan-data");
-    detail.set("bucket", bucket);
+    ObjectNode ownerIdentity = mapper.createObjectNode();
+    ownerIdentity.put("principalId", "A3LJZCR20GC5IX");
+    bucket.set("ownerIdentity", ownerIdentity);
+    bucket.put("arn", "arn:aws:s3:::ingested-wifiscan-data");
+    s3.set("bucket", bucket);
 
+    // Object info  
     ObjectNode object = mapper.createObjectNode();
-    object.put("key", "MVS-stream/2025/07/29/11/test-file.txt");
+    object.put("key", "year%3D2025/month%3D07/day%3D29/hour%3D11/MVS-stream/test-file.txt");
     object.put("size", 1024);
-    object.put("etag", "d41d8cd98f00b204e9800998ecf8427e"); // Valid 32-char hex etag
+    object.put("eTag", "d41d8cd98f00b204e9800998ecf8427e"); // Valid 32-char hex etag
     object.put("sequencer", "test-sequencer");
-    detail.set("object", object);
+    s3.set("object", object);
 
-    event.set("detail", detail);
+    record.set("s3", s3);
+    records.add(record);
+    event.set("Records", records);
 
     return event.toString();
   }

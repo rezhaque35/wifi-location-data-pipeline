@@ -86,11 +86,8 @@ class FeedProcessorTest {
   }
 
   private S3EventRecord createTestS3EventRecord(String streamName) {
-    String objectKey =
-        streamName
-            + "/2025/07/28/19/"
-            + streamName
-            + "-2025-07-28-19-12-23-15993907-a5fe-4793-8182-064acc85cf20.txt";
+    // Use the simplified format where stream name is immediately before the filename
+    String objectKey = "2025/07/28/19/" + streamName + "/" + streamName + "-2025-07-28-19-12-23-15993907-a5fe-4793-8182-064acc85cf20.txt";
 
     return S3EventRecord.of(
         "test-id",

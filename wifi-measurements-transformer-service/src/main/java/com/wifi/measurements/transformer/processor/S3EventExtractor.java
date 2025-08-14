@@ -3,7 +3,6 @@ package com.wifi.measurements.transformer.processor;
 
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -76,15 +75,13 @@ public class S3EventExtractor {
   private final ObjectMapper objectMapper;
 
   // Validation patterns
-  private static final Pattern UUID_PATTERN =
-      Pattern.compile(
-          "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$");
-  private static final Pattern REGION_PATTERN = Pattern.compile("^[a-z0-9-]+$");
-  private static final Pattern S3_ARN_PATTERN = Pattern.compile("^arn:aws:s3:::[a-zA-Z0-9.-]+$");
   private static final Pattern BUCKET_NAME_PATTERN =
       Pattern.compile("^[a-z0-9][a-z0-9.-]*[a-z0-9]$");
   private static final Pattern ETAG_PATTERN = Pattern.compile("^[a-fA-F0-9]{32}$");
-  private static final Pattern VERSION_ID_PATTERN = Pattern.compile("^[A-Za-z0-9._-]+$");
+  
+  // Constants
+  private static final String RECORDS_FIELD = "Records";
+  private static final String OBJECT_FIELD = "object";
 
   public S3EventExtractor() {
     this.objectMapper = new ObjectMapper();
@@ -162,74 +159,65 @@ public class S3EventExtractor {
   /** Checks if the event has the required S3 structure. */
   private boolean hasRequiredS3Fields(JsonNode eventNode) {
     return Optional.ofNullable(eventNode)
-        .filter(node -> "Object Created".equals(getTextValue(node, "detail-type")))
-        .filter(node -> "aws.s3".equals(getTextValue(node, "source")))
-        .map(node -> node.get("detail"))
-        .filter(detail -> detail.has("bucket") && detail.has("object"))
+        .filter(node -> node.has(RECORDS_FIELD))
+        .map(node -> node.get(RECORDS_FIELD))
+        .filter(JsonNode::isArray)
+        .filter(recordsArray -> recordsArray.size() > 0)
+        .map(recordsArray -> recordsArray.get(0))
+        .filter(eventRecord -> "aws:s3".equals(getTextValue(eventRecord, "eventSource")))
+        .filter(eventRecord -> eventRecord.has("s3"))
+        .map(eventRecord -> eventRecord.get("s3"))
+        .filter(s3Node -> s3Node.has("bucket") && s3Node.has(OBJECT_FIELD))
         .isPresent();
   }
 
   /** Extracts S3EventRecord from validated JsonNode. */
   private Optional<S3EventRecord> extractS3EventRecord(JsonNode eventNode) {
     try {
-      String id = extractValidatedField(eventNode, "id", UUID_PATTERN, "Invalid event ID format");
-      Instant time = extractTime(eventNode);
-      String region =
-          extractValidatedField(eventNode, "region", REGION_PATTERN, "Invalid region format");
-      List<String> resources = extractResources(eventNode);
+      // Get the first S3 event record from the Records array
+      JsonNode eventRecord = eventNode.get(RECORDS_FIELD).get(0);
+      
+      // Extract top-level S3 event fields
+      String eventVersion = getTextValue(eventRecord, "eventVersion");
+      Instant time = extractS3EventTime(eventRecord);
+      String region = getTextValue(eventRecord, "awsRegion");
+      
+      // Extract S3 specific data
+      JsonNode s3Node = eventRecord.get("s3");
+      String bucketName = extractS3BucketName(s3Node);
+      String objectKey = extractS3ObjectKey(s3Node);
+      long objectSize = extractS3ObjectSize(s3Node);
+      String etag = extractOptionalS3Field(s3Node.get(OBJECT_FIELD), "eTag", ETAG_PATTERN);
+      String sequencer = extractOptionalS3Field(s3Node.get(OBJECT_FIELD), "sequencer", null);
+      
+      // Extract request parameters if available
+      String requestId = extractOptionalS3Field(eventRecord.get("responseElements"), "x-amz-request-id", null);
 
-      JsonNode detail = eventNode.get("detail");
-      String bucketName = extractBucketName(detail);
-      String objectKey = extractObjectKey(detail);
-      long objectSize = extractObjectSize(detail);
-      String etag = extractOptionalField(detail.get("object"), "etag", ETAG_PATTERN);
-      String versionId =
-          extractOptionalField(detail.get("object"), "version-id", VERSION_ID_PATTERN);
-      String requestId = extractOptionalField(detail, "request-id", UUID_PATTERN);
-
-      S3EventRecord record =
+      S3EventRecord s3EventRecord =
           S3EventRecord.of(
-              id,
+              eventVersion,
               time,
               region,
-              resources,
+              List.of(), // No resources array in S3 event notifications
               bucketName,
               objectKey,
               objectSize,
               etag,
-              versionId,
+              sequencer, // Use sequencer instead of versionId
               requestId);
 
       logger.debug(
           "Successfully extracted S3 event: bucket={}, key={}, stream={}",
           bucketName,
           objectKey,
-          record.streamName());
+          s3EventRecord.streamName());
 
-      return Optional.of(record);
+      return Optional.of(s3EventRecord);
 
     } catch (Exception e) {
       logger.error("Error extracting S3 event from message body", e);
       return Optional.empty();
     }
-  }
-
-  /** Generic method to extract and validate a required field. */
-  private String extractValidatedField(
-      JsonNode node, String fieldName, Pattern pattern, String errorMessage) {
-    return Optional.ofNullable(getTextValue(node, fieldName))
-        .filter(value -> !value.trim().isEmpty())
-        .filter(value -> pattern.matcher(value).matches())
-        .orElseThrow(() -> new IllegalArgumentException(errorMessage + " for field: " + fieldName));
-  }
-
-  /** Generic method to extract and validate an optional field. */
-  private String extractOptionalField(JsonNode node, String fieldName, Pattern pattern) {
-    return Optional.ofNullable(node)
-        .map(n -> getTextValue(n, fieldName))
-        .filter(value -> value != null && !value.trim().isEmpty())
-        .filter(value -> pattern.matcher(value).matches())
-        .orElse(null);
   }
 
   /** Safely extracts text value from JsonNode. */
@@ -241,17 +229,17 @@ public class S3EventExtractor {
         .orElse(null);
   }
 
-  /** Extracts and validates timestamp. */
-  private Instant extractTime(JsonNode eventNode) {
+  /** Extracts and validates timestamp from S3 event. */
+  private Instant extractS3EventTime(JsonNode eventRecord) {
     String timeStr =
-        Optional.ofNullable(getTextValue(eventNode, "time"))
-            .filter(time -> !time.trim().isEmpty())
+        Optional.ofNullable(getTextValue(eventRecord, "eventTime"))
+            .filter(timeValue -> !timeValue.trim().isEmpty())
             .orElseThrow(() -> new IllegalArgumentException("Missing or empty event time"));
 
     try {
-      Instant time = Instant.parse(timeStr);
-      validateTimeRange(time);
-      return time;
+      Instant timeInstant = Instant.parse(timeStr);
+      validateTimeRange(timeInstant);
+      return timeInstant;
     } catch (DateTimeParseException e) {
       throw new IllegalArgumentException("Invalid event time format: " + timeStr, e);
     }
@@ -260,59 +248,48 @@ public class S3EventExtractor {
   /** Validates that timestamp is within reasonable range. */
   private void validateTimeRange(Instant time) {
     Instant now = Instant.now();
-    Instant minTime = now.minusSeconds(365 * 24 * 60 * 60); // 1 year ago
-    Instant maxTime = now.plusSeconds(24 * 60 * 60); // 1 day in future
+    Instant minTime = now.minusSeconds(365L * 24 * 60 * 60); // 1 year ago
+    Instant maxTime = now.plusSeconds(24L * 60 * 60); // 1 day in future
 
     if (time.isBefore(minTime) || time.isAfter(maxTime)) {
       throw new IllegalArgumentException("Event time is outside reasonable range");
     }
   }
 
-  /** Extracts and validates resources array. */
-  private List<String> extractResources(JsonNode eventNode) {
-    return Optional.ofNullable(eventNode.get("resources"))
-        .filter(JsonNode::isArray)
-        .map(this::parseResourcesArray)
-        .orElseThrow(() -> new IllegalArgumentException("Missing or invalid resources array"));
-  }
-
-  /** Parses resources array and validates S3 ARNs. */
-  private List<String> parseResourcesArray(JsonNode resourcesArray) {
-    List<String> resources = new ArrayList<>();
-    for (JsonNode resourceNode : resourcesArray) {
-      Optional.ofNullable(resourceNode.asText())
-          .filter(resource -> !resource.trim().isEmpty())
-          .filter(resource -> S3_ARN_PATTERN.matcher(resource).matches())
-          .ifPresent(resources::add);
-    }
-    return resources;
-  }
-
-  /** Extracts bucket name with validation. */
-  private String extractBucketName(JsonNode detail) {
-    return Optional.ofNullable(detail.get("bucket"))
+  /** Extracts bucket name from S3 event with validation. */
+  private String extractS3BucketName(JsonNode s3) {
+    return Optional.ofNullable(s3.get("bucket"))
         .map(bucket -> getTextValue(bucket, "name"))
         .filter(name -> name != null && !name.trim().isEmpty())
         .filter(name -> BUCKET_NAME_PATTERN.matcher(name).matches() && name.length() <= 63)
         .orElseThrow(() -> new IllegalArgumentException("Invalid bucket name"));
   }
 
-  /** Extracts object key with security validation. */
-  private String extractObjectKey(JsonNode detail) {
-    return Optional.ofNullable(detail.get("object"))
-        .map(object -> getTextValue(object, "key"))
+  /** Extracts object key from S3 event with security validation and URL decoding support. */
+  private String extractS3ObjectKey(JsonNode s3) {
+    return Optional.ofNullable(s3.get(OBJECT_FIELD))
+        .map(objectNode -> getTextValue(objectNode, "key"))
         .filter(key -> key != null && !key.trim().isEmpty())
         .filter(key -> key.length() <= 1024)
         .filter(key -> !key.contains("..") && !key.contains("//"))
         .orElseThrow(() -> new IllegalArgumentException("Invalid object key"));
   }
 
-  /** Extracts object size with range validation. */
-  private long extractObjectSize(JsonNode detail) {
-    return Optional.ofNullable(detail.get("object"))
-        .filter(object -> object.has("size"))
-        .map(object -> object.get("size").asLong())
+  /** Extracts object size from S3 event with range validation. */
+  private long extractS3ObjectSize(JsonNode s3) {
+    return Optional.ofNullable(s3.get(OBJECT_FIELD))
+        .filter(objectNode -> objectNode.has("size"))
+        .map(objectNode -> objectNode.get("size").asLong())
         .filter(size -> size >= 0 && size <= 5_368_709_120L) // 5GB max
         .orElseThrow(() -> new IllegalArgumentException("Invalid object size"));
+  }
+
+  /** Generic method to extract and validate an optional S3 field. */
+  private String extractOptionalS3Field(JsonNode node, String fieldName, Pattern pattern) {
+    return Optional.ofNullable(node)
+        .map(n -> getTextValue(n, fieldName))
+        .filter(value -> value != null && !value.trim().isEmpty())
+        .filter(value -> pattern == null || pattern.matcher(value).matches())
+        .orElse(null);
   }
 }

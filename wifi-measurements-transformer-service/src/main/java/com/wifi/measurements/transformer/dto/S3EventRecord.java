@@ -1,6 +1,8 @@
 // wifi-measurements-transformer-service/src/main/java/com/wifi/measurements/transformer/dto/S3EventRecord.java
 package com.wifi.measurements.transformer.dto;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 
@@ -22,6 +24,9 @@ public record S3EventRecord(
     String versionId,
     String requestId,
     String streamName) {
+
+  /** Default value for unknown stream names. */
+  private static final String UNKNOWN_STREAM = "unknown";
 
   /**
    * Creates an S3EventRecord with the stream name extracted from the object key.
@@ -69,44 +74,95 @@ public record S3EventRecord(
   /**
    * Extracts the stream name from the S3 object key.
    *
-   * <p>The stream name is the prefix of the filename before the datetime. Example:
-   * "MVS-stream/2025/07/28/19/MVS-stream-2025-07-28-19-12-23-15993907-a5fe-4793-8182-064acc85cf20.txt"
-   * Stream name: "MVS-stream"
+   * <p>The stream name is always the component immediately before the filename.
+   * Supports various path formats:
+   * 1. "year=2025/month=08/day=13/hour=22/STREAM-NAME/filename"
+   * 2. "2025/08/13/22/STREAM-NAME/filename"  
+   * 3. "someOtherStuff/2025/08/13/22/STREAM-NAME/filename"
+   * 4. "STREAM-NAME/filename"
+   * 
+   * <p>Examples:
+   * - "year%3D2025/month%3D08/day%3D13/hour%3D22/MVS-stream/file.txt" → "MVS-stream"
+   * - "year=2025/month=08/day=13/hour=22/MVS-stream/file.txt" → "MVS-stream"
+   * - "2025/08/13/22/MVS-stream/file.txt" → "MVS-stream"
+   * - "prefix/2025/08/13/22/MVS-stream/file.txt" → "MVS-stream"
+   * - "MVS-stream/file.txt" → "MVS-stream"
    *
-   * @param objectKey The S3 object key
+   * @param objectKey The S3 object key (may be URL-encoded)
    * @return The extracted stream name, or "unknown" if extraction fails
    */
   public static String extractStreamName(String objectKey) {
     if (objectKey == null || objectKey.trim().isEmpty()) {
-      return "unknown";
+      return UNKNOWN_STREAM;
     }
 
     try {
+      // First, URL decode the object key to handle partitioning (safe for non-encoded keys)
+      String decodedKey = urlDecode(objectKey);
+      
       // Split by '/' to get path components
-      String[] pathComponents = objectKey.split("/");
-
-      // Get the filename (last component)
-      String filename = pathComponents[pathComponents.length - 1];
-
-      // Find the first occurrence of datetime pattern (YYYY-MM-DD-HH-MM-SS)
-      // This pattern appears after the stream name prefix
-      String[] filenameParts = filename.split("-\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2}");
-
-      if (filenameParts.length > 0 && !filenameParts[0].isEmpty()) {
-        return filenameParts[0];
+      String[] pathComponents = decodedKey.split("/");
+      
+      if (pathComponents.length < 2) {
+        // Need at least 2 components: stream-name/filename
+        return UNKNOWN_STREAM;
       }
 
-      // Fallback: if no datetime pattern found, return the filename without extension
-      int lastDotIndex = filename.lastIndexOf('.');
-      if (lastDotIndex > 0) {
-        return filename.substring(0, lastDotIndex);
+      // The stream name is always the second-to-last component (right before filename)
+      String streamName = pathComponents[pathComponents.length - 2];
+      
+      // Validate the stream name
+      if (isValidStreamName(streamName)) {
+        return streamName;
       }
 
-      return filename;
+      // If validation fails, return unknown
+      return UNKNOWN_STREAM;
 
     } catch (Exception e) {
       // Log error and return unknown
-      return "unknown";
+      return UNKNOWN_STREAM;
     }
   }
+
+
+
+  /**
+   * Validates if a string could be a valid stream name.
+   * Very permissive - just checks for basic validity.
+   */
+  private static boolean isValidStreamName(String candidate) {
+    return candidate != null && 
+           !candidate.trim().isEmpty() && 
+           candidate.length() <= 200; // reasonable length limit
+  }
+
+  /**
+   * URL decodes the object key to handle Firehose partitioning.
+   * Gracefully handles both URL-encoded and non-URL-encoded keys.
+   * 
+   * @param objectKey The potentially URL-encoded object key
+   * @return The decoded object key, or original key if decoding fails
+   */
+  private static String urlDecode(String objectKey) {
+    if (objectKey == null || objectKey.trim().isEmpty()) {
+      return objectKey;
+    }
+    
+    try {
+      // Only decode if the key actually contains URL-encoded characters
+      if (objectKey.contains("%")) {
+        return URLDecoder.decode(objectKey, StandardCharsets.UTF_8);
+      } else {
+        // Return as-is if no URL encoding detected
+        return objectKey;
+      }
+    } catch (Exception e) {
+      // If decoding fails for any reason, return the original key
+      // This ensures robustness when dealing with malformed or non-encoded keys
+      return objectKey;
+    }
+  }
+
+
 }

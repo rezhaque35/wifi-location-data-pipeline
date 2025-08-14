@@ -759,34 +759,58 @@ class ComprehensiveIntegrationTest {
     ObjectMapper mapper = new ObjectMapper();
     ObjectNode event = mapper.createObjectNode();
 
-    // Create a realistic S3 event structure
-    event.put("version", "0");
-    event.put("id", java.util.UUID.randomUUID().toString());
-    event.put("detail-type", "Object Created");
-    event.put("source", "aws.s3");
-    event.put("account", "000000000000");
-    event.put("time", java.time.Instant.now().toString());
-    event.put("region", localStack.getRegion());
+    // Create Records array
+    var records = mapper.createArrayNode();
+    ObjectNode record = mapper.createObjectNode();
 
-    var resources = mapper.createArrayNode();
-    resources.add("arn:aws:s3:::" + bucketName);
-    event.set("resources", resources);
+    // S3 Event Notification format
+    record.put("eventVersion", "2.1");
+    record.put("eventSource", "aws:s3");
+    record.put("awsRegion", localStack.getRegion());
+    record.put("eventTime", java.time.Instant.now().toString());
+    record.put("eventName", "ObjectCreated:Put");
 
-    ObjectNode detail = mapper.createObjectNode();
-    detail.put("version", "0");
+    // User identity
+    ObjectNode userIdentity = mapper.createObjectNode();
+    userIdentity.put("principalId", "AWS:AROA4QWKES4Y24IUPAV2J:AWSFirehoseToS3");
+    record.set("userIdentity", userIdentity);
 
+    // Request parameters
+    ObjectNode requestParameters = mapper.createObjectNode();
+    requestParameters.put("sourceIPAddress", "10.20.19.21");
+    record.set("requestParameters", requestParameters);
+
+    // Response elements
+    ObjectNode responseElements = mapper.createObjectNode();
+    responseElements.put("x-amz-request-id", "TEST-REQUEST-" + System.currentTimeMillis());
+    responseElements.put("x-amz-id-2", "2BdlIpJXKQCEI7siGhF3KCU9M59dye7AJcn63aIjkANLeVX+9EFIJ7qzipO/g3RJFVIK5E7a20PqWDccojmXUmLJHK00bHFvRHDhbb9LMnw=");
+    record.set("responseElements", responseElements);
+
+    // S3 details
+    ObjectNode s3 = mapper.createObjectNode();
+    s3.put("s3SchemaVersion", "1.0");
+    s3.put("configurationId", "NjgyMTJiZTUtNDMwZC00OTVjLWIzOWEtM2UzZWM3MzYwNGE2");
+
+    // Bucket info
     ObjectNode bucket = mapper.createObjectNode();
     bucket.put("name", bucketName);
-    detail.set("bucket", bucket);
+    ObjectNode ownerIdentity = mapper.createObjectNode();
+    ownerIdentity.put("principalId", "A3LJZCR20GC5IX");
+    bucket.set("ownerIdentity", ownerIdentity);
+    bucket.put("arn", "arn:aws:s3:::" + bucketName);
+    s3.set("bucket", bucket);
 
+    // Object info  
     ObjectNode object = mapper.createObjectNode();
     object.put("key", objectKey);
     object.put("size", 1024);
-    object.put("etag", "d41d8cd98f00b204e9800998ecf8427e");
+    object.put("eTag", "d41d8cd98f00b204e9800998ecf8427e");
     object.put("sequencer", "test-sequencer-" + System.currentTimeMillis());
-    detail.set("object", object);
+    s3.set("object", object);
 
-    event.set("detail", detail);
+    record.set("s3", s3);
+    records.add(record);
+    event.set("Records", records);
 
     return event.toString();
   }
