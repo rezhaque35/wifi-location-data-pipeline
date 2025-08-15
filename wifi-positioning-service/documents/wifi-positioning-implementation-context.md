@@ -162,7 +162,7 @@ The service responds with a flattened JSON structure that combines API metadata 
    - **calculationTimeMs**: Long - Calculation time in milliseconds
 
 3. **Calculation Information**
-   - **calculationInfo**: String - Detailed calculation information (present only when calculationDetail=true)
+   - **calculationInfo**: Object - Structured calculation information (present only when calculationDetail=true)
 
 ### Sample Request and Response
 
@@ -332,9 +332,222 @@ The service responds with a flattened JSON structure that combines API metadata 
     "apCount": 2,
     "calculationTimeMs": 28
   },
-  "calculationInfo": "Algorithm selection: Initial candidates=[weighted_centroid, rssi_ratio, log_distance]. Signal quality=Medium. AP Count=2. Final selection=[weighted_centroid (weight=0.728), rssi_ratio (weight=0.560)]. Distance estimates: AP1=42.8m, AP2=42.8m."
+  "calculationInfo": {
+    "accessPoints": [
+      {
+        "bssid": "00:11:22:33:44:41",
+        "location": {
+          "latitude": 37.7751,
+          "longitude": -122.4196,
+          "altitude": 10.1
+        },
+        "status": "active",
+        "usage": "used"
+      },
+      {
+        "bssid": "00:11:22:33:44:42",
+        "location": {
+          "latitude": 37.7751,
+          "longitude": -122.4196,
+          "altitude": 10.1
+        },
+        "status": "active",
+        "usage": "used"
+      }
+    ],
+    "accessPointSummary": {
+      "total": 2,
+      "used": 2,
+      "statusCounts": [
+        {"status": "active", "count": 2}
+      ]
+    },
+    "selectionContext": {
+      "apCountFactor": "TWO_APS",
+      "signalQuality": "MEDIUM_SIGNAL",
+      "signalDistribution": "UNIFORM_SIGNALS",
+      "geometricQuality": "POOR_GDOP"
+    },
+    "algorithmSelection": [
+      {
+        "algorithm": "weighted_centroid",
+        "selected": true,
+        "reasons": ["Primary algorithm for two AP scenario", "Good for uniform signal distribution"],
+        "weight": 0.728
+      },
+      {
+        "algorithm": "rssi_ratio",
+        "selected": true,
+        "reasons": ["Secondary algorithm for distance ratios", "Works well with medium signal quality"],
+        "weight": 0.560
+      },
+      {
+        "algorithm": "log_distance",
+        "selected": false,
+        "reasons": ["Below weight threshold for selection"],
+        "weight": 0.385
+      },
+      {
+        "algorithm": "trilateration",
+        "selected": false,
+        "reasons": ["Insufficient AP count for trilateration"],
+        "weight": null
+      }
+    ]
+  }
 }
 ```
+
+### Calculation Information Structure
+
+When `calculationDetail=true` is specified in the request, the response includes a structured `calculationInfo` object that provides comprehensive details about the positioning calculation process. This structured format replaces the previous string-based calculation information and provides machine-readable data for analysis and debugging.
+
+#### Structure Overview
+
+The `calculationInfo` object contains four main components:
+
+1. **accessPoints**: Detailed information about each access point found in the database
+2. **accessPointSummary**: Statistical summary of access point usage
+3. **selectionContext**: Context factors that influenced algorithm selection
+4. **algorithmSelection**: Details about each algorithm's selection status and reasoning
+
+#### Access Points Information
+
+The `accessPoints` array contains detailed information about each access point that was found in the database during the lookup process:
+
+```json
+"accessPoints": [
+  {
+    "bssid": "00:11:22:33:44:55",
+    "location": {
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "altitude": 10.5
+    },
+    "status": "active",
+    "usage": "used"
+  }
+]
+```
+
+**Fields:**
+- **`bssid`**: The MAC address (BSSID) of the access point
+- **`location`**: Geographic coordinates from the database
+  - `latitude`: Decimal degrees
+  - `longitude`: Decimal degrees  
+  - `altitude`: Height in meters (may be null)
+- **`status`**: Access point status from database (`active`, `warning`, `error`, `expired`, `wifi-hotspot`)
+- **`usage`**: Whether the AP was `used` in calculations or `filtered` out due to status
+
+#### Access Point Summary
+
+The `accessPointSummary` provides statistical information about access point usage:
+
+```json
+"accessPointSummary": {
+  "total": 3,
+  "used": 2,
+  "statusCounts": [
+    {"status": "active", "count": 2},
+    {"status": "error", "count": 1}
+  ]
+}
+```
+
+**Fields:**
+- **`total`**: Total number of access points found in database for the scanned MAC addresses
+- **`used`**: Number of access points actually used in positioning calculations (excludes those with invalid status)
+- **`statusCounts`**: Breakdown showing count of access points by their database status
+
+#### Selection Context
+
+The `selectionContext` shows the environmental and signal factors that influenced algorithm selection:
+
+```json
+"selectionContext": {
+  "apCountFactor": "TWO_APS",
+  "signalQuality": "MEDIUM_SIGNAL", 
+  "signalDistribution": "UNIFORM_SIGNALS",
+  "geometricQuality": "POOR_GDOP"
+}
+```
+
+**Fields:**
+- **`apCountFactor`**: Classification based on number of usable APs
+  - `ONE_AP`: Single access point scenario
+  - `TWO_APS`: Two access points available
+  - `THREE_APS`: Three access points available
+  - `FOUR_PLUS_APS`: Four or more access points available
+
+- **`signalQuality`**: Overall assessment of signal strength quality
+  - `STRONG_SIGNAL`: Most signals > -70 dBm
+  - `MEDIUM_SIGNAL`: Most signals between -70 and -85 dBm
+  - `WEAK_SIGNAL`: Most signals between -85 and -95 dBm
+  - `VERY_WEAK_SIGNAL`: Most signals < -95 dBm
+
+- **`signalDistribution`**: Pattern analysis of signal strength values
+  - `UNIFORM_SIGNALS`: Similar signal strengths across APs
+  - `MIXED_SIGNALS`: Varied signal strengths with gradual differences
+  - `SIGNAL_OUTLIERS`: Some signals significantly stronger/weaker than others
+
+- **`geometricQuality`**: Assessment of access point geometric distribution
+  - `EXCELLENT_GDOP`: GDOP < 2.0, optimal geometry
+  - `GOOD_GDOP`: GDOP 2.0-4.0, good geometry
+  - `FAIR_GDOP`: GDOP 4.0-6.0, acceptable geometry
+  - `POOR_GDOP`: GDOP > 6.0, poor geometry
+  - `COLLINEAR_APS`: Access points arranged in a line (problematic)
+
+#### Algorithm Selection
+
+The `algorithmSelection` array provides detailed information about each positioning algorithm that was considered:
+
+```json
+"algorithmSelection": [
+  {
+    "algorithm": "weighted_centroid",
+    "selected": true,
+    "reasons": ["Primary algorithm for this scenario", "Good geometric distribution"],
+    "weight": 0.728
+  },
+  {
+    "algorithm": "trilateration",
+    "selected": false,
+    "reasons": ["Insufficient AP count for trilateration"],
+    "weight": null
+  }
+]
+```
+
+**Fields:**
+- **`algorithm`**: Algorithm identifier
+  - `proximity`: Proximity detection algorithm
+  - `weighted_centroid`: Weighted centroid algorithm  
+  - `rssi_ratio`: RSSI ratio method
+  - `trilateration`: Modified trilateration with GDOP
+  - `log_distance`: Log-distance path loss model
+  - `maximum_likelihood`: Maximum likelihood estimation
+
+- **`selected`**: Boolean indicating whether the algorithm was used in the final calculation
+- **`reasons`**: Array of human-readable reasons explaining why the algorithm was selected or rejected
+- **`weight`**: Numerical weight assigned to the algorithm in the selection process (null if not selected)
+
+#### Usage Benefits
+
+This structured format provides several advantages over the previous string-based approach:
+
+1. **Machine Readable**: Applications can programmatically parse and analyze calculation details
+2. **Debugging Support**: Developers can easily identify why specific algorithms were chosen or rejected
+3. **Quality Assessment**: The selection context provides insight into signal and geometric conditions
+4. **Access Point Transparency**: Clear visibility into which APs contributed to the calculation
+5. **Algorithm Transparency**: Understanding of the multi-algorithm selection and weighting process
+6. **Status Filtering Clarity**: Visibility into how access point status filtering affected the calculation
+
+Applications can use this information for:
+- Debugging positioning accuracy issues
+- Understanding algorithm behavior in different scenarios
+- Monitoring access point database quality
+- Analyzing geometric and signal conditions
+- Building confidence metrics for positioning results
 
 ## Implementation Details
 

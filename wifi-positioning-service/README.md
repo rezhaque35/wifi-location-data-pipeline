@@ -196,11 +196,106 @@ POST /api/positioning/calculate
     "apCount": 3,
     "calculationTimeMs": 42
   },
-  "calculationInfo": "Detailed calculation information"
+
+  "calculationInfo": {
+    "accessPoints": [
+      {
+        "bssid": "00:11:22:33:44:55",
+        "location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194,
+          "altitude": 10.5
+        },
+        "status": "active",
+        "usage": "used"
+      },
+      {
+        "bssid": "AA:BB:CC:DD:EE:FF",
+        "location": {
+          "latitude": 37.7750,
+          "longitude": -122.4195,
+          "altitude": 12.0
+        },
+        "status": "warning",
+        "usage": "used"
+      }
+    ],
+    "accessPointSummary": {
+      "total": 2,
+      "used": 2,
+      "statusCounts": [
+        {"status": "active", "count": 1},
+        {"status": "warning", "count": 1}
+      ]
+    },
+    "selectionContext": {
+      "apCountFactor": "TWO_APS",
+      "signalQuality": "STRONG_SIGNAL",
+      "signalDistribution": "UNIFORM_SIGNALS",
+      "geometricQuality": "GOOD_GDOP"
+    },
+    "algorithmSelection": [
+      {
+        "algorithm": "weighted_centroid",
+        "selected": true,
+        "reasons": ["Primary algorithm for this scenario", "Good geometric distribution"],
+        "weight": 0.728
+      },
+      {
+        "algorithm": "rssi_ratio",
+        "selected": true,
+        "reasons": ["Secondary algorithm as backup", "Strong signal quality"],
+        "weight": 0.560
+      },
+      {
+        "algorithm": "trilateration",
+        "selected": false,
+        "reasons": ["Insufficient AP count for trilateration"],
+        "weight": null
+      }
+    ]
+  }
 }
 ```
 
 Note: `calculationInfo` is only present when `calculationDetail=true` is set in the request.
+
+### Calculation Information Details
+
+When `calculationDetail=true` is specified in the request, the response includes a structured `calculationInfo` object with comprehensive details about the positioning calculation:
+
+#### Access Points (`accessPoints`)
+Contains detailed information about each access point found in the database:
+- **`bssid`**: The MAC address of the access point
+- **`location`**: Geographic coordinates (latitude, longitude, altitude)
+- **`status`**: Access point status (`active`, `warning`, `error`, `expired`, `wifi-hotspot`)
+- **`usage`**: Whether the AP was `used` in calculations or `filtered` out
+
+#### Access Point Summary (`accessPointSummary`)
+Provides statistics about access point usage:
+- **`total`**: Total number of access points found in database
+- **`used`**: Number of access points actually used in calculations
+- **`statusCounts`**: Breakdown of access points by status with counts
+
+#### Selection Context (`selectionContext`)
+Shows the factors that influenced algorithm selection:
+- **`apCountFactor`**: Classification based on number of APs (`ONE_AP`, `TWO_APS`, `THREE_APS`, `FOUR_PLUS_APS`)
+- **`signalQuality`**: Overall signal strength assessment (`STRONG_SIGNAL`, `MEDIUM_SIGNAL`, `WEAK_SIGNAL`, `VERY_WEAK_SIGNAL`)
+- **`signalDistribution`**: Pattern of signal strengths (`UNIFORM_SIGNALS`, `MIXED_SIGNALS`, `SIGNAL_OUTLIERS`)
+- **`geometricQuality`**: Geometric distribution quality (`EXCELLENT_GDOP`, `GOOD_GDOP`, `FAIR_GDOP`, `POOR_GDOP`, `COLLINEAR_APS`)
+
+#### Algorithm Selection (`algorithmSelection`)
+Details about each algorithm considered:
+- **`algorithm`**: Algorithm name (`proximity`, `weighted_centroid`, `rssi_ratio`, `trilateration`, `log_distance`, `maximum_likelihood`)
+- **`selected`**: Whether the algorithm was used in the final calculation
+- **`reasons`**: List of reasons explaining why the algorithm was selected or rejected
+- **`weight`**: Numerical weight assigned to the algorithm (null if not selected)
+
+This structured information allows developers to understand:
+- Which access points contributed to the positioning calculation
+- Why specific algorithms were chosen or rejected
+- How the geometric and signal conditions influenced the calculation
+- The relative importance (weights) of different algorithms in the final result
 
 ## Hybrid Algorithm Selection Framework
 
