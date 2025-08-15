@@ -96,7 +96,8 @@ class IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestJson))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.comparison.positionsComparable").exists())
+                .andExpect(jsonPath("$.comparison").exists()) // Comparison object should exist
+                .andExpect(jsonPath("$.comparison.scenario").exists()) // Enhanced scenario detection
                 .andExpect(jsonPath("$.sourceResponse").exists())
                 .andExpect(jsonPath("$.sourceResponse.success").value(true));
     }

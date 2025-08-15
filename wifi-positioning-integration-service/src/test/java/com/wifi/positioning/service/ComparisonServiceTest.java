@@ -63,7 +63,7 @@ class ComparisonServiceTest {
 
         // Then
         assertNotNull(result);
-        assertFalse(result.getPositionsComparable());
+        assertNull(result.getPositionsComparable()); // Cannot compare when source response is null
         assertNull(result.getHaversineDistanceMeters());
         assertNull(result.getAccuracyDelta());
         assertNull(result.getConfidenceDelta());
@@ -88,7 +88,7 @@ class ComparisonServiceTest {
 
         // Then
         assertNotNull(result);
-        assertFalse(result.getPositionsComparable());
+        assertNull(result.getPositionsComparable()); // Cannot compare when VLSS failed
         assertNull(result.getHaversineDistanceMeters());
     }
 
@@ -106,7 +106,7 @@ class ComparisonServiceTest {
 
         // Then
         assertNotNull(result);
-        assertFalse(result.getPositionsComparable());
+        assertNull(result.getPositionsComparable()); // Cannot compare when Frisco failed
         assertNull(result.getHaversineDistanceMeters());
         assertNull(result.getMethodsUsed());
         assertNull(result.getApCount());
@@ -176,7 +176,7 @@ class ComparisonServiceTest {
 
         // Then
         assertNotNull(result);
-        assertFalse(result.getPositionsComparable());
+        assertNull(result.getPositionsComparable()); // Cannot compare when Frisco returns invalid response
         assertNull(result.getHaversineDistanceMeters());
     }
 
