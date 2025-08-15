@@ -21,10 +21,12 @@ The service is structured around the following components:
 
 1. **Controller Layer**
    - `PositioningController` - Handles HTTP requests/responses for position calculation
+   - `GlobalExceptionHandler` - Centralized error handling and response formatting
 
 2. **Service Layer**
    - `PositioningService` - Orchestrates the positioning process
-   - Converts DTOs to internal models
+   - `CacheService` - Manages access point data caching
+   - `ValidationService` - Input validation and data quality checks
 
 3. **Algorithm Layer**
    - `PositioningAlgorithm` - Interface for all positioning algorithms
@@ -36,10 +38,16 @@ The service is structured around the following components:
      - `TriangulationAlgorithm` - Solves intersection of distance spheres
      - `MaximumLikelihoodAlgorithm` - Statistical position estimation
    - `WeightedAveragePositionCombiner` - Combines results from multiple algorithms
+   - `AlgorithmSelectionService` - Dynamic algorithm selection logic
 
 4. **Repository Layer**
    - `WifiAccessPointRepository` - Interface for access point data access
-   - `DynamoWifiAccessPointRepository` - DynamoDB implementation
+   - `WifiAccessPointRepositoryImpl` - DynamoDB implementation with connection pooling
+   - `DynamoDBConfig` - Database configuration and client setup
+
+5. **Health Monitoring Layer**
+   - `DynamoDBReadinessHealthIndicator` - Repository-based DynamoDB health checks
+   - `ServiceLivenessHealthIndicator` - Service availability and uptime monitoring
 
 ## Algorithm Details
 
@@ -331,6 +339,136 @@ The system calculates confidence and accuracy through multi-step processes:
   3. Signal quality considerations (strong signals produce more reliable estimates)
   4. Final accuracy represents estimated position error in meters
 
+## Health Monitoring System
+
+The service implements comprehensive health monitoring using Spring Boot Actuator with custom health indicators to ensure system reliability and operational visibility.
+
+### Health Check Architecture
+
+The health monitoring system consists of two specialized health indicators:
+
+1. **DynamoDB Readiness Health Indicator** (`DynamoDBReadinessHealthIndicator`)
+2. **Service Liveness Health Indicator** (`ServiceLivenessHealthIndicator`)
+
+### DynamoDB Readiness Health Check
+
+**Purpose**: Validates that the service is ready to handle requests by ensuring DynamoDB dependency is accessible and functional.
+
+**Key Features**:
+- Repository-based health validation (separation of concerns)
+- High-precision response time measurement using `System.nanoTime()`
+- Comprehensive error handling for different failure scenarios
+- Detailed health information including table accessibility and item counts
+
+**Health Status Logic**:
+- **UP**: Repository reports healthy status with good performance
+- **DOWN**: Repository reports issues (poor performance, accessibility problems, table not found)
+- **OUT_OF_SERVICE**: Unexpected errors requiring investigation
+
+**Response Time Measurement**:
+```
+response_time_ms = (end_time_nanos - start_time_nanos) / 1,000,000
+```
+
+**Health Check Details Provided**:
+- Database connection status
+- Table accessibility and read permissions
+- Response time measurements
+- Item count validation for data availability
+- Last check timestamp
+- Detailed error information when failures occur
+
+**Example Response**:
+```json
+{
+  "status": "UP",
+  "components": {
+    "dynamoDBReadiness": {
+      "status": "UP",
+      "details": {
+        "status": "DynamoDB is accessible",
+        "database": "DynamoDB",
+        "tableName": "wifi_access_points",
+        "lastChecked": "2024-01-15T10:30:45.123Z",
+        "responseTimeMs": 45,
+        "itemCount": 54
+      }
+    }
+  }
+}
+```
+
+### Service Liveness Health Check
+
+**Purpose**: Indicates whether the service is alive and running, following Kubernetes liveness probe best practices.
+
+**Key Features**:
+- Always returns UP status (unless service is completely non-functional)
+- Tracks service uptime since startup
+- Provides service identification and version information
+- Minimal overhead with efficient uptime calculation
+
+**Uptime Calculation**:
+```
+uptime_ms = current_time_ms - startup_time_ms
+```
+
+**Uptime Display Logic**:
+- If uptime < 5 seconds: Display in milliseconds (e.g., "1234 ms")
+- If uptime ≥ 5 seconds: Display in seconds with decimal precision (e.g., "12.34 seconds")
+
+**Example Response**:
+```json
+{
+  "status": "UP",
+  "components": {
+    "serviceLiveness": {
+      "status": "UP",
+      "details": {
+        "status": "Service is alive and running",
+        "serviceName": "WiFi Positioning Service",
+        "version": "1.0.0",
+        "startupTime": "2024-01-15T09:15:30.456Z",
+        "uptime": "75.67 seconds"
+      }
+    }
+  }
+}
+```
+
+### Health Monitoring Benefits
+
+**Operational Visibility**:
+- Real-time system health status
+- Performance monitoring through response time metrics
+- Detailed error diagnostics for troubleshooting
+- Service uptime tracking
+
+**Integration Ready**:
+- Compatible with Kubernetes readiness and liveness probes
+- Spring Boot Actuator standard compliance
+- Structured JSON responses for monitoring tools
+- Configurable health check endpoints
+
+**Reliability Features**:
+- Repository abstraction ensures consistency with application data access patterns
+- Comprehensive error handling prevents health check failures from affecting service
+- High-precision timing for accurate performance measurement
+- Graceful degradation with meaningful error messages
+
+### Health Endpoint Access
+
+Health information is available through Spring Boot Actuator endpoints:
+
+```bash
+# Overall health status
+GET /actuator/health
+
+# Detailed health information
+GET /actuator/health/dynamoDBReadiness
+GET /actuator/health/serviceLiveness
+```
+
 ## Development
 
 To build and run the service:
@@ -373,51 +511,171 @@ docker-compose up -d
 
 ```
 wifi-positioning-service/
+├── documents/                          # Documentation and context
+│   ├── algorithm-selection-framework.md
+│   ├── dynamodb-access-pattern-optimizations.md
+│   └── wifi-positioning-implementation-context.md
+├── scripts/                            # Automation and testing scripts
+│   ├── setup/                         # Environment setup scripts
+│   │   ├── cleanup-full.sh
+│   │   ├── cleanup.sh
+│   │   ├── create-and-load.sh
+│   │   ├── setup.sh
+│   │   ├── verify-dynamodb-data.sh
+│   │   ├── wifi-access-points-schema.json
+│   │   ├── wifi-positioning-test-data.sh
+│   │   └── README.md
+│   └── test/                          # Test execution scripts
+│       ├── run-comprehensive-tests.sh
+│       └── wifi-positioing-complete-test.sh
 ├── src/
 │   ├── main/
 │   │   ├── java/
 │   │   │   └── com/wifi/positioning/
-│   │   │       ├── controller/
-│   │   │       ├── service/
 │   │   │       ├── algorithm/
-│   │   │       ├── repository/
-│   │   │       ├── model/
-│   │   │       └── util/
+│   │   │       │   ├── impl/            # Algorithm implementations
+│   │   │       │   ├── selection/      # Algorithm selection logic
+│   │   │       │   └── util/           # Algorithm utilities
+│   │   │       ├── controller/         # REST API controllers
+│   │   │       ├── dto/                # Data transfer objects
+│   │   │       ├── health/             # Health check indicators
+│   │   │       ├── repository/         # Data access layer
+│   │   │       ├── service/            # Business logic services
+│   │   │       └── WifiPositioningServiceApplication.java
 │   │   └── resources/
 │   │       └── application.yml
 │   └── test/
 │       ├── java/
 │       │   └── com/wifi/positioning/
-│       │       ├── controller/
-│       │       ├── service/
 │       │       ├── algorithm/
-│       │       └── repository/
+│       │       ├── config/
+│       │       ├── controller/
+│       │       ├── dto/
+│       │       ├── health/
+│       │       ├── repository/
+│       │       └── service/
 │       └── resources/
-│           └── application-test.yml
+│           ├── application-test.yml
+│           ├── repository-implementation-status.md
+│           └── test-results-summary.md
+├── deploy-aws.sh                       # AWS deployment automation
 ├── pom.xml
 └── README.md
 ```
 
+## Scripts and Automation
+
+The service includes comprehensive scripts for setup, testing, and deployment automation.
+
+### Setup Scripts (`scripts/setup/`)
+
+The setup directory contains scripts to manage the DynamoDB Local environment:
+
+#### Core Setup Scripts
+
+- **`setup.sh`** - Complete environment setup
+  - Installs dependencies (Homebrew, AWS CLI, Docker)
+  - Sets up AWS credentials for DynamoDB Local
+  - Starts DynamoDB Local container on port 8000
+  - Creates `wifi_access_points` table
+  - Loads comprehensive test data (54 test access points)
+  - Verifies the complete setup
+
+- **`create-and-load.sh`** - Table creation and data loading
+  - Deletes existing table (if any)
+  - Creates new `wifi_access_points` table
+  - Loads test data organized in categories:
+    - Basic Algorithm Test Cases (5 APs)
+    - Advanced Scenario Test Cases (8 APs)
+    - Temporal and Environmental Test Cases (6 APs)
+    - Error and Edge Cases (2 APs)
+    - Status Filtering Tests (5 APs)
+    - 2D Positioning Tests (8 APs)
+    - Mixed 2D/3D Positioning Tests (2 APs)
+
+- **`verify-dynamodb-data.sh`** - Data verification
+  - Verifies table existence and accessibility
+  - Scans and displays all loaded data
+  - Shows test data organized by categories
+  - Validates data integrity
+
+#### Cleanup Scripts
+
+- **`cleanup.sh`** - Basic cleanup
+  - Deletes the `wifi_access_points` table
+  - Stops and removes DynamoDB Local container
+
+- **`cleanup-full.sh`** - Comprehensive cleanup with options
+  - **Usage**: `./cleanup-full.sh [basic|full|reset]`
+  - **basic**: Delete table only (keeps container running)
+  - **full**: Delete table and stop container (DEFAULT)
+  - **reset**: Complete cleanup (table, container, image, credentials)
+
+### Test Scripts (`scripts/test/`)
+
+- **`run-comprehensive-tests.sh`** - Comprehensive test suite
+  - Executes 20+ test cases covering all positioning scenarios
+  - Validates positioning algorithms and accuracy
+  - Tests 2D/3D positioning capabilities
+  - Verifies error handling and edge cases
+  - Includes detailed response validation
+  - Provides colored output and test statistics
+
+- **`wifi-positioing-complete-test.sh`** - Complete integration test
+  - End-to-end testing workflow
+  - Service integration validation
+
+### Deployment Scripts
+
+- **`deploy-aws.sh`** - AWS deployment automation
+  - Builds application with AWS profile
+  - Creates Docker image
+  - Generates Kubernetes deployment files
+  - Provides ECR integration templates
+  - Creates ConfigMaps and Services for EKS
+
 ## Setup & Running
 
-1. Start Local DynamoDB:
+### Quick Start
+
+1. **Complete Setup** (Recommended):
 ```bash
+# Run complete environment setup
+./scripts/setup/setup.sh
+```
+
+2. **Manual Setup**:
+```bash
+# Start DynamoDB Local
 docker run -p 8000:8000 amazon/dynamodb-local
+
+# Create table and load data
+./scripts/setup/create-and-load.sh
+
+# Verify setup
+./scripts/setup/verify-dynamodb-data.sh
 ```
 
-2. Load Test Data:
+3. **Build and Run**:
 ```bash
-./load-test-data.sh
-```
-
-3. Build the project:
-```bash
+# Build the project
 mvn clean install
+
+# Run the application
+mvn spring-boot:run
 ```
 
-4. Run the application:
+### Verification
+
 ```bash
-mvn spring-boot:run
+# Verify DynamoDB is running
+docker ps | grep dynamodb-local
+
+# Check loaded data
+./scripts/setup/verify-dynamodb-data.sh
+
+# Run comprehensive tests
+./scripts/test/run-comprehensive-tests.sh
 ```
 
 The application will be available at http://localhost:8080
@@ -441,7 +699,107 @@ mvn verify
 
 Run comprehensive tests (includes algorithm performance tests):
 ```bash
-./run-comprehensive-tests.sh
+./scripts/test/run-comprehensive-tests.sh
+```
+
+## Deployment
+
+### AWS Deployment
+
+The service includes automated AWS deployment capabilities through the `deploy-aws.sh` script.
+
+#### Deployment Features
+
+- **Automated Build Process**:
+  - Builds application with AWS profile (`-Paws`)
+  - Creates optimized Docker image
+  - Skips tests for faster deployment builds
+
+- **Container Orchestration**:
+  - Generates Kubernetes deployment manifests
+  - Creates ConfigMaps for AWS configuration
+  - Sets up Services for load balancing
+  - Configures resource limits and requests
+
+- **ECR Integration** (Template provided):
+  - AWS Elastic Container Registry push commands
+  - Automated image tagging
+  - Cross-region deployment support
+
+#### Quick Deployment
+
+```bash
+# Automated AWS deployment
+./deploy-aws.sh
+```
+
+#### Manual Deployment Steps
+
+1. **Build for AWS**:
+```bash
+./mvnw clean package -DskipTests -Paws
+```
+
+2. **Create Docker Image**:
+```bash
+docker build -t wifi-positioning-service:latest .
+```
+
+3. **Deploy to Kubernetes**:
+```bash
+# Apply generated manifests
+kubectl apply -f k8s/
+```
+
+#### Generated Kubernetes Resources
+
+The deployment script creates:
+
+- **Deployment** (`k8s/deployment.yaml`):
+  - 2 replica pods for high availability
+  - Resource limits: 1 CPU, 1Gi memory
+  - Resource requests: 500m CPU, 512Mi memory
+  - AWS profile activation
+  - Health check configuration
+
+- **Service** (`k8s/service.yaml`):
+  - ClusterIP service for internal load balancing
+  - Port mapping: 80 → 8080
+  - Label-based pod selection
+
+- **ConfigMap** (`k8s/configmap.yaml`):
+  - AWS region configuration
+  - Environment-specific settings
+  - External configuration management
+
+#### Prerequisites for AWS Deployment
+
+- **AWS CLI v2** configured with appropriate credentials
+- **Docker** for container building
+- **kubectl** configured for target EKS cluster
+- **EKS cluster** with proper IAM roles for DynamoDB access
+- **DynamoDB table** (`wifi_access_points`) in target AWS region
+
+#### IAM Requirements
+
+Ensure your EKS cluster has IAM roles with the following permissions:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:BatchGetItem",
+                "dynamodb:DescribeTable"
+            ],
+            "Resource": "arn:aws:dynamodb:*:*:table/wifi_access_points"
+        }
+    ]
+}
 ```
 
 ## Test Coverage
