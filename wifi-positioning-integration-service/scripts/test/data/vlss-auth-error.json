@@ -1,0 +1,59 @@
+{
+  "sourceRequest": {
+    "svcHeader": {
+      "authToken": "invalid-auth-token"
+    },
+    "svcBody": {
+      "svcReq": {
+        "clientId": "vlss-auth-error-client",
+        "requestId": "vlss-auth-error-$(date +%s)",
+        "wifiInfo": [
+          {
+            "id": "00:11:22:33:44:01",
+            "signalStrength": -65.0,
+            "frequency": 2437,
+            "ssid": "TestAP_Auth_Error"
+          },
+          {
+            "id": "00:11:22:33:44:02",
+            "signalStrength": -72.0,
+            "frequency": 2437,
+            "ssid": "TestAP_Auth_Error_2"
+          }
+        ],
+        "cellInfo": [
+          {
+            "id": 12345,
+            "broadcastId": 67890,
+            "networkId": 123,
+            "cellType": "lte",
+            "signalStrength": -105
+          }
+        ]
+      }
+    }
+  },
+  "sourceResponse": {
+    "success": false,
+    "requestId": "vlss-auth-error-$(date +%s)",
+    "transactionId": "txn-auth-error-123",
+    "svcError": {
+      "errors": [
+        {
+          "code": 1401,
+          "message": "Authentication failed",
+          "description": "Invalid auth token provided. Please check your credentials."
+        }
+      ]
+    }
+  },
+  "options": {
+    "calculationDetail": true,
+    "processingMode": "sync"
+  },
+  "metadata": {
+    "correlationId": "vlss-auth-error-test-$(date +%s)",
+    "testCase": "vlss-auth-error",
+    "description": "VLSS authentication error test with code 1401 using structured svcError format"
+  }
+}

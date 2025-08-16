@@ -1,0 +1,38 @@
+{
+  "sourceRequest": {
+    "svcHeader": {
+      "authToken": "legacy-error-token"
+    },
+    "svcBody": {
+      "svcReq": {
+        "clientId": "vlss-legacy-error-client",
+        "requestId": "vlss-legacy-error-$(date +%s)",
+        "wifiInfo": [
+          {
+            "id": "00:11:22:33:44:01",
+            "signalStrength": -70.0,
+            "frequency": 2437,
+            "ssid": "LegacyError_Test"
+          }
+        ],
+        "cellInfo": []
+      }
+    }
+  },
+  "sourceResponse": {
+    "success": false,
+    "requestId": "vlss-legacy-error-$(date +%s)",
+    "transactionId": "txn-legacy-error-999",
+    "errorMessage": "Service temporarily unavailable",
+    "errorCode": "SERVICE_UNAVAILABLE"
+  },
+  "options": {
+    "calculationDetail": true,
+    "processingMode": "sync"
+  },
+  "metadata": {
+    "correlationId": "vlss-legacy-error-test-$(date +%s)",
+    "testCase": "vlss-legacy-error",
+    "description": "VLSS legacy error format test (no svcError structure) for backwards compatibility"
+  }
+}

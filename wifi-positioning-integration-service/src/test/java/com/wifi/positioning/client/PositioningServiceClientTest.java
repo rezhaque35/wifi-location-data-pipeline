@@ -46,7 +46,7 @@ class PositioningServiceClientTest {
         WebClient webClient = WebClient.builder()
             .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 1024))
             .build();
-        client = new PositioningServiceClient(webClient, properties);
+        client = new PositioningServiceClient(webClient, properties, new ObjectMapper());
     }
 
     @AfterEach

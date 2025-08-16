@@ -1,0 +1,71 @@
+{
+  "sourceRequest": {
+    "svcHeader": {
+      "authToken": "valid-token-multiple-errors"
+    },
+    "svcBody": {
+      "svcReq": {
+        "clientId": "vlss-multiple-errors-client",
+        "requestId": "vlss-multiple-errors-$(date +%s)",
+        "wifiInfo": [
+          {
+            "id": "00:11:22:33:44:01",
+            "signalStrength": -95.0,
+            "frequency": 2437,
+            "ssid": "WeakSignal_AP"
+          },
+          {
+            "id": "00:11:22:33:44:02",
+            "signalStrength": -98.0,
+            "frequency": 5180,
+            "ssid": "WeakSignal_AP_5G"
+          }
+        ],
+        "cellInfo": [
+          {
+            "id": 99999,
+            "broadcastId": 88888,
+            "networkId": 777,
+            "cellType": "lte",
+            "signalStrength": -115
+          }
+        ]
+      }
+    }
+  },
+  "sourceResponse": {
+    "success": false,
+    "requestId": "vlss-multiple-errors-$(date +%s)",
+    "transactionId": "txn-multiple-errors-789",
+    "errorMessage": "Multiple positioning errors occurred",
+    "errorCode": "MULTIPLE_ERRORS",
+    "svcError": {
+      "errors": [
+        {
+          "code": 1404,
+          "message": "Insufficient location data",
+          "description": "Not enough WiFi access points found in database"
+        },
+        {
+          "code": 1500,
+          "message": "Internal processing error",
+          "description": "Database query timeout - please retry after a few seconds"
+        },
+        {
+          "code": 1503,
+          "message": "Service temporarily unavailable",
+          "description": "High server load detected - positioning service degraded"
+        }
+      ]
+    }
+  },
+  "options": {
+    "calculationDetail": true,
+    "processingMode": "sync"
+  },
+  "metadata": {
+    "correlationId": "vlss-multiple-errors-test-$(date +%s)",
+    "testCase": "vlss-multiple-errors",
+    "description": "VLSS multiple errors test with codes 1404, 1500, 1503 demonstrating error array handling"
+  }
+}

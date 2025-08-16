@@ -8,12 +8,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
@@ -37,7 +40,7 @@ class IntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @Autowired
     private PositioningServiceClient positioningServiceClient;
 
     @Test
@@ -207,5 +210,19 @@ class IntegrationTest {
     private Object createMockPositioningResponse() {
         // Return a simple JSON object representing a successful positioning response
         return "{\"result\":\"SUCCESS\",\"wifiPosition\":{\"latitude\":37.7749,\"longitude\":-122.4194,\"accuracy\":50.0}}";
+    }
+    
+    /**
+     * Test configuration that provides a mock PositioningServiceClient bean.
+     * This replaces the deprecated @MockBean annotation.
+     */
+    @TestConfiguration
+    static class MockPositioningServiceConfiguration {
+        
+        @Bean
+        @Primary
+        public PositioningServiceClient positioningServiceClient() {
+            return mock(PositioningServiceClient.class);
+        }
     }
 }

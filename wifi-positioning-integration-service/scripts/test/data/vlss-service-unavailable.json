@@ -1,0 +1,65 @@
+{
+  "sourceRequest": {
+    "svcHeader": {
+      "authToken": "service-unavailable-token"
+    },
+    "svcBody": {
+      "svcReq": {
+        "clientId": "vlss-service-unavailable-client",
+        "requestId": "vlss-service-unavailable-$(date +%s)",
+        "wifiInfo": [
+          {
+            "id": "00:11:22:33:44:01",
+            "signalStrength": -60.0,
+            "frequency": 2437,
+            "ssid": "ServiceDown_Test"
+          },
+          {
+            "id": "00:11:22:33:44:02",
+            "signalStrength": -65.0,
+            "frequency": 5180,
+            "ssid": "ServiceDown_Test_5G"
+          },
+          {
+            "id": "00:11:22:33:44:03",
+            "signalStrength": -68.0,
+            "frequency": 2437,
+            "ssid": "ServiceDown_Test_Backup"
+          }
+        ],
+        "cellInfo": [
+          {
+            "id": 54321,
+            "broadcastId": 98765,
+            "networkId": 456,
+            "cellType": "lte",
+            "signalStrength": -102
+          }
+        ]
+      }
+    }
+  },
+  "sourceResponse": {
+    "success": false,
+    "requestId": "vlss-service-unavailable-$(date +%s)",
+    "transactionId": "txn-service-unavailable-111",
+    "svcError": {
+      "errors": [
+        {
+          "code": 1503,
+          "message": "Service temporarily unavailable",
+          "description": "Positioning service is under maintenance. Please try again in 10 minutes."
+        }
+      ]
+    }
+  },
+  "options": {
+    "calculationDetail": true,
+    "processingMode": "sync"
+  },
+  "metadata": {
+    "correlationId": "vlss-service-unavailable-test-$(date +%s)",
+    "testCase": "vlss-service-unavailable",
+    "description": "VLSS service unavailable error test with code 1503 and maintenance message"
+  }
+}

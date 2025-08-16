@@ -38,7 +38,7 @@ INTEGRATION_SERVICE_URL="http://localhost:8083/wifi-positioning-integration-serv
 POSITIONING_SERVICE_URL="http://localhost:8080/wifi-positioning-service"
 
 # Test data directory
-TEST_DATA_DIR="scripts/test/data"
+TEST_DATA_DIR="./data"
 
 # Results tracking
 TOTAL_TESTS=0
@@ -110,6 +110,60 @@ echo ""
 echo -e "${YELLOW}PHASE 3: Test Execution${NC}"
 echo "============================="
 
+# Function to validate VLSS error handling in test responses
+validate_vlss_error_handling() {
+    local response_body="$1"
+    local test_case="$2"
+    
+    echo "    === VLSS Error Validation ==="
+    
+    local vlss_success=$(echo $response_body | jq -r '.comparison.vlssSuccess')
+    local vlss_error_details=$(echo $response_body | jq -r '.comparison.vlssErrorDetails // "null"')
+    local vlss_error_code=$(echo $response_body | jq -r '.comparison.vlssErrorCode // "null"')
+    local vlss_errors_count=$(echo $response_body | jq -r '.comparison.vlssErrors | length // 0')
+    local failure_analysis=$(echo $response_body | jq -r '.comparison.failureAnalysis // "null"')
+    
+    # Validate that VLSS is marked as failed
+    if [ "$vlss_success" = "false" ]; then
+        echo "    ✓ VLSS Success Status: Correctly marked as failed"
+    else
+        echo "    ✗ VLSS Success Status: Expected false, got $vlss_success"
+    fi
+    
+    # Validate error details are present
+    if [ "$vlss_error_details" != "null" ] && [ "$vlss_error_details" != "" ]; then
+        echo "    ✓ VLSS Error Details: Present"
+        echo "      Details: $vlss_error_details"
+    else
+        echo "    ✗ VLSS Error Details: Missing or empty"
+    fi
+    
+    # Validate structured error handling for non-legacy tests
+    if [[ "$test_case" != "vlss-legacy-error" ]]; then
+        if [ "$vlss_error_code" != "null" ] && [ "$vlss_error_code" != "" ]; then
+            echo "    ✓ VLSS Error Code: Present ($vlss_error_code)"
+        else
+            echo "    ✗ VLSS Error Code: Missing for structured error test"
+        fi
+        
+        if [ "$vlss_errors_count" -gt 0 ]; then
+            echo "    ✓ VLSS Errors Array: Contains $vlss_errors_count error(s)"
+        else
+            echo "    ✗ VLSS Errors Array: Empty or missing for structured error test"
+        fi
+    else
+        echo "    ✓ Legacy Error Format: Testing backwards compatibility"
+    fi
+    
+    # Validate failure analysis
+    if [ "$failure_analysis" != "null" ] && [ "$failure_analysis" != "" ]; then
+        echo "    ✓ Failure Analysis: Present"
+        echo "      Analysis: $failure_analysis"
+    else
+        echo "    ✗ Failure Analysis: Missing"
+    fi
+}
+
 # Function to run a single test
 run_test() {
     local test_file="$1"
@@ -164,6 +218,9 @@ run_test() {
         local found_ap_count=$(echo $response_body | jq -r '.comparison.accessPointEnrichment.foundApCount // "Unknown"')
         local used_ap_count=$(echo $response_body | jq -r '.comparison.accessPointEnrichment.usedApCount // "Unknown"')
         local positions_comparable=$(echo $response_body | jq -r '.comparison.positionsComparable // "Unknown"')
+        local vlss_success=$(echo $response_body | jq -r '.comparison.vlssSuccess')
+        local frisco_success=$(echo $response_body | jq -r '.comparison.friscoSuccess')
+        local scenario=$(echo $response_body | jq -r '.comparison.scenario // "Unknown"')
         
         echo "    Correlation ID: $correlation_id"
         echo "    Positioning Status: $positioning_status"
@@ -172,6 +229,9 @@ run_test() {
         echo "    Found APs: $found_ap_count"
         echo "    Used APs: $used_ap_count"
         echo "    Positions Comparable: $positions_comparable"
+        echo "    VLSS Success: $vlss_success"
+        echo "    Frisco Success: $frisco_success"
+        echo "    Comparison Scenario: $scenario"
         
         # Check if positions are comparable and show distance if available
         if [ "$positions_comparable" = "true" ]; then
@@ -189,6 +249,11 @@ run_test() {
             echo "    AP Enrichment: ✓ Working correctly"
         else
             echo "    AP Enrichment: ⚠️ Data may be incomplete"
+        fi
+        
+        # Validate VLSS error handling for error test cases
+        if [[ "$test_case" == vlss-*error* ]] || [[ "$test_case" == "vlss-legacy-error" ]] || [[ "$test_case" == "vlss-service-unavailable" ]]; then
+            validate_vlss_error_handling "$response_body" "$test_case"
         fi
         
         PASSED_TESTS=$((PASSED_TESTS + 1))
@@ -255,6 +320,13 @@ echo "  Trilateration Tests: $(grep -l '"testCase": "trilateration"' $TEST_DATA_
 echo "  Mixed Status Tests: $(grep -l '"testCase": "mixed-status-aps"' $TEST_DATA_DIR/*.json | wc -l)"
 echo "  Unknown MAC Tests: $(grep -l '"testCase": "unknown-mac-test"' $TEST_DATA_DIR/*.json | wc -l)"
 echo "  High Density Tests: $(grep -l '"testCase": "high-density-cluster"' $TEST_DATA_DIR/*.json | wc -l)"
+echo ""
+echo "  === VLSS Error Handling Tests ==="
+echo "  VLSS Auth Error Tests: $(grep -l '"testCase": "vlss-auth-error"' $TEST_DATA_DIR/*.json | wc -l)"
+echo "  VLSS Insufficient Data Tests: $(grep -l '"testCase": "vlss-insufficient-data-error"' $TEST_DATA_DIR/*.json | wc -l)"
+echo "  VLSS Multiple Errors Tests: $(grep -l '"testCase": "vlss-multiple-errors"' $TEST_DATA_DIR/*.json | wc -l)"
+echo "  VLSS Legacy Error Tests: $(grep -l '"testCase": "vlss-legacy-error"' $TEST_DATA_DIR/*.json | wc -l)"
+echo "  VLSS Service Unavailable Tests: $(grep -l '"testCase": "vlss-service-unavailable"' $TEST_DATA_DIR/*.json | wc -l)"
 
 echo ""
 echo -e "${YELLOW}🔍 Key Validation Points:${NC}"
@@ -264,6 +336,10 @@ echo "  ✓ AP enrichment and status tracking"
 echo "  ✓ Comparison metrics calculation"
 echo "  ✓ Error handling and edge cases"
 echo "  ✓ Response format consistency"
+echo "  ✓ VLSS structured error handling (svcError)"
+echo "  ✓ VLSS error code extraction and analysis"
+echo "  ✓ VLSS legacy error format backwards compatibility"
+echo "  ✓ Enhanced failure analysis and reporting"
 
 # Final status
 if [ $FAILED_TESTS -eq 0 ]; then

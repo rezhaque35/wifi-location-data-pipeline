@@ -206,6 +206,18 @@ public class ComparisonMetrics {
     private String vlssErrorDetails;
     
     /**
+     * Structured VLSS error information (if failed)
+     */
+    @JsonProperty("vlssErrors")
+    private List<VlssError> vlssErrors;
+    
+    /**
+     * Primary VLSS error code (from first error in array)
+     */
+    @JsonProperty("vlssErrorCode")
+    private Integer vlssErrorCode;
+    
+    /**
      * Analysis of why positioning failed
      */
     @JsonProperty("failureAnalysis")

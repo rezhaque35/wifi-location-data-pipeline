@@ -1,0 +1,47 @@
+{
+  "sourceRequest": {
+    "svcHeader": {
+      "authToken": "valid-token-insufficient-data"
+    },
+    "svcBody": {
+      "svcReq": {
+        "clientId": "vlss-insufficient-data-client",
+        "requestId": "vlss-insufficient-data-$(date +%s)",
+        "wifiInfo": [
+          {
+            "id": "aa:bb:cc:dd:ee:ff",
+            "signalStrength": -85.0,
+            "frequency": 2437,
+            "ssid": "Unknown_AP"
+          }
+        ],
+        "cellInfo": []
+      }
+    }
+  },
+  "sourceResponse": {
+    "success": false,
+    "requestId": "vlss-insufficient-data-$(date +%s)",
+    "transactionId": "txn-insufficient-data-456",
+    "errorMessage": "Positioning failed due to insufficient data",
+    "errorCode": "INSUFFICIENT_DATA",
+    "svcError": {
+      "errors": [
+        {
+          "code": 1404,
+          "message": "Insufficient location data",
+          "description": "Not enough WiFi access points found in database for accurate positioning"
+        }
+      ]
+    }
+  },
+  "options": {
+    "calculationDetail": true,
+    "processingMode": "sync"
+  },
+  "metadata": {
+    "correlationId": "vlss-insufficient-data-test-$(date +%s)",
+    "testCase": "vlss-insufficient-data-error",
+    "description": "VLSS insufficient data error test with code 1404 using unknown WiFi APs"
+  }
+}

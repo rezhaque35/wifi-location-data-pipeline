@@ -91,6 +91,497 @@ curl -X POST http://localhost:8083/wifi-positioning-integration-service/api/inte
   }'
 ```
 
+## 📡 **CURL Command Examples**
+
+### **Health & Monitoring Commands**
+
+#### **1. Service Health Check**
+```bash
+# Basic health check
+curl -s http://localhost:8083/wifi-positioning-integration-service/health | jq '.'
+
+# Health with details
+curl -s http://localhost:8083/wifi-positioning-integration-service/health | jq '.components.wifiPositioningService'
+
+# Liveness probe (Kubernetes)
+curl -s http://localhost:8083/wifi-positioning-integration-service/health/liveness
+
+# Readiness probe (Kubernetes)
+curl -s http://localhost:8083/wifi-positioning-integration-service/health/readiness
+```
+
+#### **2. Service Information**
+```bash
+# Service info
+curl -s http://localhost:8083/wifi-positioning-integration-service/actuator/info | jq '.'
+
+# Metrics
+curl -s http://localhost:8083/wifi-positioning-integration-service/actuator/metrics | jq '.'
+
+# HTTP request metrics
+curl -s http://localhost:8083/wifi-positioning-integration-service/actuator/metrics/http.server.requests | jq '.'
+```
+
+### **Integration Report Commands**
+
+#### **3. Single AP Proximity Test**
+```bash
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/api/integration/report \
+  -H "Content-Type: application/json" \
+  -H "X-Correlation-ID: test-single-ap-001" \
+  -d '{
+    "sourceRequest": {
+      "svcBody": {
+        "svcReq": {
+          "clientId": "curl-test-client",
+          "requestId": "single-ap-test-001",
+          "wifiInfo": [
+            {
+              "id": "00:11:22:33:44:01",
+              "signalStrength": -65.0,
+              "frequency": 2437,
+              "ssid": "TestNetwork"
+            }
+          ]
+        }
+      }
+    },
+    "sourceResponse": {
+      "success": true,
+      "locationInfo": {
+        "latitude": 37.7749,
+        "longitude": -122.4194,
+        "accuracy": 50.0,
+        "confidence": 0.8
+      },
+      "requestId": "single-ap-test-001"
+    },
+    "options": {
+      "calculationDetail": true,
+      "processingMode": "sync"
+    },
+    "metadata": {
+      "correlationId": "test-single-ap-001"
+    }
+  }' | jq '.'
+```
+
+#### **4. Dual AP RSSI Ratio Test**
+```bash
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/api/integration/report \
+  -H "Content-Type: application/json" \
+  -H "X-Correlation-ID: test-dual-ap-002" \
+  -d '{
+    "sourceRequest": {
+      "svcBody": {
+        "svcReq": {
+          "clientId": "curl-test-client",
+          "requestId": "dual-ap-test-002",
+          "wifiInfo": [
+            {
+              "id": "00:11:22:33:44:01",
+              "signalStrength": -65.0,
+              "frequency": 2437,
+              "ssid": "TestNetwork1"
+            },
+            {
+              "id": "00:11:22:33:44:02",
+              "signalStrength": -72.0,
+              "frequency": 2412,
+              "ssid": "TestNetwork2"
+            }
+          ]
+        }
+      }
+    },
+    "sourceResponse": {
+      "success": true,
+      "locationInfo": {
+        "latitude": 37.7750,
+        "longitude": -122.4195,
+        "accuracy": 45.0,
+        "confidence": 0.85
+      },
+      "requestId": "dual-ap-test-002"
+    },
+    "options": {
+      "calculationDetail": true,
+      "processingMode": "sync"
+    },
+    "metadata": {
+      "correlationId": "test-dual-ap-002"
+    }
+  }' | jq '.'
+```
+
+#### **5. Trilateration Test (3+ APs)**
+```bash
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/api/integration/report \
+  -H "Content-Type: application/json" \
+  -H "X-Correlation-ID: test-trilateration-003" \
+  -d '{
+    "sourceRequest": {
+      "svcBody": {
+        "svcReq": {
+          "clientId": "curl-test-client",
+          "requestId": "trilateration-test-003",
+          "wifiInfo": [
+            {
+              "id": "00:11:22:33:44:01",
+              "signalStrength": -65.0,
+              "frequency": 2437,
+              "ssid": "TestNetwork1"
+            },
+            {
+              "id": "00:11:22:33:44:02",
+              "signalStrength": -72.0,
+              "frequency": 2412,
+              "ssid": "TestNetwork2"
+            },
+            {
+              "id": "00:11:22:33:44:03",
+              "signalStrength": -68.0,
+              "frequency": 2462,
+              "ssid": "TestNetwork3"
+            }
+          ]
+        }
+      }
+    },
+    "sourceResponse": {
+      "success": true,
+      "locationInfo": {
+        "latitude": 37.7751,
+        "longitude": -122.4196,
+        "accuracy": 40.0,
+        "confidence": 0.9
+      },
+      "requestId": "trilateration-test-003"
+    },
+    "options": {
+      "calculationDetail": true,
+      "processingMode": "sync"
+    },
+    "metadata": {
+      "correlationId": "test-trilateration-003"
+    }
+  }' | jq '.'
+```
+
+#### **6. High-Density Cluster Test**
+```bash
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/api/integration/report \
+  -H "Content-Type: application/json" \
+  -H "X-Correlation-ID: test-cluster-004" \
+  -d '{
+    "sourceRequest": {
+      "svcBody": {
+        "svcReq": {
+          "clientId": "curl-test-client",
+          "requestId": "cluster-test-004",
+          "wifiInfo": [
+            {
+              "id": "00:11:22:33:44:11",
+              "signalStrength": -60.0,
+              "frequency": 2437
+            },
+            {
+              "id": "00:11:22:33:44:12",
+              "signalStrength": -62.0,
+              "frequency": 2412
+            },
+            {
+              "id": "00:11:22:33:44:13",
+              "signalStrength": -64.0,
+              "frequency": 2462
+            },
+            {
+              "id": "00:11:22:33:44:14",
+              "signalStrength": -66.0,
+              "frequency": 2437
+            },
+            {
+              "id": "00:11:22:33:44:15",
+              "signalStrength": -68.0,
+              "frequency": 2412
+            }
+          ]
+        }
+      }
+    },
+    "sourceResponse": {
+      "success": true,
+      "locationInfo": {
+        "latitude": 37.7752,
+        "longitude": -122.4197,
+        "accuracy": 35.0,
+        "confidence": 0.95
+      },
+      "requestId": "cluster-test-004"
+    },
+    "options": {
+      "calculationDetail": true,
+      "processingMode": "sync"
+    },
+    "metadata": {
+      "correlationId": "test-cluster-004"
+    }
+  }' | jq '.'
+```
+
+#### **7. Async Processing Test**
+```bash
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/api/integration/report \
+  -H "Content-Type: application/json" \
+  -H "X-Correlation-ID: test-async-005" \
+  -d '{
+    "sourceRequest": {
+      "svcBody": {
+        "svcReq": {
+          "clientId": "curl-test-client",
+          "requestId": "async-test-005",
+          "wifiInfo": [
+            {
+              "id": "00:11:22:33:44:01",
+              "signalStrength": -65.0,
+              "frequency": 2437
+            }
+          ]
+        }
+      }
+    },
+    "options": {
+      "calculationDetail": true,
+      "processingMode": "async"
+    },
+    "metadata": {
+      "correlationId": "test-async-005"
+    }
+  }' | jq '.'
+```
+
+#### **8. Error Handling Test (Invalid Request)**
+```bash
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/api/integration/report \
+  -H "Content-Type: application/json" \
+  -H "X-Correlation-ID: test-error-006" \
+  -d '{
+    "sourceRequest": {
+      "svcBody": {
+        "svcReq": {
+          "clientId": "curl-test-client",
+          "requestId": "error-test-006",
+          "wifiInfo": []
+        }
+      }
+    }
+  }' | jq '.'
+```
+
+### **Advanced Usage Examples**
+
+#### **9. Custom Headers and Correlation**
+```bash
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/api/integration/report \
+  -H "Content-Type: application/json" \
+  -H "X-Correlation-ID: custom-correlation-123" \
+  -H "X-Client-Version: 2.1.0" \
+  -H "X-Request-Source: mobile-app" \
+  -d @scripts/test/data/single-ap-proximity.json | jq '.'
+```
+
+#### **10. Performance Testing (Multiple Requests)**
+```bash
+# Test with 10 concurrent requests
+for i in {1..10}; do
+  curl -X POST http://localhost:8083/wifi-positioning-integration-service/api/integration/report \
+    -H "Content-Type: application/json" \
+    -H "X-Correlation-ID: perf-test-$i" \
+    -d "{
+      \"sourceRequest\": {
+        \"svcBody\": {
+          \"svcReq\": {
+            \"clientId\": \"perf-test-client\",
+            \"requestId\": \"perf-test-$i\",
+            \"wifiInfo\": [
+              {
+                \"id\": \"00:11:22:33:44:01\",
+                \"signalStrength\": -65.0,
+                \"frequency\": 2437
+              }
+            ]
+          }
+        }
+      },
+      \"options\": {
+        \"calculationDetail\": true,
+        \"processingMode\": \"sync\"
+      }
+    }" > /dev/null 2>&1 &
+done
+wait
+echo "Performance test completed"
+```
+
+#### **11. Response Analysis with jq**
+```bash
+# Extract specific fields from response
+curl -s -X POST http://localhost:8083/wifi-positioning-integration-service/api/integration/report \
+  -H "Content-Type: application/json" \
+  -d @scripts/test/data/single-ap-proximity.json | \
+  jq '{
+    correlationId: .correlationId,
+    processingMode: .processingMode,
+    positioningSuccess: .positioningService.success,
+    positioningLatency: .positioningService.latencyMs,
+    haversineDistance: .comparison.haversineDistanceMeters,
+    accuracyDelta: .comparison.accuracyDelta,
+    confidenceDelta: .comparison.confidenceDelta,
+    apEnrichment: .comparison.accessPointEnrichment
+  }'
+```
+
+#### **12. Health Monitoring Script**
+```bash
+#!/bin/bash
+# health-monitor.sh
+
+SERVICE_URL="http://localhost:8083/wifi-positioning-integration-service"
+HEALTH_ENDPOINT="$SERVICE_URL/health"
+INTEGRATION_ENDPOINT="$SERVICE_URL/api/integration/report"
+
+echo "🔍 WiFi Positioning Integration Service Health Monitor"
+echo "=================================================="
+
+# Check service health
+echo "📊 Service Health:"
+HEALTH_RESPONSE=$(curl -s "$HEALTH_ENDPOINT")
+echo "$HEALTH_RESPONSE" | jq -r '.status'
+
+# Check positioning service health
+echo "📡 Positioning Service Health:"
+POSITIONING_HEALTH=$(echo "$HEALTH_RESPONSE" | jq -r '.components.wifiPositioningService.status')
+echo "Positioning Service: $POSITIONING_HEALTH"
+
+# Test integration endpoint
+echo "🧪 Testing Integration Endpoint:"
+TEST_RESPONSE=$(curl -s -X POST "$INTEGRATION_ENDPOINT" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sourceRequest": {
+      "svcBody": {
+        "svcReq": {
+          "clientId": "health-monitor",
+          "requestId": "health-check-'$(date +%s)'",
+          "wifiInfo": [
+            {
+              "id": "00:11:22:33:44:01",
+              "signalStrength": -65.0,
+              "frequency": 2437
+            }
+          ]
+        }
+      }
+    },
+    "options": {
+      "calculationDetail": true
+    }
+  }')
+
+if [ $? -eq 0 ]; then
+  echo "✅ Integration endpoint: OK"
+  LATENCY=$(echo "$TEST_RESPONSE" | jq -r '.positioningService.latencyMs')
+  echo "⏱️  Positioning latency: ${LATENCY}ms"
+else
+  echo "❌ Integration endpoint: FAILED"
+fi
+
+echo "=================================================="
+echo "Health check completed at $(date)"
+```
+
+### **Response Examples**
+
+#### **Successful Response Structure**
+```json
+{
+  "correlationId": "test-single-ap-001",
+  "receivedAt": "2025-08-15T23:30:00.000Z",
+  "processingMode": "sync",
+  "derivedRequest": {
+    "wifiScanResults": [
+      {
+        "macAddress": "00:11:22:33:44:01",
+        "signalStrength": -65.0,
+        "frequency": 2437,
+        "ssid": "TestNetwork"
+      }
+    ],
+    "client": "curl-test-client",
+    "requestId": "single-ap-test-001",
+    "application": "wifi-positioning-integration-service",
+    "calculationDetail": true
+  },
+  "positioningService": {
+    "httpStatus": 200,
+    "latencyMs": 150,
+    "response": {
+      "result": "SUCCESS",
+      "wifiPosition": {
+        "latitude": 37.7749,
+        "longitude": -122.4194,
+        "horizontalAccuracy": 50.0,
+        "confidence": 0.8,
+        "apCount": 1,
+        "calculationTimeMs": 5,
+        "methodsUsed": ["proximity"]
+      }
+    },
+    "success": true
+  },
+  "sourceResponse": {
+    "success": true,
+    "locationInfo": {
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "accuracy": 50.0,
+      "confidence": 0.8
+    },
+    "requestId": "single-ap-test-001"
+  },
+  "comparison": {
+    "haversineDistanceMeters": 0.0,
+    "accuracyDelta": 0.0,
+    "confidenceDelta": 0.0,
+    "methodsUsed": ["proximity"],
+    "apCount": 1,
+    "calculationTimeMs": 5,
+    "positionsComparable": true,
+    "accessPointEnrichment": {
+      "foundApCount": 1,
+      "notFoundApCount": 0,
+      "percentRequestFound": 100.0,
+      "usedApCount": 1,
+      "percentFoundUsed": 100.0
+    }
+  }
+}
+```
+
+#### **Error Response Example**
+```json
+{
+  "timestamp": "2025-08-15T23:30:00.000Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "details": {
+    "sourceRequest.svcBody.svcReq.wifiInfo": "WiFi info must contain at least one access point"
+  },
+  "path": "/api/integration/report"
+}
+```
+
 ## 🧪 Full Integration Testing
 
 To test with both services running:

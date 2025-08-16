@@ -85,7 +85,7 @@ public class ComparisonService {
         analyzeDataQuality(metrics, originalWifiInfo);
         
         // === Error Analysis ===
-        analyzeErrors(metrics, positioningServiceResponse);
+        analyzeErrors(metrics, sourceResponse, positioningServiceResponse);
         
         // Set legacy fields for backwards compatibility
         setLegacyFields(metrics, friscoResult);
@@ -349,16 +349,16 @@ public class ComparisonService {
     /**
      * Analyzes errors from both services when they fail.
      */
-    private void analyzeErrors(ComparisonMetrics metrics, Object positioningServiceResponse) {
+    private void analyzeErrors(ComparisonMetrics metrics, SourceResponse sourceResponse, Object positioningServiceResponse) {
         
         // Analyze Frisco errors
         if (Boolean.FALSE.equals(metrics.getFriscoSuccess())) {
             analyzeFriscoErrors(metrics, positioningServiceResponse);
         }
         
-        // Analyze VLSS errors
+        // Analyze VLSS errors - extract detailed error information
         if (Boolean.FALSE.equals(metrics.getVlssSuccess())) {
-            metrics.setVlssErrorDetails("VLSS positioning failed");
+            analyzeVlssErrors(metrics, sourceResponse);
         }
         
         // Cross-service failure analysis
@@ -407,13 +407,153 @@ public class ComparisonService {
     }
     
     /**
+     * Analyzes VLSS-specific error details from structured svcError response.
+     */
+    private void analyzeVlssErrors(ComparisonMetrics metrics, SourceResponse sourceResponse) {
+        try {
+            // First check for basic error information
+            if (sourceResponse.getErrorMessage() != null) {
+                metrics.setVlssErrorDetails(sourceResponse.getErrorMessage());
+            }
+            
+            // Extract structured error information if available
+            if (sourceResponse.getSvcError() != null && 
+                sourceResponse.getSvcError().getErrors() != null && 
+                !sourceResponse.getSvcError().getErrors().isEmpty()) {
+                
+                List<VlssError> vlssErrors = sourceResponse.getSvcError().getErrors();
+                metrics.setVlssErrors(vlssErrors);
+                
+                // Set primary error code from first error
+                VlssError primaryError = vlssErrors.get(0);
+                metrics.setVlssErrorCode(primaryError.getCode());
+                
+                // Build comprehensive error details string
+                StringBuilder errorDetails = new StringBuilder();
+                for (int i = 0; i < vlssErrors.size(); i++) {
+                    VlssError error = vlssErrors.get(i);
+                    if (i > 0) errorDetails.append("; ");
+                    
+                    errorDetails.append("Code ").append(error.getCode());
+                    if (error.getMessage() != null) {
+                        errorDetails.append(": ").append(error.getMessage());
+                    }
+                    if (error.getDescription() != null) {
+                        errorDetails.append(" (").append(error.getDescription()).append(")");
+                    }
+                }
+                
+                metrics.setVlssErrorDetails(errorDetails.toString());
+                
+                // Set detailed failure analysis based on error codes
+                setVlssFailureAnalysisFromErrors(metrics, vlssErrors);
+                
+                log.debug("Extracted VLSS error details: primaryCode={}, errorCount={}", 
+                    primaryError.getCode(), vlssErrors.size());
+                    
+            } else if (metrics.getVlssErrorDetails() == null) {
+                // Fallback if no detailed error information is available
+                metrics.setVlssErrorDetails("VLSS positioning failed - no detailed error information available");
+            }
+            
+            // Set failure analysis for legacy error format (when no structured errors available)
+            if (sourceResponse.getSvcError() == null) {
+                if (sourceResponse.getErrorMessage() != null) {
+                    String errorMessage = sourceResponse.getErrorMessage().toLowerCase();
+                    if (errorMessage.contains("unavailable") || errorMessage.contains("maintenance")) {
+                        metrics.setFailureAnalysis("VLSS service temporarily unavailable");
+                    } else if (errorMessage.contains("insufficient") || errorMessage.contains("not found")) {
+                        metrics.setFailureAnalysis("VLSS failed due to insufficient positioning data");
+                    } else if (errorMessage.contains("auth") || errorMessage.contains("permission")) {
+                        metrics.setFailureAnalysis("VLSS failed due to authentication or permission issues");
+                    } else {
+                        metrics.setFailureAnalysis("VLSS failed: " + sourceResponse.getErrorMessage());
+                    }
+                } else {
+                    metrics.setFailureAnalysis("VLSS positioning failed - no error details available");
+                }
+            }
+            
+        } catch (Exception e) {
+            log.warn("Failed to extract VLSS error details: {}", e.getMessage());
+            if (metrics.getVlssErrorDetails() == null) {
+                metrics.setVlssErrorDetails("VLSS positioning failed - error parsing failed");
+            }
+        }
+    }
+    
+    /**
+     * Sets failure analysis based on VLSS error codes and messages.
+     */
+    private void setVlssFailureAnalysisFromErrors(ComparisonMetrics metrics, List<VlssError> vlssErrors) {
+        if (vlssErrors == null || vlssErrors.isEmpty()) {
+            return;
+        }
+        
+        VlssError primaryError = vlssErrors.get(0);
+        Integer errorCode = primaryError.getCode();
+        String message = primaryError.getMessage();
+        
+        // Analyze based on error code patterns (these may need to be adjusted based on actual VLSS error codes)
+        if (errorCode != null) {
+            switch (errorCode) {
+                case 1401:
+                    metrics.setFailureAnalysis("VLSS authentication or authorization failed");
+                    break;
+                case 1404:
+                    metrics.setFailureAnalysis("VLSS could not find sufficient location data");
+                    break;
+                case 1500:
+                    metrics.setFailureAnalysis("VLSS internal server error");
+                    break;
+                case 1503:
+                    metrics.setFailureAnalysis("VLSS service temporarily unavailable");
+                    break;
+                default:
+                    // Analyze based on message content
+                    if (message != null) {
+                        String lowerMessage = message.toLowerCase();
+                        if (lowerMessage.contains("insufficient") || lowerMessage.contains("not found")) {
+                            metrics.setFailureAnalysis("VLSS failed due to insufficient positioning data");
+                        } else if (lowerMessage.contains("timeout") || lowerMessage.contains("unavailable")) {
+                            metrics.setFailureAnalysis("VLSS failed due to service timeout or unavailability");
+                        } else if (lowerMessage.contains("auth") || lowerMessage.contains("permission")) {
+                            metrics.setFailureAnalysis("VLSS failed due to authentication or permission issues");
+                        } else {
+                            metrics.setFailureAnalysis("VLSS failed with error code " + errorCode + ": " + message);
+                        }
+                    } else {
+                        metrics.setFailureAnalysis("VLSS failed with error code " + errorCode);
+                    }
+                    break;
+            }
+        } else if (message != null) {
+            metrics.setFailureAnalysis("VLSS failed: " + message);
+        }
+    }
+    
+    /**
      * Analyzes failure scenarios based on comparison scenario.
+     * Only sets analysis if not already set by specific error handlers.
      */
     private void analyzeScenarioFailures(ComparisonMetrics metrics) {
+        if (metrics.getFailureAnalysis() != null) {
+            return; // Don't override specific error analysis
+        }
+        
         if (metrics.getScenario() == ComparisonScenario.VLSS_CELL_FALLBACK_DETECTED) {
             metrics.setFailureAnalysis("VLSS succeeded using cell tower fallback while Frisco failed due to insufficient WiFi APs");
         } else if (metrics.getScenario() == ComparisonScenario.BOTH_INSUFFICIENT_DATA) {
             metrics.setFailureAnalysis("Both services failed due to insufficient positioning data");
+        } else if (metrics.getScenario() == ComparisonScenario.VLSS_ERROR_FRISCO_SUCCESS) {
+            // Only set generic analysis if no specific VLSS error analysis was provided
+            if (metrics.getVlssErrorDetails() != null && !metrics.getVlssErrorDetails().isEmpty()) {
+                if (metrics.getVlssErrorDetails().toLowerCase().contains("unavailable")) {
+                    metrics.setFailureAnalysis("VLSS service temporarily unavailable while Frisco succeeded");
+                } else {
+                    metrics.setFailureAnalysis("VLSS failed while Frisco positioning succeeded");
+                }
+            }
         }
     }
     

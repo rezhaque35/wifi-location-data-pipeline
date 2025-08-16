@@ -46,4 +46,10 @@ public class SourceResponse {
      */
     @JsonProperty("errorCode")
     private String errorCode;
+    
+    /**
+     * Optional: Structured error information from VLSS svcError (if success=false)
+     */
+    @JsonProperty("svcError")
+    private VlssServiceError svcError;
 }

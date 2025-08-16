@@ -33,6 +33,21 @@ management:
       show-components: always
       # Disable health group validation to prevent serviceLiveness errors
       validate-group-membership: false
+      # Configure health groups for Kubernetes probes
+      group:
+        # Liveness probe - checks if the service is alive and should be restarted if failing
+        liveness:
+          include: wifiPositioningService
+        # Readiness probe - checks if the service is ready to handle requests  
+        readiness:
+          include: wifiPositioningService
+  # Health indicator configuration
+  health:
+    # Enable liveness and readiness state indicators
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
 
 springdoc:
   api-docs:
@@ -46,6 +61,7 @@ integration:
   positioning:
     base-url: http://localhost:8080/wifi-positioning-service
     path: /api/positioning/calculate
+    health-path: /health
     connect-timeout-ms: 1000
     read-timeout-ms: 5000
   processing:
@@ -59,3 +75,11 @@ integration:
     default-frequency-mhz: 2412
   logging:
     include-payloads: false
+
+# Health Check Configuration
+health:
+  indicator:
+    # Cache TTL for health checks to avoid excessive calls to positioning service
+    cache-ttl-seconds: 30
+    # Enable caching for health checks
+    enable-caching: true
