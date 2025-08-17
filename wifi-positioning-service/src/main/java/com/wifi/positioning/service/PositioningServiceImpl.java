@@ -71,7 +71,7 @@ public class PositioningServiceImpl implements PositioningService {
    * positioning calculations.
    */
   private static final String ERROR_NO_VALID_STATUS_ACCESS_POINTS =
-      "No access points with valid status (active or warning) found";
+      "No access points with valid status found";
 
   /**
    * Base error message for position calculation failures. Rationale: Generic message for when the
@@ -91,6 +91,8 @@ public class PositioningServiceImpl implements PositioningService {
 
   /** Default return all methods setting for backward compatibility */
   private static final boolean DEFAULT_RETURN_ALL_METHODS = false;
+  public static final String INVALID_COORDINATES_IN_POSITION_RESULT = "Invalid coordinates in position result";
+  public static final String ERROR_DURING_CALCULATING_POSITION = "unexpected error during calculating position.";
 
   private final WifiPositioningCalculator calculator;
   private final WifiAccessPointRepository accessPointRepository;
@@ -114,22 +116,22 @@ public class PositioningServiceImpl implements PositioningService {
   /**
    * Holds prepared positioning data including scan results and access points.
    */
-  private record PositioningData(
+  private record WifiAPData(
       List<WifiScanResult> scanResults,
       List<WifiAccessPoint> knownAccessPoints,
       List<WifiAccessPoint> validAccessPoints,
       boolean isViable,
       String errorMessage) {
     
-    static PositioningData viable(
+    static WifiAPData viable(
         List<WifiScanResult> scanResults,
         List<WifiAccessPoint> knownAccessPoints,
         List<WifiAccessPoint> validAccessPoints) {
-      return new PositioningData(scanResults, knownAccessPoints, validAccessPoints, true, null);
+      return new WifiAPData(scanResults, knownAccessPoints, validAccessPoints, true, null);
     }
     
-    static PositioningData notViable(String errorMessage) {
-      return new PositioningData(null, null, null, false, errorMessage);
+    static WifiAPData notViable(String errorMessage) {
+      return new WifiAPData(null, null, null, false, errorMessage);
     }
   }
 
@@ -172,18 +174,18 @@ public class PositioningServiceImpl implements PositioningService {
         return handleValidationError(validation.errorMessage(), request);
       }
 
-      PositioningData positioningData = preparePositioningData(request.wifiScanResults());
-      if (!positioningData.isViable()) {
-        return handleDataPreparationError(positioningData.errorMessage(), request);
+      WifiAPData wifiAPData = prepareWiFiAPData(request.wifiScanResults());
+      if (!wifiAPData.isViable()) {
+        return handleAccessPointLocationLookupError(wifiAPData.errorMessage(), request);
       }
 
-      CalculationResult calculationResult = performPositionCalculation(positioningData);
+      CalculationResult calculationResult = performPositionCalculation(wifiAPData);
       if (!calculationResult.isSuccessful()) {
         return handleCalculationError(request);
       }
 
       WifiPositioningResponse response = buildSuccessResponse(
-          calculationResult, positioningData, request);
+          calculationResult, wifiAPData, request);
       logSuccessResponse(request, response);
       return response;
 
@@ -225,26 +227,26 @@ public class PositioningServiceImpl implements PositioningService {
   /**
    * Prepares positioning data by looking up and filtering access points.
    */
-  private PositioningData preparePositioningData(List<WifiScanResult> scanResults) {
+  private WifiAPData prepareWiFiAPData(List<WifiScanResult> scanResults) {
     List<WifiAccessPoint> knownAccessPoints = lookupKnownAccessPoints(scanResults);
     
     if (knownAccessPoints.isEmpty()) {
-      return PositioningData.notViable(ERROR_NO_KNOWN_ACCESS_POINTS);
+      return WifiAPData.notViable(ERROR_NO_KNOWN_ACCESS_POINTS);
     }
 
     List<WifiAccessPoint> validAccessPoints = filterAPsByStatus(knownAccessPoints);
     
     if (validAccessPoints.isEmpty()) {
-      return PositioningData.notViable(ERROR_NO_VALID_STATUS_ACCESS_POINTS);
+      return WifiAPData.notViable(ERROR_NO_VALID_STATUS_ACCESS_POINTS);
     }
 
-    return PositioningData.viable(scanResults, knownAccessPoints, validAccessPoints);
+    return WifiAPData.viable(scanResults, knownAccessPoints, validAccessPoints);
   }
 
   /**
    * Performs the position calculation using the positioning calculator.
    */
-  private CalculationResult performPositionCalculation(PositioningData data) {
+  private CalculationResult performPositionCalculation(WifiAPData data) {
     long startTime = System.currentTimeMillis();
     WifiPositioningCalculator.PositioningResult positioningResult =
         calculator.calculatePosition(data.scanResults(), data.validAccessPoints());
@@ -262,15 +264,15 @@ public class PositioningServiceImpl implements PositioningService {
    */
   private WifiPositioningResponse buildSuccessResponse(
       CalculationResult calculationResult,
-      PositioningData positioningData,
+      WifiAPData wifiAPData,
       WifiPositioningRequest request) {
     
     return createSuccessResponse(
         calculationResult.positioningResult(),
-        positioningData.scanResults().size(),
+        wifiAPData.scanResults().size(),
         calculationResult.calculationTimeMs(),
         request,
-        positioningData.knownAccessPoints());
+        wifiAPData.knownAccessPoints());
   }
 
   // ===== ERROR HANDLING METHODS =====
@@ -288,9 +290,9 @@ public class PositioningServiceImpl implements PositioningService {
   /**
    * Handles data preparation errors and returns appropriate response.
    */
-  private WifiPositioningResponse handleDataPreparationError(String errorMessage, WifiPositioningRequest request) {
+  private WifiPositioningResponse handleAccessPointLocationLookupError(String errorMessage, WifiPositioningRequest request) {
     logger.warn(errorMessage);
-    WifiPositioningResponse response = createPositionNotFoundResponse(0, request);
+    WifiPositioningResponse response = createPositionNotFoundResponse(request, errorMessage);
     logErrorResponse(request, response);
     return response;
   }
@@ -299,8 +301,8 @@ public class PositioningServiceImpl implements PositioningService {
    * Handles calculation errors and returns appropriate response.
    */
   private WifiPositioningResponse handleCalculationError(WifiPositioningRequest request) {
-    logger.warn(ERROR_POSITION_CALCULATION_FAILED);
-    WifiPositioningResponse response = createPositionNotFoundResponse(0, request);
+    logger.warn(ERROR_DURING_CALCULATING_POSITION);
+    WifiPositioningResponse response = createPositionNotFoundResponse(request, ERROR_DURING_CALCULATING_POSITION);
     logErrorResponse(request, response);
     return response;
   }
@@ -417,8 +419,8 @@ public class PositioningServiceImpl implements PositioningService {
    * Create a response when position calculation fails.
    */
   private WifiPositioningResponse createPositionNotFoundResponse(
-      int apCount, WifiPositioningRequest request) {
-    String message = ERROR_POSITION_CALCULATION_FAILED;
+          WifiPositioningRequest request, String errorMessage) {
+    String message = String.format( "%s . Cause - %s", ERROR_POSITION_CALCULATION_FAILED, errorMessage);
     return WifiPositioningResponse.error(message, request);
   }
 
@@ -445,8 +447,8 @@ public class PositioningServiceImpl implements PositioningService {
     // Validate position coordinates
     Position position = positioningResult.position();
     if (!position.isValid()) {
-      logger.warn("Invalid coordinates in position result");
-      return createPositionNotFoundResponse(apCount, request);
+      logger.warn(INVALID_COORDINATES_IN_POSITION_RESULT);
+      return createPositionNotFoundResponse(request, INVALID_COORDINATES_IN_POSITION_RESULT);
     }
 
     // Get methods used from the positioning result
