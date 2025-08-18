@@ -3,6 +3,7 @@ package com.wifi.positioning.service;
 
 import com.wifi.positioning.config.IntegrationProperties;
 import com.wifi.positioning.dto.*;
+import com.wifi.positioning.health.AsyncProcessingHealthIndicator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -39,6 +41,9 @@ class AsyncIntegrationServiceTest {
     @Mock
     private IntegrationReportRequest request;
 
+    @Mock
+    private AsyncProcessingHealthIndicator healthIndicator;
+
     private AsyncIntegrationService asyncIntegrationService;
 
     private String correlationId;
@@ -48,7 +53,7 @@ class AsyncIntegrationServiceTest {
     @BeforeEach
     void setUp() {
         asyncIntegrationService = new AsyncIntegrationService(
-            integrationProcessingService, integrationProperties);
+            integrationProcessingService, integrationProperties, healthIndicator);
 
         correlationId = "test-correlation-123";
         requestId = "test-request-456";
@@ -125,6 +130,9 @@ class AsyncIntegrationServiceTest {
         assertThat(future)
             .isNotNull()
             .isCompleted(); // Should complete immediately in test
+        
+        // Verify health indicator was updated for successful processing
+        verify(healthIndicator).incrementSuccessfulProcessing();
     }
 
     @Test
@@ -142,6 +150,9 @@ class AsyncIntegrationServiceTest {
         assertThat(future)
             .isNotNull()
             .isCompleted(); // Should complete even with exception
+        
+        // Verify health indicator was updated for failed processing
+        verify(healthIndicator).incrementFailedProcessing();
     }
 
     @Test
@@ -253,6 +264,60 @@ class AsyncIntegrationServiceTest {
         assertThat(future)
             .isNotNull()
             .isCompleted();
+    }
+
+    @Test
+    void shouldIncrementFailedProcessingWhenResultIsNotSuccess() {
+        // Given
+        when(asyncConfig.isEnabled()).thenReturn(true);
+        
+        IntegrationProcessingService.ProcessingResult failedResult = IntegrationProcessingService.ProcessingResult.builder()
+            .success(false)
+            .errorType("VALIDATION_ERROR")
+            .errorMessage("Test validation error")
+            .totalProcessingTimeMs(50L)
+            .transformationTimeMs(5L)
+            .build();
+        
+        when(integrationProcessingService.processIntegrationReport(any())).thenReturn(failedResult);
+
+        // When
+        CompletableFuture<Void> future = asyncIntegrationService.processIntegrationReportAsync(
+            correlationId, requestId, receivedAt, request);
+
+        // Then
+        assertThat(future)
+            .isNotNull()
+            .isCompleted();
+        
+        // Verify health indicator was updated for failed processing
+        verify(healthIndicator).incrementFailedProcessing();
+    }
+
+    @Test
+    void shouldIncrementSuccessfulProcessingWhenResultIsSuccess() {
+        // Given
+        when(asyncConfig.isEnabled()).thenReturn(true);
+        
+        IntegrationProcessingService.ProcessingResult successResult = IntegrationProcessingService.ProcessingResult.builder()
+            .success(true)
+            .totalProcessingTimeMs(120L)
+            .transformationTimeMs(12L)
+            .build();
+        
+        when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
+
+        // When
+        CompletableFuture<Void> future = asyncIntegrationService.processIntegrationReportAsync(
+            correlationId, requestId, receivedAt, request);
+
+        // Then
+        assertThat(future)
+            .isNotNull()
+            .isCompleted();
+        
+        // Verify health indicator was updated for successful processing
+        verify(healthIndicator).incrementSuccessfulProcessing();
     }
 
 

@@ -377,9 +377,171 @@ integration:
     include-frisco-response: true
     include-calculation-details: true
     sanitize-auth-tokens: true
+
+# Health Check Configuration
+health:
+  indicator:
+    cache-ttl-seconds: 30
+    enable-caching: true
+  async-processing:
+    queue-utilization:
+      warning-threshold: 80  # Percentage when status becomes DEGRADED
+      critical-threshold: 95 # Percentage when status becomes CRITICAL
+    thread-utilization:
+      warning-threshold: 85  # Percentage when status becomes DEGRADED
+      critical-threshold: 95 # Percentage when status becomes CRITICAL
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,async-processing
+      base-path: /
 ```
 
 #### 10) Compliance with existing services
 - Use same actuator exposure, swagger paths, logging levels, and port conventions as other services.
 - Maintain consistent package naming under `com.wifi.positioning`.
+
+#### 11) Async Processing Health Monitoring
+
+The service includes comprehensive health monitoring for asynchronous processing that:
+- **Does NOT affect overall service health** - async metrics are isolated from the main health endpoint
+- Provides detailed metrics about queue depth, thread utilization, and processing success rates
+- Implements graceful shutdown to complete queued work before terminating
+- Offers configurable thresholds for health status determination
+
+##### Health Endpoints
+
+**Main Health Endpoint**
+- **URL**: `/health`
+- **Purpose**: Overall service health (unchanged behavior)
+- **Status**: Only affected by critical dependencies (positioning service connectivity)
+
+**Async Processing Health Endpoint**
+- **URL**: `/async-processing`
+- **Purpose**: Detailed async processing metrics
+- **Status**: Independent health status that doesn't affect main service health
+
+##### Async Health Metrics
+
+**Queue Metrics**
+```json
+{
+  "queue": {
+    "size": 0,                    // Current number of queued tasks
+    "capacity": 1000,             // Maximum queue capacity
+    "utilizationPercent": 0.0,    // Queue utilization percentage
+    "availableCapacity": 1000     // Remaining queue space
+  }
+}
+```
+
+**Thread Pool Metrics**
+```json
+{
+  "threadPool": {
+    "activeThreads": 1,           // Currently executing threads
+    "poolSize": 2,                // Current pool size
+    "corePoolSize": 4,            // Configured core threads
+    "maxPoolSize": 4,             // Maximum threads
+    "threadUtilizationPercent": 25.0, // Thread utilization
+    "availableThreads": 3         // Available threads
+  }
+}
+```
+
+**Processing Metrics**
+```json
+{
+  "processing": {
+    "completedTasks": 100,        // Total completed by thread pool
+    "successfulProcessing": 95,   // Successfully processed requests
+    "failedProcessing": 5,        // Failed processing attempts
+    "rejectedTasks": 0,           // Tasks rejected due to queue overflow
+    "successRatePercent": 95.0    // Success rate percentage
+  }
+}
+```
+
+##### Health Status Levels
+
+**HEALTHY**
+- Queue utilization < 80%
+- Thread utilization < 85%
+- Normal operation
+
+**DEGRADED**
+- Queue utilization 80-95%
+- Thread utilization 85-95%
+- Still functional but approaching limits
+
+**CRITICAL**
+- Queue utilization > 95%
+- Thread utilization > 95% with high queue usage
+- Risk of task rejection
+
+**DISABLED**
+- Async processing is disabled in configuration
+- Only sync processing available
+
+**ERROR**
+- Exception occurred during health check
+- Detailed error information provided
+
+##### Graceful Shutdown
+
+The service implements graceful shutdown for async processing:
+
+1. **Shutdown Initiation**: When service receives shutdown signal
+2. **Stop New Tasks**: Executor stops accepting new async tasks
+3. **Wait for Completion**: Waits up to 45 seconds for queued tasks to complete
+4. **Forced Shutdown**: If tasks don't complete, forces shutdown after additional 10 seconds
+5. **Detailed Logging**: Logs shutdown progress and final status
+
+##### Monitoring and Alerting
+
+**Key Metrics to Monitor**
+1. **Queue Utilization**: Alert when > 80%
+2. **Thread Utilization**: Alert when > 85%
+3. **Rejected Tasks**: Alert on any rejections
+4. **Success Rate**: Alert when < 95%
+5. **Processing Failures**: Alert on sustained failures
+
+**Sample Monitoring Commands**
+```bash
+# Check queue depth
+curl -s http://localhost:8083/wifi-positioning-integration-service/async-processing | jq '.queue.size'
+
+# Check success rate
+curl -s http://localhost:8083/wifi-positioning-integration-service/async-processing | jq '.processing.successRatePercent'
+
+# Check for warnings
+curl -s http://localhost:8083/wifi-positioning-integration-service/async-processing | jq '.warning // "No warnings"'
+```
+
+##### Troubleshooting Async Issues
+
+**Common Issues**
+
+**Queue Always Full**
+- **Symptom**: Queue utilization consistently > 95%
+- **Cause**: More requests than processing capacity
+- **Solution**: Increase workers or queue capacity
+
+**High Thread Utilization**
+- **Symptom**: Thread utilization > 90%
+- **Cause**: Long-running or blocking operations
+- **Solution**: Optimize processing logic or increase workers
+
+**Frequent Rejections**
+- **Symptom**: Rejected tasks > 0
+- **Cause**: Queue overflow due to burst traffic
+- **Solution**: Increase queue capacity or implement backpressure
+
+**Graceful Shutdown Timeout**
+- **Symptom**: Forced shutdown after timeout
+- **Cause**: Long-running tasks or deadlocks
+- **Solution**: Review processing logic for blocking operations
 

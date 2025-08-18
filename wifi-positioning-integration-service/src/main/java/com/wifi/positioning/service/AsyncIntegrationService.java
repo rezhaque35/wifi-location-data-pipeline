@@ -3,6 +3,7 @@ package com.wifi.positioning.service;
 
 import com.wifi.positioning.config.IntegrationProperties;
 import com.wifi.positioning.dto.IntegrationReportRequest;
+import com.wifi.positioning.health.AsyncProcessingHealthIndicator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -22,6 +23,7 @@ public class AsyncIntegrationService {
 
     private final IntegrationProcessingService integrationProcessingService;
     private final IntegrationProperties integrationProperties;
+    private final AsyncProcessingHealthIndicator healthIndicator;
 
     /**
      * Processes an integration report asynchronously in the background.
@@ -61,17 +63,20 @@ public class AsyncIntegrationService {
             
             if (result.isSuccess()) {
                 log.debug("Async processing completed successfully - correlationId: {}, requestId: {}", correlationId, requestId);
+                healthIndicator.incrementSuccessfulProcessing();
             } else {
                 log.warn("Async processing completed with errors - correlationId: {}, requestId: {}, errorType: {}, error: {}", 
                     correlationId, requestId, result.getErrorType(), result.getErrorMessage());
+                healthIndicator.incrementFailedProcessing();
             }
             
         } catch (Exception e) {
             log.error("Fatal error in async processing - correlationId: {}, requestId: {}", 
                 correlationId, requestId, e);
             
-            // Log a failure event for monitoring
+            // Log a failure event for monitoring and update health metrics
             logAsyncProcessingFailure(correlationId, requestId, e);
+            healthIndicator.incrementFailedProcessing();
         }
         
         return CompletableFuture.completedFuture(null);

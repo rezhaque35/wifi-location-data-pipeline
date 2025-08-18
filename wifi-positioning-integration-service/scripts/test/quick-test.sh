@@ -1,10 +1,94 @@
 #!/bin/bash
 
 # Quick test script for individual test cases
-# Usage: ./quick-test.sh <test-case-name>
-# Example: ./quick-test.sh single-ap-proximity
+# Usage: ./quick-test.sh [OPTIONS] <test-case-name>
+# 
+# Options:
+#   -h, --host HOST[:PORT]    Host and optional port (default: localhost:8083)
+#   -s, --https               Use HTTPS instead of HTTP
+#   --help                    Show this help message
+#
+# Examples:
+#   ./quick-test.sh single-ap-proximity                    # Use localhost:8083 with HTTP
+#   ./quick-test.sh -h 192.168.1.100:8083 single-ap-proximity  # Use specific host:port
+#   ./quick-test.sh -h api.example.com -s single-ap-proximity   # Use HTTPS with host
 
 set -e
+
+# Default configuration
+DEFAULT_HOST="localhost"
+DEFAULT_PORT="8083"
+USE_HTTPS=false
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--host)
+            if [[ -n "$2" && "$2" != -* ]]; then
+                # Check if port is specified in host:port format
+                if [[ "$2" == *:* ]]; then
+                    HOST_PORT="$2"
+                    HOST="${HOST_PORT%:*}"
+                    PORT="${HOST_PORT#*:}"
+                else
+                    HOST="$2"
+                    PORT="$DEFAULT_PORT"
+                fi
+                shift 2
+            else
+                echo "Error: --host requires a value"
+                exit 1
+            fi
+            ;;
+        -s|--https)
+            USE_HTTPS=true
+            shift
+            ;;
+        --help)
+            echo "Usage: $0 [OPTIONS] <test-case-name>"
+            echo ""
+            echo "Options:"
+            echo "  -h, --host HOST[:PORT]    Host and optional port (default: localhost:8083)"
+            echo "  -s, --https               Use HTTPS instead of HTTP"
+            echo "  --help                    Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0 single-ap-proximity                                    # Use localhost:8083 with HTTP"
+            echo "  $0 -h 192.168.1.100:8083 single-ap-proximity             # Use specific host:port"
+            echo "  $0 -h api.example.com -s single-ap-proximity              # Use HTTPS with host"
+            echo ""
+            echo "Available test cases:"
+            echo "  single-ap-proximity"
+            echo "  dual-ap-rssi-ratio"
+            echo "  trilateration-test"
+            echo "  mixed-status-aps"
+            echo "  unknown-mac-test"
+            echo "  high-density-cluster"
+            exit 0
+            ;;
+        -*)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# Set default values if not specified
+HOST="${HOST:-$DEFAULT_HOST}"
+PORT="${PORT:-$DEFAULT_PORT}"
+
+# Build service URL based on configuration
+if [ "$USE_HTTPS" = true ]; then
+    PROTOCOL="https"
+else
+    PROTOCOL="http"
+fi
+
+INTEGRATION_SERVICE_URL="${PROTOCOL}://${HOST}:${PORT}/wifi-positioning-integration-service"
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -12,11 +96,16 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-INTEGRATION_SERVICE_URL="http://localhost:8083/wifi-positioning-integration-service"
 TEST_DATA_DIR="scripts/test/data"
 
 if [ $# -eq 0 ]; then
-    echo -e "${YELLOW}Usage: $0 <test-case-name>${NC}"
+    echo -e "${YELLOW}Usage: $0 [OPTIONS] <test-case-name>${NC}"
+    echo ""
+    echo -e "${BLUE}Configuration:${NC}"
+    echo "  Host: $HOST"
+    echo "  Port: $PORT"
+    echo "  Protocol: $PROTOCOL"
+    echo "  Service URL: $INTEGRATION_SERVICE_URL"
     echo ""
     echo "Available test cases:"
     echo "  single-ap-proximity"
@@ -27,6 +116,8 @@ if [ $# -eq 0 ]; then
     echo "  high-density-cluster"
     echo ""
     echo "Example: $0 single-ap-proximity"
+    echo ""
+    echo "Use --help for more options"
     exit 1
 fi
 
@@ -42,6 +133,11 @@ fi
 
 echo -e "${BLUE}Running test case: $TEST_CASE${NC}"
 echo "Test file: $TEST_FILE"
+echo -e "${BLUE}Configuration:${NC}"
+echo "  Host: $HOST"
+echo "  Port: $PORT"
+echo "  Protocol: $PROTOCOL"
+echo "  Service URL: $INTEGRATION_SERVICE_URL"
 echo ""
 
 # Check if service is running

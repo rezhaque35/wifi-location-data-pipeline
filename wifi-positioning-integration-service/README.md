@@ -18,6 +18,9 @@ The WiFi Positioning Integration Service acts as a bridge between client positio
 - **🔍 Sample Interface Support**: Full compatibility with client sample interface format
 - **⚡ Non-blocking Integration**: WebClient-based positioning service communication
 - **📝 Structured Logging**: Comprehensive logging with correlation IDs and metrics
+- **🏥 Health Monitoring**: Actuator health endpoints for service monitoring
+- **⚡ Async Processing Health**: Dedicated endpoint for async processing metrics without affecting main health
+- **🛑 Graceful Shutdown**: Ensures async processing completes before service termination
 
 ## 🏗️ Architecture
 
@@ -89,6 +92,95 @@ curl -X POST http://localhost:8083/wifi-positioning-integration-service/api/inte
       "calculationDetail": true
     }
   }'
+```
+
+## 🏥 **Health Monitoring & Async Processing**
+
+### **Health Endpoints**
+
+The service provides comprehensive health monitoring with two distinct endpoints:
+
+#### **1. Main Health Endpoint** (`/health`)
+- **Purpose**: Overall service health status
+- **Status**: Only affected by critical dependencies (positioning service connectivity)
+- **Use Case**: Load balancer health checks, service orchestration
+
+#### **2. Async Processing Health Endpoint** (`/async-processing`)
+- **Purpose**: Detailed async processing metrics and health
+- **Status**: Independent health status that doesn't affect main service health
+- **Use Case**: Async processing monitoring, performance analysis, debugging
+
+### **Async Health Metrics**
+
+The `/async-processing` endpoint provides comprehensive metrics:
+
+**Queue Metrics**
+```json
+{
+  "queue": {
+    "size": 0,                    // Current number of queued tasks
+    "capacity": 1000,             // Maximum queue capacity
+    "utilizationPercent": 0.0,    // Queue utilization percentage
+    "availableCapacity": 1000     // Remaining queue space
+  }
+}
+```
+
+**Thread Pool Metrics**
+```json
+{
+  "threadPool": {
+    "activeThreads": 1,           // Currently executing threads
+    "poolSize": 2,                // Current pool size
+    "corePoolSize": 4,            // Configured core threads
+    "maxPoolSize": 4,             // Maximum threads
+    "threadUtilizationPercent": 25.0, // Thread utilization
+    "availableThreads": 3         // Available threads
+  }
+}
+```
+
+**Processing Metrics**
+```json
+{
+  "processing": {
+    "completedTasks": 100,        // Total completed by thread pool
+    "successfulProcessing": 95,   // Successfully processed requests
+    "failedProcessing": 5,        // Failed processing attempts
+    "rejectedTasks": 0,           // Tasks rejected due to queue overflow
+    "successRatePercent": 95.0    // Success rate percentage
+  }
+}
+```
+
+### **Health Status Levels**
+
+- **HEALTHY**: Queue utilization < 80%, Thread utilization < 85%
+- **DEGRADED**: Queue utilization 80-95%, Thread utilization 85-95%
+- **CRITICAL**: Queue utilization > 95%, Thread utilization > 95%
+- **DISABLED**: Async processing is disabled
+- **ERROR**: Exception occurred during health check
+
+### **Graceful Shutdown**
+
+The service implements graceful shutdown for async processing:
+1. **Shutdown Initiation**: Stops accepting new async tasks
+2. **Wait for Completion**: Waits up to 45 seconds for queued tasks to complete
+3. **Forced Shutdown**: Forces shutdown after timeout if tasks don't complete
+4. **Detailed Logging**: Logs shutdown progress and final status
+
+### **Monitoring Commands**
+
+```bash
+# Check main service health
+curl http://localhost:8083/wifi-positioning-integration-service/health
+
+# Check async processing health
+curl http://localhost:8083/wifi-positioning-integration-service/async-processing
+
+# Monitor specific metrics
+curl -s http://localhost:8083/wifi-positioning-integration-service/async-processing | jq '.queue.size'
+curl -s http://localhost:8083/wifi-positioning-integration-service/async-processing | jq '.processing.successRatePercent'
 ```
 
 ## 📡 **CURL Command Examples**
@@ -617,6 +709,42 @@ cd ../wifi-positioning-integration-service
 - ✅ Validate AP enrichment and comparison metrics
 - ✅ Performance analysis and success rate calculation
 - ✅ Detailed error reporting and troubleshooting
+- ✅ **Async Processing Testing**: Concurrent request handling, performance comparison
+- ✅ **Health Monitoring**: Async health endpoint validation and metrics tracking
+
+#### Async Processing Testing
+```bash
+cd ../wifi-positioning-integration-service
+# Test async processing functionality only
+./scripts/test/test-async-only.sh
+
+# Test with custom host:port
+./scripts/test/test-async-only.sh -h 192.168.1.100:8083
+```
+
+**Async testing capabilities:**
+- ✅ **Concurrent Processing**: Sends 5 simultaneous requests to verify async handling
+- ✅ **Performance Comparison**: Async vs sync processing response time analysis
+- ✅ **Health Metrics**: Queue depth, thread utilization, and processing success rates
+- ✅ **Load Testing**: Generates realistic load to test async processing under stress
+
+**Test Execution Flow:**
+1. **Async Health Endpoint Test**: Verifies `/async-processing` endpoint accessibility and metrics
+2. **Concurrent Async Processing Test**: Sends 5 concurrent requests and measures performance
+3. **Async vs Sync Comparison Test**: Compares response times between processing modes
+
+**Concurrent Testing Implementation:**
+- Uses background processes to send requests simultaneously
+- Captures results in temporary files to avoid race conditions
+- Measures wall-clock time for total processing duration
+- Compares individual response times vs total processing time
+- Validates that all requests complete successfully
+
+**Performance Expectations:**
+- **Concurrent Requests**: 5 requests should complete in ~1.8s total
+- **Individual Responses**: Each request ~1.7s (demonstrating parallel processing)
+- **Performance Gain**: Async should be faster than sync for concurrent scenarios
+- **Response Time Threshold**: < 2.0s per request for async processing
 
 ## 📋 API Reference
 
@@ -745,10 +873,24 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,async-processing
+      base-path: /
   endpoint:
     health:
       show-details: when-authorized
+
+# Health Check Configuration
+health:
+  indicator:
+    cache-ttl-seconds: 30
+    enable-caching: true
+  async-processing:
+    queue-utilization:
+      warning-threshold: 80  # Percentage when status becomes DEGRADED
+      critical-threshold: 95 # Percentage when status becomes CRITICAL
+    thread-utilization:
+      warning-threshold: 85  # Percentage when status becomes DEGRADED
+      critical-threshold: 95 # Percentage when status becomes CRITICAL
 ```
 
 ### Environment Variables
@@ -758,7 +900,53 @@ management:
 export INTEGRATION_POSITIONING_BASE_URL=http://prod-positioning-service:8080
 export INTEGRATION_POSITIONING_READ_TIMEOUT_MS=1500
 export INTEGRATION_PROCESSING_DEFAULT_MODE=async
+
+# Async Processing Configuration
+export INTEGRATION_PROCESSING_ASYNC_ENABLED=true
+export INTEGRATION_PROCESSING_ASYNC_QUEUE_CAPACITY=2000
+export INTEGRATION_PROCESSING_ASYNC_WORKERS=8
+
+# Health Monitoring Configuration
+export HEALTH_INDICATOR_CACHE_TTL_SECONDS=30
+export HEALTH_ASYNC_PROCESSING_QUEUE_WARNING_THRESHOLD=80
+export HEALTH_ASYNC_PROCESSING_QUEUE_CRITICAL_THRESHOLD=95
 ```
+
+## 📊 Test Results and Validation
+
+### Async Testing Success Criteria
+
+**Async Health Endpoint:**
+- HTTP 200 response
+- Valid JSON structure
+- All required metrics present
+
+**Concurrent Processing:**
+- All requests return HTTP 200
+- Individual response times within acceptable range
+- Total processing time demonstrates async benefits
+
+**Performance Comparison:**
+- Async processing provides performance benefits
+- Response time differences are measurable
+- Both modes complete successfully
+
+### Metrics Validation
+
+**Queue Metrics:**
+- Current depth vs capacity
+- Utilization percentage
+- Available capacity
+
+**Thread Metrics:**
+- Active thread count
+- Pool size and utilization
+- Available threads
+
+**Processing Metrics:**
+- Success/failure counts
+- Success rate percentage
+- Rejection counts
 
 ## 📊 Test Data
 
@@ -803,10 +991,34 @@ aws dynamodb scan \
 
 ### Health Endpoints
 
-- **Health Check**: `/health`
+- **Health Check**: `/health` - Overall service health (positioning service connectivity)
+- **Async Processing Health**: `/async-processing` - Detailed async processing metrics
 - **Actuator**: `/actuator`
 - **Info**: `/actuator/info`
 - **Metrics**: `/actuator/metrics`
+
+### Async Processing Monitoring
+
+The service provides comprehensive monitoring of async processing:
+
+**Key Metrics to Monitor:**
+- **Queue Utilization**: Alert when > 80%
+- **Thread Utilization**: Alert when > 85%
+- **Rejected Tasks**: Alert on any rejections
+- **Success Rate**: Alert when < 95%
+- **Processing Failures**: Alert on sustained failures
+
+**Real-time Monitoring:**
+```bash
+# Monitor queue depth
+watch -n 1 'curl -s http://localhost:8083/wifi-positioning-integration-service/async-processing | jq ".queue.size"'
+
+# Monitor success rate
+watch -n 1 'curl -s http://localhost:8083/wifi-positioning-integration-service/async-processing | jq ".processing.successRatePercent"'
+
+# Check for warnings
+curl -s http://localhost:8083/wifi-positioning-integration-service/async-processing | jq '.warning // "No warnings"'
+```
 
 ### Logging
 
@@ -1016,43 +1228,6 @@ src/
 4. **Write tests** in corresponding test packages
 5. **Update configuration** in `application.yml`
 
-## 🚀 Deployment
-
-### Docker
-
-```dockerfile
-FROM openjdk:21-jdk-slim
-COPY target/wifi-positioning-integration-service-*.jar app.jar
-EXPOSE 8083
-ENTRYPOINT ["java", "-jar", "/app.jar"]
-```
-
-### Kubernetes
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: wifi-positioning-integration-service
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: wifi-positioning-integration-service
-  template:
-    metadata:
-      labels:
-        app: wifi-positioning-integration-service
-    spec:
-      containers:
-      - name: integration-service
-        image: wifi-positioning-integration-service:latest
-        ports:
-        - containerPort: 8083
-        env:
-        - name: INTEGRATION_POSITIONING_BASE_URL
-          value: "http://wifi-positioning-service:8080"
-```
 
 ## 🔧 Troubleshooting
 
@@ -1073,6 +1248,17 @@ spec:
    - Check positioning service database
    - Review positioning service logs
 
+4. **Async processing issues**
+   - **Queue always full**: Increase workers or queue capacity
+   - **High thread utilization**: Optimize processing logic or increase workers
+   - **Frequent rejections**: Increase queue capacity or implement backpressure
+   - **Graceful shutdown timeout**: Review processing logic for blocking operations
+
+5. **Async health endpoint issues**
+   - Verify `/async-processing` endpoint is exposed in configuration
+   - Check thread pool configuration in `application.yml`
+   - Review service logs for async processing errors
+
 ### Debug Mode
 
 ```bash
@@ -1087,6 +1273,21 @@ tail -f logs/application.log | grep "IntegrationReportController"
 
 # Search for specific correlation ID
 grep "correlation-id-123" logs/application.log
+
+# Monitor async processing logs
+tail -f logs/application.log | grep "AsyncIntegrationService"
+
+# Check async processing health
+curl -s http://localhost:8083/wifi-positioning-integration-service/async-processing | jq .
+
+# Monitor queue depth in real-time
+watch -n 1 'curl -s http://localhost:8083/wifi-positioning-integration-service/async-processing | jq ".queue.size"'
+
+# Monitor async metrics in real-time
+watch -n 1 'curl -s http://localhost:8083/wifi-positioning-integration-service/async-processing | jq .'
+
+# Check for warnings in async health
+curl -s http://localhost:8083/wifi-positioning-integration-service/async-processing | jq '.warning // "No warnings"'
 ```
 
 ## 📚 Additional Resources
@@ -1098,24 +1299,3 @@ grep "correlation-id-123" logs/application.log
 - **Test Suite**: [Test Documentation](scripts/test/README.md)
 - **Test Structure**: [Test Case Mapping](scripts/test/TEST_STRUCTURE.md)
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🎉 Status
-
-**✅ IMPLEMENTATION COMPLETE**
-
-The WiFi Positioning Integration Service is fully implemented, tested, and ready for production use! All core requirements have been met, and the service has been validated with real positioning service data.
-
----
-
-**Built with ❤️ using Spring Boot 3.4.5 and Java 21**

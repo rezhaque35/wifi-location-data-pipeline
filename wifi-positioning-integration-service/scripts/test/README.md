@@ -1,233 +1,179 @@
-# WiFi Positioning Integration Service - Test Suite
+# WiFi Positioning Integration Service - Test Scripts
 
-This directory contains comprehensive integration tests for the WiFi Positioning Integration Service.
+This directory contains comprehensive test scripts for the WiFi Positioning Integration Service.
 
-## 📁 Directory Structure
+## Test Scripts
 
-```
-scripts/test/
-├── README.md                                    # This file
-├── data/                                        # Test case JSON files
-│   ├── single-ap-proximity.json                # Single AP proximity test
-│   ├── dual-ap-rssi-ratio.json                 # Dual AP RSSI ratio test
-│   ├── trilateration-test.json                 # Trilateration with 3 APs
-│   ├── mixed-status-aps.json                   # Mixed AP statuses test
-│   ├── unknown-mac-test.json                   # Unknown MAC addresses test
-│   └── high-density-cluster.json               # High-density AP cluster test
-└── run-comprehensive-integration-tests.sh      # Main test execution script
-```
+### 1. `run-comprehensive-integration-tests.sh` (Main Test Suite)
+**Purpose**: Comprehensive testing of all service functionality including async processing
 
-## 🧪 Test Cases
+**Features**:
+- **Core Functionality Tests**: All existing test cases (single AP, dual AP, trilateration, etc.)
+- **Async Processing Tests**: New comprehensive async functionality testing
+- **Concurrent Request Testing**: Verifies async processing with multiple simultaneous requests
+- **Performance Comparison**: Async vs sync processing response time comparison
+- **Health Monitoring**: Tests async health endpoint and metrics
 
-### 1. Single AP Proximity Test
-- **File**: `single-ap-proximity.json`
-- **MAC**: `00:11:22:33:44:01`
-- **Purpose**: Tests single AP proximity detection algorithm
-- **Expected**: HTTP 200, proximity algorithm selection
-
-### 2. Dual AP RSSI Ratio Test
-- **File**: `dual-ap-rssi-ratio.json`
-- **MACs**: `00:11:22:33:44:01`, `00:11:22:33:44:02`
-- **Purpose**: Tests dual AP RSSI ratio method
-- **Expected**: HTTP 200, RSSI ratio algorithm selection
-
-### 3. Trilateration Test
-- **File**: `trilateration-test.json`
-- **MACs**: `00:11:22:33:44:01`, `00:11:22:33:44:02`, `00:11:22:33:44:03`
-- **Purpose**: Tests trilateration with three APs
-- **Expected**: HTTP 200, trilateration algorithm selection
-
-### 4. Mixed Status APs Test
-- **File**: `mixed-status-aps.json`
-- **MACs**: `00:11:22:33:44:41` through `00:11:22:33:44:45`
-- **Purpose**: Tests AP enrichment with different statuses
-- **Statuses**: active, warning, error, expired, wifi-hotspot
-- **Expected**: HTTP 200, proper status filtering and eligibility
-
-### 5. Unknown MAC Test
-- **File**: `unknown-mac-test.json`
-- **MACs**: `FF:FF:FF:FF:FF:01`, `FF:FF:FF:FF:FF:02`, `00:11:22:33:44:01`
-- **Purpose**: Tests behavior with unknown MAC addresses
-- **Expected**: HTTP 200, proper handling of found/not found APs
-
-### 6. High-Density Cluster Test
-- **File**: `high-density-cluster.json`
-- **MACs**: `00:11:22:33:44:11` through `00:11:22:33:44:15`
-- **Purpose**: Tests maximum likelihood algorithm with 5 APs
-- **Expected**: HTTP 200, maximum likelihood algorithm selection
-
-## 🚀 Running the Tests
-
-### Prerequisites
-
-1. **WiFi Positioning Integration Service** running on port 8083
-2. **WiFi Positioning Service** running on port 8080
-3. **Test data loaded** via `wifi-positioning-test-data.sh`
-4. **curl and jq** commands available
-
-### Quick Start
-
+**Usage**:
 ```bash
-# Make script executable (first time only)
-chmod +x scripts/test/run-comprehensive-integration-tests.sh
+# Run with default settings (localhost:8083)
+./run-comprehensive-integration-tests.sh
 
-# Run all tests
-./scripts/test/run-comprehensive-integration-tests.sh
+# Run on specific host:port
+./run-comprehensive-integration-tests.sh -h 192.168.1.100:8083
+
+# Run with HTTPS
+./run-comprehensive-integration-tests.sh -h api.example.com -s
+
+# Show help
+./run-comprehensive-integration-tests.sh --help
 ```
 
-### Individual Test Execution
+### 2. `test-async-only.sh` (Focused Async Testing)
+**Purpose**: Focused testing of async processing functionality only
 
+**Features**:
+- **Async Health Endpoint**: Tests `/async-processing` endpoint accessibility
+- **Concurrent Processing**: Sends 5 concurrent requests to verify async handling
+- **Performance Comparison**: Direct async vs sync response time comparison
+- **Metrics Validation**: Verifies queue depth, thread utilization, and processing counts
+
+**Usage**:
 ```bash
-# Test a specific scenario
-curl -X POST http://localhost:8083/wifi-positioning-integration-service/api/integration/report \
-  -H "Content-Type: application/json" \
-  -d @scripts/test/data/single-ap-proximity.json
+# Run async tests only
+./test-async-only.sh
+
+# Run on specific host:port
+./test-async-only.sh -h 192.168.1.100:8083
+
+# Show help
+./test-async-only.sh --help
 ```
 
-## 📊 Test Validation
+## Async Processing Test Coverage
 
-The test suite validates:
+The expanded test suite now includes comprehensive testing of the async processing functionality:
 
-### Core Functionality
-- ✅ **Request Mapping**: Sample interface → positioning service format
-- ✅ **Service Integration**: HTTP calls to positioning service
-- ✅ **Response Processing**: Integration report generation
-- ✅ **Error Handling**: Graceful failure handling
+### Phase 4: Async Processing Testing
+1. **Async Health Endpoint Test**
+   - Verifies `/async-processing` endpoint is accessible
+   - Validates response format and metrics structure
+   - Checks queue depth, thread utilization, and processing counts
 
-### AP Enrichment
-- ✅ **Status Tracking**: Active, warning, error, expired, wifi-hotspot
-- ✅ **Location Data**: Latitude, longitude, altitude extraction
-- ✅ **Usage Analysis**: Used vs eligible AP counting
-- ✅ **Aggregate Metrics**: Found/not found percentages
+2. **Concurrent Async Processing Test**
+   - Sends 5 concurrent requests simultaneously
+   - Measures total processing time vs individual response times
+   - Verifies all requests are processed successfully
+   - Compares baseline and post-request metrics
 
-### Comparison Metrics
-- ✅ **Position Comparison**: Haversine distance calculation
-- ✅ **Accuracy Analysis**: Delta calculations
-- ✅ **Confidence Analysis**: Confidence delta calculations
-- ✅ **Algorithm Selection**: Methods used tracking
+3. **Async vs Sync Comparison Test**
+   - Sends identical requests in both sync and async modes
+   - Measures and compares response times
+   - Validates performance benefits of async processing
 
-## 🔧 Test Data Sources
+### Key Metrics Monitored
+- **Queue Metrics**: Current depth, capacity, utilization percentage
+- **Thread Metrics**: Active threads, pool size, utilization percentage
+- **Processing Metrics**: Successful/failed counts, rejection counts, success rates
+- **Health Status**: Overall async processing health (HEALTHY, DEGRADED, CRITICAL)
 
-All test MAC addresses are sourced from `wifi-positioning-test-data.sh`:
+## Test Data Requirements
 
-| Test Type | MAC Addresses | Source Data |
-|-----------|---------------|-------------|
-| Single AP | `00:11:22:33:44:01` | Single AP proximity test |
-| Dual AP | `00:11:22:33:44:01`, `00:11:22:33:44:02` | RSSI ratio test |
-| Trilateration | `00:11:22:33:44:01`, `00:11:22:33:44:02`, `00:11:22:33:44:03` | Trilateration test |
-| Mixed Status | `00:11:22:33:44:41` through `00:11:22:33:44:45` | Status filtering tests |
-| High Density | `00:11:22:33:44:11` through `00:11:22:33:44:15` | Maximum likelihood tests |
+The test scripts require test data files in the `./data` directory:
+- JSON files with WiFi scan data
+- Various test scenarios (single AP, dual AP, trilateration, etc.)
+- Error handling test cases
 
-## 📝 Adding New Test Cases
+## Prerequisites
 
-### 1. Create Test JSON File
+- WiFi Positioning Integration Service running
+- WiFi Positioning Service running with test data loaded
+- `curl` command available
+- `jq` command available for JSON parsing
+- `bc` command available for floating-point math
 
-```json
-{
-  "sourceRequest": {
-    "svcHeader": { "authToken": "test-token" },
-    "svcBody": {
-      "svcReq": {
-        "clientId": "test-client",
-        "requestId": "test-$(date +%s)",
-        "wifiInfo": [
-          {
-            "id": "00:11:22:33:44:XX",
-            "signalStrength": -65.0,
-            "frequency": 2437,
-            "ssid": "Test_AP"
-          }
-        ]
-      }
-    }
-  },
-  "sourceResponse": {
-    "success": true,
-    "locationInfo": {
-      "latitude": 37.7749,
-      "longitude": -122.4194,
-      "accuracy": 50.0,
-      "confidence": 0.8
-    }
-  },
-  "options": { "calculationDetail": true },
-  "metadata": {
-    "correlationId": "test-$(date +%s)",
-    "testCase": "new-test-case",
-    "description": "Description of what this test validates"
-  }
-}
-```
-
-### 2. Update Test Script
-
-Add your test case to the analysis section in `run-comprehensive-integration-tests.sh`:
-
-```bash
-echo "  New Test Cases: $(grep -l '"testCase": "new-test-case"' $TEST_DATA_DIR/*.json | wc -l)"
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Service Not Running**
-   ```bash
-   # Check integration service
-   curl http://localhost:8083/wifi-positioning-integration-service/health
-   
-   # Check positioning service
-   curl http://localhost:8080/wifi-positioning-service/actuator/health
-   ```
-
-2. **Test Data Not Loaded**
-   ```bash
-   cd ../wifi-positioning-service
-   ./scripts/setup/wifi-positioning-test-data.sh
-   ```
-
-3. **Port Conflicts**
-   - Integration Service: Port 8083
-   - Positioning Service: Port 8080
-   - DynamoDB Local: Port 8000
-
-### Debug Mode
-
-```bash
-# Run with verbose output
-./scripts/test/run-comprehensive-integration-tests.sh 2>&1 | tee test-results.log
-
-# Check specific test response
-curl -v -X POST http://localhost:8083/wifi-positioning-integration-service/api/integration/report \
-  -H "Content-Type: application/json" \
-  -d @scripts/test/data/single-ap-proximity.json
-```
-
-## 📈 Performance Metrics
-
-The test suite measures:
-
-- **Response Time**: Total request processing time
-- **Positioning Latency**: Time for positioning service calls
-- **AP Enrichment**: Time for access point analysis
-- **Success Rate**: Percentage of tests passing
-- **Error Analysis**: Detailed failure reasons
-
-## 🎯 Expected Results
+## Test Results
 
 ### Success Criteria
-- All tests return HTTP 200
-- AP enrichment data is complete
-- Comparison metrics are calculated correctly
-- Positioning service integration works
-- Error handling is graceful
+- **Core Tests**: All functionality tests pass
+- **Async Tests**: All async processing tests pass
+- **Health Checks**: Both main health and async health endpoints accessible
+- **Performance**: Async processing provides expected performance benefits
 
-### Performance Targets
-- Response time < 2 seconds per test
-- Positioning service latency < 1 second
-- 100% test success rate
-- Complete AP enrichment data
+### Exit Codes
+- **0**: All tests passed (core + async)
+- **1**: Some tests failed or async processing issues detected
 
----
+## Monitoring and Debugging
 
-**The test suite provides comprehensive validation of the WiFi Positioning Integration Service functionality, ensuring production readiness and reliability.**
+### Async Health Endpoint
+- **URL**: `/async-processing`
+- **Purpose**: Monitor async processing metrics without affecting main health
+- **Metrics**: Queue depth, thread utilization, processing success rates
+
+### Main Health Endpoint
+- **URL**: `/health`
+- **Purpose**: Overall service health (unaffected by async processing)
+- **Dependencies**: Positioning service connectivity only
+
+## Example Test Output
+
+```
+PHASE 4: Async Processing Testing
+=============================================
+
+Testing async processing functionality...
+
+Test 1: Async Health Endpoint
+=====================================
+✓ Async health endpoint test PASSED
+
+Test 2: Concurrent Async Processing
+=============================================
+✓ Concurrent async processing test PASSED
+
+Test 3: Async vs Sync Comparison
+==========================================
+✓ Async vs sync comparison test PASSED
+
+🎉 ALL ASYNC PROCESSING TESTS PASSED!
+
+The async processing functionality is working correctly:
+  ✓ Async health endpoint is accessible and providing metrics
+  ✓ Concurrent requests are being processed successfully
+  ✓ Async processing is operational
+  ✓ Queue depth and processing metrics are being tracked
+```
+
+## Troubleshooting
+
+### Common Issues
+1. **Async Health Endpoint Unavailable**
+   - Check if service is running
+   - Verify `/async-processing` endpoint is exposed in configuration
+   - Check service logs for startup errors
+
+2. **Concurrent Request Failures**
+   - Verify thread pool configuration in `application.yml`
+   - Check queue capacity settings
+   - Review service logs for async processing errors
+
+3. **Performance Issues**
+   - Monitor queue utilization metrics
+   - Check thread pool sizing
+   - Verify positioning service response times
+
+### Debug Commands
+```bash
+# Check async health metrics
+curl http://localhost:8083/wifi-positioning-integration-service/async-processing
+
+# Check main health
+curl http://localhost:8083/wifi-positioning-integration-service/health
+
+# Run focused async tests
+./test-async-only.sh
+
+# Run comprehensive tests
+./run-comprehensive-integration-tests.sh
+```

@@ -23,7 +23,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,async-processing
       base-path: /
   endpoint:
     health:
@@ -83,3 +83,11 @@ health:
     cache-ttl-seconds: 30
     # Enable caching for health checks
     enable-caching: true
+  async-processing:
+    # Thresholds for health status determination
+    queue-utilization:
+      warning-threshold: 80  # Percentage when status becomes DEGRADED
+      critical-threshold: 95 # Percentage when status becomes CRITICAL
+    thread-utilization:
+      warning-threshold: 85  # Percentage when status becomes DEGRADED
+      critical-threshold: 95 # Percentage when status becomes CRITICAL
