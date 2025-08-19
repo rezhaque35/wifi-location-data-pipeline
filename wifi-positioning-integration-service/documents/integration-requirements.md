@@ -29,7 +29,7 @@
 - springdoc-openapi (generate OpenAPI and Swagger UI paths as in other services).
 
 #### 4) API Contract (Integration Service)
-- Endpoint: `POST /wifi-positioning-integration-service/api/integration/report`
+- Endpoint: `POST /wifi-positioning-integration-service/vi/wifi/position/report`
 - Content-Type: `application/json`
 - Request payload (high-level):
   - `sourceRequest` (object): The client’s original request. Supports the sample format in `Documents/sample_interface.txt` and a normalized format.

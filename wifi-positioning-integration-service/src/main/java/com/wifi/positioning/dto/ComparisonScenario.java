@@ -80,15 +80,15 @@ public enum ComparisonScenario {
     }
     
     /**
-     * Determines the comparison scenario based on service results and error details.
-     * Enhanced to differentiate between AP-related failures and other errors.
+     * Determines the comparison scenario based on VLSS and Frisco success/failure states.
      * 
      * @param vlssSuccess Whether VLSS succeeded (null if no VLSS response)
      * @param friscoSuccess Whether Frisco succeeded
      * @param friscoErrorMessage Frisco error message for failure classification
+     * @param vlssAccuracy VLSS accuracy in meters (required for cell fallback detection)
      * @return The appropriate comparison scenario
      */
-    public static ComparisonScenario determineScenario(Boolean vlssSuccess, Boolean friscoSuccess, String friscoErrorMessage) {
+    public static ComparisonScenario determineScenario(Boolean vlssSuccess, Boolean friscoSuccess, String friscoErrorMessage, Double vlssAccuracy) {
         // Handle case where VLSS response is not provided
         if (vlssSuccess == null) {
             return FRISCO_ONLY_ANALYSIS;
@@ -102,8 +102,8 @@ public enum ComparisonScenario {
             if (friscoSucceeded) {
                 return BOTH_WIFI_SUCCESS;
             } else {
-                // VLSS succeeded but Frisco failed - check error type
-                if (isInsufficientApError(friscoErrorMessage)) {
+                // VLSS succeeded but Frisco failed - check error type and VLSS accuracy
+                if (isInsufficientApError(friscoErrorMessage) && vlssAccuracy != null && vlssAccuracy >= 250.0) {
                     return VLSS_CELL_FALLBACK_DETECTED;
                 } else {
                     return VLSS_SUCCESS_FRISCO_ERROR;
@@ -117,12 +117,19 @@ public enum ComparisonScenario {
             }
         }
     }
-    
+
     /**
      * Legacy method for backwards compatibility.
      */
     public static ComparisonScenario determineScenario(Boolean vlssSuccess, Boolean friscoSuccess) {
-        return determineScenario(vlssSuccess, friscoSuccess, null);
+        return determineScenario(vlssSuccess, friscoSuccess, null, null);
+    }
+
+    /**
+     * Legacy method for backwards compatibility.
+     */
+    public static ComparisonScenario determineScenario(Boolean vlssSuccess, Boolean friscoSuccess, String friscoErrorMessage) {
+        return determineScenario(vlssSuccess, friscoSuccess, friscoErrorMessage, null);
     }
     
     /**

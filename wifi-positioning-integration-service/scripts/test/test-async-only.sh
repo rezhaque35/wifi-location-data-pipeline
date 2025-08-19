@@ -94,18 +94,27 @@ NC='\033[0m'          # No Color (reset)
 
 # Test data directory - try multiple possible locations
 find_test_data_dir() {
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local project_root="$(cd "$script_dir/../.." && pwd)"
+    
+    # Try multiple possible locations
     local possible_paths=(
-        "./data"                           # Current directory
-        "./scripts/test/data"              # Script relative path
-        "$(dirname "$0")/data"            # Script directory
-        "$(dirname "$0")/../data"         # Parent of script directory
-        "$(dirname "$0")/../../data"      # Two levels up from script directory
+        "$script_dir/data"                    # From scripts/test directory
+        "$project_root/scripts/test/data"      # From project root
+        "./data"                              # Current directory
+        "./scripts/test/data"                 # Script relative path
+        "$(dirname "$0")/data"               # Script directory
+        "$(dirname "$0")/../data"            # Parent of script directory
+        "$(dirname "$0")/../../data"         # Two levels up from script directory
     )
     
     for path in "${possible_paths[@]}"; do
         if [ -d "$path" ]; then
-            echo "$path"
-            return 0
+            # Check if there are any JSON files in the directory
+            if ls "$path"/*.json >/dev/null 2>&1; then
+                echo "$path"
+                return 0
+            fi
         fi
     done
     
@@ -115,14 +124,13 @@ find_test_data_dir() {
 # Find and set test data directory
 TEST_DATA_DIR=$(find_test_data_dir)
 if [ -z "$TEST_DATA_DIR" ]; then
-    echo -e "${RED}✗ Test data directory not found in any of the expected locations:${NC}"
+    echo -e "${RED}✗ Could not find test data directory${NC}"
+    echo "Please ensure you're running this script from the project root or scripts/test directory"
+    echo "Expected locations:"
+    echo "  - $script_dir/data"
+    echo "  - $project_root/scripts/test/data"
     echo "  - ./data"
     echo "  - ./scripts/test/data"
-    echo "  - $(dirname "$0")/data"
-    echo "  - $(dirname "$0")/../data"
-    echo "  - $(dirname "$0")/../../data"
-    echo ""
-    echo "Please ensure test data is available in one of these locations."
     exit 1
 fi
 
@@ -237,7 +245,7 @@ send_async_request() {
     local response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
         -H "Content-Type: application/json" \
         -d @"$temp_file" \
-        "${INTEGRATION_SERVICE_URL}/api/integration/report")
+        "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
     local end_time=$(date +%s.%N)
     
     # Clean up temp file
@@ -275,7 +283,7 @@ send_sync_request() {
     local response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
         -H "Content-Type: application/json" \
         -d @"$temp_file" \
-        "${INTEGRATION_SERVICE_URL}/api/integration/report")
+        "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
     local end_time=$(date +%s.%N)
     
     # Clean up temp file
@@ -601,7 +609,7 @@ run_async_vs_sync_comparison() {
     local sync_response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
         -H "Content-Type: application/json" \
         -d @"$sync_temp_file" \
-        "${INTEGRATION_SERVICE_URL}/api/integration/report")
+        "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
     local sync_end=$(date +%s.%N)
     
     local sync_http_code=$(echo $sync_response | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
@@ -635,7 +643,7 @@ run_async_vs_sync_comparison() {
     local async_response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
         -H "Content-Type: application/json" \
         -d @"$async_temp_file" \
-        "${INTEGRATION_SERVICE_URL}/api/integration/report")
+        "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
     local async_end=$(date +%s.%N)
     
     local async_http_code=$(echo $async_response | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
@@ -698,7 +706,7 @@ run_async_job_lifecycle_test() {
     local async_response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
         -H "Content-Type: application/json" \
         -d @"$async_temp_file" \
-        "${INTEGRATION_SERVICE_URL}/api/integration/report")
+        "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
     
     # Clean up temp file
     rm "$async_temp_file"

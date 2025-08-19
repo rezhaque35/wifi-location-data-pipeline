@@ -34,7 +34,7 @@ import java.util.UUID;
  * positioning service.
  */
 @RestController
-@RequestMapping("/api/integration")
+@RequestMapping("/vi/wifi/position")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Integration Reports", description = "Endpoints for WiFi positioning integration and comparison")

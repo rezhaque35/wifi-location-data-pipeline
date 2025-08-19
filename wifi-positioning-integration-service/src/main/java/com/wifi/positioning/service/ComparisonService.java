@@ -44,10 +44,16 @@ public class ComparisonService {
         metrics.setVlssSuccess(vlssSuccess);
         metrics.setFriscoSuccess(friscoSuccess);
 
+        // Extract VLSS accuracy for scenario determination
+        Double vlssAccuracy = null;
+        if (sourceResponse != null && sourceResponse.getLocationInfo() != null) {
+            vlssAccuracy = sourceResponse.getLocationInfo().getAccuracy();
+        }
+
         // Determine scenario and location type
         String friscoErrorMessage = extractFriscoErrorMessage(positioningServiceResponse);
         ComparisonScenario scenario = ComparisonScenario.determineScenario(vlssSuccess, friscoSuccess,
-                friscoErrorMessage);
+                friscoErrorMessage, vlssAccuracy);
         metrics.setScenario(scenario);
 
         // Set location type
@@ -236,7 +242,8 @@ public class ComparisonService {
 
         // Extract VLSS error details if failed
         if (Boolean.FALSE.equals(metrics.getVlssSuccess()) && sourceResponse != null) {
-            metrics.setVlssErrorDetails(sourceResponse.getErrorMessage());
+            String errorDetails = extractVlssErrorDetails(sourceResponse);
+            metrics.setVlssErrorDetails(errorDetails);
         }
 
         // Perform comparison analysis when VLSS succeeds (regardless of Frisco status)
@@ -383,6 +390,36 @@ public class ComparisonService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * Extracts VLSS error details from the source response.
+     * Prioritizes structured errors from svcError, falls back to errorMessage.
+     * 
+     * @param sourceResponse The source response containing error information
+     * @return Formatted error details string, or null if no errors found
+     */
+    private String extractVlssErrorDetails(SourceResponse sourceResponse) {
+        if (sourceResponse == null) {
+            return null;
+        }
+
+        // First try to extract structured errors from svcError
+        if (sourceResponse.getSvcError() != null && sourceResponse.getSvcError().getErrors() != null) {
+            StringBuilder errorDetails = new StringBuilder();
+            for (VlssError error : sourceResponse.getSvcError().getErrors()) {
+                if (errorDetails.length() > 0) {
+                    errorDetails.append("; ");
+                }
+                errorDetails.append("Code ").append(error.getCode())
+                          .append(": ").append(error.getMessage())
+                          .append(" (").append(error.getDescription()).append(")");
+            }
+            return errorDetails.toString();
+        }
+
+        // Fall back to basic error message if no structured errors
+        return sourceResponse.getErrorMessage();
     }
 
     private void setLocationType(ComparisonMetrics metrics, ComparisonScenario scenario,

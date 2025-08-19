@@ -122,9 +122,9 @@ class ComparisonServiceTest {
     }
 
     @Test
-    void compareResults_VlssSuccessFriscoError_NoApFound() {
-        // Given - Frisco reports "No known access points found in database"
-        SourceResponse sourceResponse = createSourceResponse(37.7749, -122.4194, 30.0, 0.8);
+    void compareResults_VlssSuccessFriscoError_NoApFound_CellFallback() {
+        // Given - Frisco reports "No known access points found in database" and VLSS accuracy >= 250m (cell fallback)
+        SourceResponse sourceResponse = createSourceResponse(37.7749, -122.4194, 350.0, 0.6); // Cell accuracy >= 250m
         Object positioningResponse = createFriscoErrorResponse("No known access points found in database");
 
         // When
@@ -137,6 +137,24 @@ class ComparisonServiceTest {
         assertEquals(Boolean.FALSE, result.getFriscoSuccess());
         // For VLSS_CELL_FALLBACK_DETECTED scenario, location type is set to CELL
         assertEquals("CELL", result.getLocationType().toString());
+    }
+
+    @Test
+    void compareResults_VlssSuccessFriscoError_NoApFound_WifiPositioning() {
+        // Given - Frisco reports "No known access points found in database" but VLSS accuracy < 250m (WiFi positioning)
+        SourceResponse sourceResponse = createSourceResponse(37.7749, -122.4194, 30.0, 0.8); // WiFi accuracy < 250m
+        Object positioningResponse = createFriscoErrorResponse("No known access points found in database");
+
+        // When
+        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, 
+                List.of(createWifiInfo("00:11:22:33:44:55")), List.of());
+
+        // Then - should NOT be VLSS_CELL_FALLBACK_DETECTED since VLSS accuracy < 250m
+        assertEquals(ComparisonScenario.VLSS_SUCCESS_FRISCO_ERROR, result.getScenario());
+        assertEquals(Boolean.TRUE, result.getVlssSuccess());
+        assertEquals(Boolean.FALSE, result.getFriscoSuccess());
+        // For WiFi positioning, location type should be WIFI
+        assertEquals("WIFI", result.getLocationType().toString());
     }
 
     @Test

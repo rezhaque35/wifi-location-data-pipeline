@@ -96,7 +96,42 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-TEST_DATA_DIR="scripts/test/data"
+# Find the test data directory relative to this script
+find_test_data_dir() {
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local project_root="$(cd "$script_dir/../.." && pwd)"
+    
+    # Try multiple possible locations
+    local possible_paths=(
+        "$script_dir/data"                    # From scripts/test directory
+        "$project_root/scripts/test/data"      # From project root
+        "./scripts/test/data"                  # From current directory
+        "../scripts/test/data"                 # From parent directory
+        "../../scripts/test/data"              # From grandparent directory
+    )
+    
+    for path in "${possible_paths[@]}"; do
+        if [ -d "$path" ]; then
+            # Check if there are any JSON files in the directory
+            if ls "$path"/*.json >/dev/null 2>&1; then
+                echo "$path"
+                return 0
+            fi
+        fi
+    done
+    
+    return 1
+}
+
+# Find and validate test data directory
+TEST_DATA_DIR=$(find_test_data_dir)
+if [ -z "$TEST_DATA_DIR" ]; then
+    echo -e "${RED}✗ Could not find test data directory${NC}"
+    echo "Please ensure you're running this script from the project root or scripts/test directory"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Using test data directory: $TEST_DATA_DIR${NC}"
 
 if [ $# -eq 0 ]; then
     echo -e "${YELLOW}Usage: $0 [OPTIONS] <test-case-name>${NC}"
@@ -156,7 +191,7 @@ echo -e "${YELLOW}Executing test...${NC}"
 RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
     -H "Content-Type: application/json" \
     -d @"$TEMP_FILE" \
-    "${INTEGRATION_SERVICE_URL}/api/integration/report")
+    "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
 
 # Clean up temp file
 rm "$TEMP_FILE"

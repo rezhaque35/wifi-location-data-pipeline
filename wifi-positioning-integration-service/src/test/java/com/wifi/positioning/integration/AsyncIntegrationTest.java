@@ -39,7 +39,7 @@ class AsyncIntegrationTest {
     void shouldProcessAsyncRequestSuccessfully() {
         // Given
         IntegrationReportRequest request = createAsyncIntegrationRequest();
-        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/api/integration/report";
+        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/vi/wifi/position/report";
 
         // When
         ResponseEntity<IntegrationReportResponse> response = restTemplate.postForEntity(
@@ -62,7 +62,7 @@ class AsyncIntegrationTest {
         // Given
         String correlationId = "test-async-correlation-123";
         IntegrationReportRequest request = createAsyncIntegrationRequestWithCorrelationId(correlationId);
-        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/api/integration/report";
+        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/vi/wifi/position/report";
 
         // When
         ResponseEntity<IntegrationReportResponse> response = restTemplate.postForEntity(
@@ -81,7 +81,7 @@ class AsyncIntegrationTest {
         
         try {
             IntegrationReportRequest request = createAsyncIntegrationRequest();
-            String url = "http://localhost:" + port + "/wifi-positioning-integration-service/api/integration/report";
+            String url = "http://localhost:" + port + "/wifi-positioning-integration-service/vi/wifi/position/report";
 
             // When
             ResponseEntity<IntegrationReportResponse> response = restTemplate.postForEntity(
@@ -102,7 +102,7 @@ class AsyncIntegrationTest {
     void shouldHandleSyncRequestNormally() {
         // Given
         IntegrationReportRequest request = createSyncIntegrationRequest();
-        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/api/integration/report";
+        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/vi/wifi/position/report";
 
         // When
         ResponseEntity<IntegrationReportResponse> response = restTemplate.postForEntity(
@@ -120,7 +120,7 @@ class AsyncIntegrationTest {
         // Given
         IntegrationReportRequest invalidRequest = new IntegrationReportRequest();
         // Missing required fields
-        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/api/integration/report";
+        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/vi/wifi/position/report";
 
         // When
         ResponseEntity<String> response = restTemplate.postForEntity(
@@ -133,7 +133,7 @@ class AsyncIntegrationTest {
     @Test
     void shouldHandleMultipleConcurrentAsyncRequests() {
         // Given
-        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/api/integration/report";
+        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/vi/wifi/position/report";
         int requestCount = 5;
 
         // When - Submit multiple async requests concurrently
@@ -161,7 +161,7 @@ class AsyncIntegrationTest {
     void shouldProcessAsyncRequestWithComplexWifiData() {
         // Given
         IntegrationReportRequest request = createAsyncIntegrationRequestWithWifiData();
-        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/api/integration/report";
+        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/vi/wifi/position/report";
 
         // When
         ResponseEntity<IntegrationReportResponse> response = restTemplate.postForEntity(
@@ -176,7 +176,7 @@ class AsyncIntegrationTest {
     void shouldUseCorrectContentTypeHeaders() {
         // Given
         IntegrationReportRequest request = createAsyncIntegrationRequest();
-        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/api/integration/report";
+        String url = "http://localhost:" + port + "/wifi-positioning-integration-service/vi/wifi/position/report";
         
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
