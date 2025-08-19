@@ -261,7 +261,7 @@ send_async_request() {
     local response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
         -H "Content-Type: application/json" \
         -d @"$temp_file" \
-        "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
+        "${INTEGRATION_SERVICE_URL}/v1/wifi/position/report")
     local end_time=$(date +%s.%N)
     
     # Clean up temp file
@@ -299,7 +299,7 @@ send_sync_request() {
     local response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
         -H "Content-Type: application/json" \
         -d @"$temp_file" \
-        "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
+        "${INTEGRATION_SERVICE_URL}/v1/wifi/position/report")
     local end_time=$(date +%s.%N)
     
     # Clean up temp file
@@ -625,7 +625,7 @@ run_async_vs_sync_comparison() {
     local sync_response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
         -H "Content-Type: application/json" \
         -d @"$sync_temp_file" \
-        "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
+        "${INTEGRATION_SERVICE_URL}/v1/wifi/position/report")
     local sync_end=$(date +%s.%N)
     
     local sync_http_code=$(echo $sync_response | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
@@ -659,7 +659,7 @@ run_async_vs_sync_comparison() {
     local async_response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
         -H "Content-Type: application/json" \
         -d @"$async_temp_file" \
-        "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
+        "${INTEGRATION_SERVICE_URL}/v1/wifi/position/report")
     local async_end=$(date +%s.%N)
     
     local async_http_code=$(echo $async_response | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
@@ -722,7 +722,7 @@ run_async_job_lifecycle_test() {
     local async_response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
         -H "Content-Type: application/json" \
         -d @"$async_temp_file" \
-        "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
+        "${INTEGRATION_SERVICE_URL}/v1/wifi/position/report")
     
     # Clean up temp file
     rm "$async_temp_file"
