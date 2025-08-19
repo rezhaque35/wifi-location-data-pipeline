@@ -191,7 +191,7 @@ echo -e "${YELLOW}Executing test...${NC}"
 RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
     -H "Content-Type: application/json" \
     -d @"$TEMP_FILE" \
-    "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
+    "${INTEGRATION_SERVICE_URL}/v1/wifi/position/report")
 
 # Clean up temp file
 rm "$TEMP_FILE"

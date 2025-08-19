@@ -44,7 +44,7 @@
 - [x] Unit tests mocking positioning service response to cover found/notFound/status eligibility scenarios
 
 #### Milestone 5: REST Controller ✅ COMPLETED
-- [x] Add `IntegrationReportController` at `POST /vi/wifi/position/report`.
+- [x] Add `IntegrationReportController` at `POST /v1/wifi/position/report`.
 - [x] Support `sync` and `async` via `options.processingMode` (default `sync`).
 - [x] In `sync`:
   - Validate, map, invoke positioning, compute comparison, log structured event, return full response.

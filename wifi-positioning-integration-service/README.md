@@ -70,7 +70,7 @@ curl http://localhost:8083/wifi-positioning-integration-service/health
 ### 4. Test Basic Functionality
 
 ```bash
-curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/position/report \
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/v1/wifi/position/report \
   -H "Content-Type: application/json" \
   -d '{
     "sourceRequest": {
@@ -218,7 +218,7 @@ curl -s http://localhost:8083/wifi-positioning-integration-service/actuator/metr
 
 #### **3. Single AP Proximity Test**
 ```bash
-curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/position/report \
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/v1/wifi/position/report \
   -H "Content-Type: application/json" \
   -H "X-Correlation-ID: test-single-ap-001" \
   -d '{
@@ -260,7 +260,7 @@ curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/
 
 #### **4. Dual AP RSSI Ratio Test**
 ```bash
-curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/position/report \
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/v1/wifi/position/report \
   -H "Content-Type: application/json" \
   -H "X-Correlation-ID: test-dual-ap-002" \
   -d '{
@@ -308,7 +308,7 @@ curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/
 
 #### **5. Trilateration Test (3+ APs)**
 ```bash
-curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/position/report \
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/v1/wifi/position/report \
   -H "Content-Type: application/json" \
   -H "X-Correlation-ID: test-trilateration-003" \
   -d '{
@@ -362,7 +362,7 @@ curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/
 
 #### **6. High-Density Cluster Test**
 ```bash
-curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/position/report \
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/v1/wifi/position/report \
   -H "Content-Type: application/json" \
   -H "X-Correlation-ID: test-cluster-004" \
   -d '{
@@ -423,7 +423,7 @@ curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/
 
 #### **7. Async Processing Test**
 ```bash
-curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/position/report \
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/v1/wifi/position/report \
   -H "Content-Type: application/json" \
   -H "X-Correlation-ID: test-async-005" \
   -d '{
@@ -454,7 +454,7 @@ curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/
 
 #### **8. Error Handling Test (Invalid Request)**
 ```bash
-curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/position/report \
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/v1/wifi/position/report \
   -H "Content-Type: application/json" \
   -H "X-Correlation-ID: test-error-006" \
   -d '{
@@ -518,7 +518,7 @@ echo "Performance test completed"
 #### **11. Response Analysis with jq**
 ```bash
 # Extract specific fields from response
-curl -s -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/position/report \
+curl -s -X POST http://localhost:8083/wifi-positioning-integration-service/v1/wifi/position/report \
   -H "Content-Type: application/json" \
   -d @scripts/test/data/single-ap-proximity.json | \
   jq '{
@@ -540,7 +540,7 @@ curl -s -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wi
 
 SERVICE_URL="http://localhost:8083/wifi-positioning-integration-service"
 HEALTH_ENDPOINT="$SERVICE_URL/health"
-INTEGRATION_ENDPOINT="$SERVICE_URL/vi/wifi/position/report"
+INTEGRATION_ENDPOINT="$SERVICE_URL/v1/wifi/position/report"
 
 echo "🔍 WiFi Positioning Integration Service Health Monitor"
 echo "=================================================="
@@ -670,7 +670,7 @@ echo "Health check completed at $(date)"
   "details": {
     "sourceRequest.svcBody.svcReq.wifiInfo": "WiFi info must contain at least one access point"
   },
-  "path": "/vi/wifi/position/report"
+  "path": "/v1/wifi/position/report"
 }
 ```
 
@@ -750,7 +750,7 @@ cd ../wifi-positioning-integration-service
 
 ### Endpoint
 
-**`POST /vi/wifi/position/report`**
+**`POST /v1/wifi/position/report`**
 
 ### Request Format
 
@@ -1156,7 +1156,7 @@ mvn test
 
 ```bash
 # Test with sample data
-curl -X POST http://localhost:8083/wifi-positioning-integration-service/vi/wifi/position/report \
+curl -X POST http://localhost:8083/wifi-positioning-integration-service/v1/wifi/position/report \
   -H "Content-Type: application/json" \
   -d @scripts/test/data/single-ap-proximity.json
 ```

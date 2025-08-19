@@ -55,7 +55,7 @@ class IntegrationTest {
         when(positioningServiceClient.invoke(any())).thenReturn(mockResult);
 
         // When & Then
-        mockMvc.perform(post("/vi/wifi/position/report")
+        mockMvc.perform(post("/v1/wifi/position/report")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestJson))
                 .andExpect(status().isOk())
@@ -75,7 +75,7 @@ class IntegrationTest {
         String requestJson = objectMapper.writeValueAsString(request);
 
         // When & Then
-        mockMvc.perform(post("/vi/wifi/position/report")
+        mockMvc.perform(post("/v1/wifi/position/report")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestJson))
                 .andExpect(status().isBadRequest())
@@ -95,7 +95,7 @@ class IntegrationTest {
         when(positioningServiceClient.invoke(any())).thenReturn(mockResult);
 
         // When & Then
-        mockMvc.perform(post("/vi/wifi/position/report")
+        mockMvc.perform(post("/v1/wifi/position/report")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestJson))
                 .andExpect(status().isOk())

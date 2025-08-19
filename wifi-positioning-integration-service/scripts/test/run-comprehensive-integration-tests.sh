@@ -366,7 +366,7 @@ run_test() {
     local response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
         -H "Content-Type: application/json" \
         -d @"$temp_file" \
-        "${INTEGRATION_SERVICE_URL}/vi/wifi/position/report")
+        "${INTEGRATION_SERVICE_URL}/v1/wifi/position/report")
     local end_time=$(date +%s.%N)
     
     # Clean up temp file
