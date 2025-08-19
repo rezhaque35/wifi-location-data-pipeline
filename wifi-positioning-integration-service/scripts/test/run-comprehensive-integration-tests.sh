@@ -48,6 +48,7 @@ set -e  # Exit immediately if any command fails
 DEFAULT_HOST="localhost"
 DEFAULT_PORT="8083"
 USE_HTTPS=false
+PORT_EXPLICITLY_SET=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -59,10 +60,12 @@ while [[ $# -gt 0 ]]; do
                     HOST_PORT="$2"
                     HOST="${HOST_PORT%:*}"
                     PORT="${HOST_PORT#*:}"
+                    PORT_EXPLICITLY_SET=true
                 else
                     HOST="$2"
                     # Don't set a default port when only host is provided
                     PORT=""
+                    PORT_EXPLICITLY_SET=false
                 fi
                 shift 2
             else
@@ -103,7 +106,7 @@ done
 # Set default values if not specified
 HOST="${HOST:-$DEFAULT_HOST}"
 # Only set default port if no port was explicitly provided
-if [ -z "$PORT" ]; then
+if [ -z "$PORT" ] && [ "$PORT_EXPLICITLY_SET" = false ]; then
     PORT="$DEFAULT_PORT"
 fi
 
