@@ -31,6 +31,7 @@ set -e  # Exit immediately if any command fails
 DEFAULT_HOST="localhost"
 DEFAULT_PORT="8083"
 USE_HTTPS=false
+PORT_EXPLICITLY_SET=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -41,9 +42,12 @@ while [[ $# -gt 0 ]]; do
                     HOST_PORT="$2"
                     HOST="${HOST_PORT%:*}"
                     PORT="${HOST_PORT#*:}"
+                    PORT_EXPLICITLY_SET=true
                 else
                     HOST="$2"
-                    PORT="$DEFAULT_PORT"
+                    # Don't set a default port when only host is provided
+                    PORT=""
+                    PORT_EXPLICITLY_SET=true
                 fi
                 shift 2
             else
@@ -74,7 +78,10 @@ done
 
 # Set default values if not specified
 HOST="${HOST:-$DEFAULT_HOST}"
-PORT="${PORT:-$DEFAULT_PORT}"
+# Only set default port if no port was explicitly provided
+if [ -z "$PORT" ] && [ "$PORT_EXPLICITLY_SET" = false ]; then
+    PORT="$DEFAULT_PORT"
+fi
 
 # Build service URL based on configuration
 if [ "$USE_HTTPS" = true ]; then
@@ -83,7 +90,12 @@ else
     PROTOCOL="http"
 fi
 
-INTEGRATION_SERVICE_URL="${PROTOCOL}://${HOST}:${PORT}/wifi-positioning-integration-service"
+# Construct service URL with or without port
+if [ -n "$PORT" ]; then
+    INTEGRATION_SERVICE_URL="${PROTOCOL}://${HOST}:${PORT}/wifi-positioning-integration-service"
+else
+    INTEGRATION_SERVICE_URL="${PROTOCOL}://${HOST}/wifi-positioning-integration-service"
+fi
 
 # Color codes for terminal output formatting
 GREEN='\033[0;32m'    # Success messages
@@ -142,7 +154,11 @@ echo -e "${BLUE}================================================================
 echo ""
 echo -e "${YELLOW}Configuration:${NC}"
 echo "  Host: $HOST"
-echo "  Port: $PORT"
+if [ -n "$PORT" ]; then
+    echo "  Port: $PORT"
+else
+    echo "  Port: None (using standard HTTP/HTTPS ports)"
+fi
 echo "  Protocol: $PROTOCOL"
 echo "  Service URL: $INTEGRATION_SERVICE_URL"
 echo ""
