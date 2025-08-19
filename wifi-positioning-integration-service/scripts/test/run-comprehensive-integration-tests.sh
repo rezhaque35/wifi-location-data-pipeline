@@ -65,7 +65,7 @@ while [[ $# -gt 0 ]]; do
                     HOST="$2"
                     # Don't set a default port when only host is provided
                     PORT=""
-                    PORT_EXPLICITLY_SET=false
+                    PORT_EXPLICITLY_SET=true
                 fi
                 shift 2
             else
@@ -92,7 +92,7 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 --host staging:9090                # Use staging host on port 9090"
             echo ""
             echo "Note: When only host is specified without port, the script will use"
-            echo "      standard HTTP/HTTPS ports (80/443) instead of the default port 8083."
+            echo "      just the host without any port (standard HTTP/HTTPS ports 80/443)."
             exit 0
             ;;
         *)
@@ -109,6 +109,8 @@ HOST="${HOST:-$DEFAULT_HOST}"
 if [ -z "$PORT" ] && [ "$PORT_EXPLICITLY_SET" = false ]; then
     PORT="$DEFAULT_PORT"
 fi
+
+
 
 # Build service URL based on configuration
 if [ "$USE_HTTPS" = true ]; then
@@ -184,7 +186,7 @@ echo "  Host: $HOST"
 if [ -n "$PORT" ]; then
     echo "  Port: $PORT"
 else
-    echo "  Port: None (using default HTTP/HTTPS ports)"
+    echo "  Port: None (using standard HTTP/HTTPS ports)"
 fi
 echo "  Protocol: $PROTOCOL"
 echo "  Service URL: $INTEGRATION_SERVICE_URL"
