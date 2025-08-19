@@ -261,7 +261,33 @@ Response (async mode):
   - Signal strength distribution (min/max/avg)
   - Number of cell towers (if present)
 
-#### 5.2) Structured Logging Schema
+#### 5.2) Agreement Analysis and Service Performance Comparison
+Based on the requirements from `wifi-comparison-requirements.md`, the service implements comprehensive agreement analysis between VLSS and Frisco positioning results:
+
+**Agreement Analysis Categories**:
+- **PERFECT AGREEMENT**: When distance = 0m between VLSS and Frisco positions
+- **GOOD AGREEMENT**: When distance < expected uncertainty (√(VLSS_accuracy² + Frisco_accuracy²))
+- **WIFI VS CELL DISAGREEMENT**: When VLSS accuracy ≥ 250m (indicating cell tower usage)
+- **FRISCO WITHIN BOUNDS**: When distance/accuracy ratio ≤ 1.0
+- **FRISCO MODERATELY OVERCONFIDENT**: When ratio > 1.0 and ≤ 1.5
+- **FRISCO OVERCONFIDENT**: When ratio > 1.5 and ≤ 2.5
+- **FRISCO EXTREMELY OVERCONFIDENT**: When ratio > 2.5
+- **NO WIFI COVERAGE**: When Frisco reports "no AP found" errors
+- **FRISCO FAILURE**: When Frisco has other errors (not AP-related)
+
+**Service Performance Metrics**:
+- **Frisco Response Time**: Measured internally (HTTP call latency)
+- **Frisco Calculation Time**: Extracted from Frisco response (`calculationTimeMs`)
+- **VLSS vs Frisco Distance Analysis**: Haversine distance calculation
+- **Expected Uncertainty**: Statistical combination of both service accuracies
+- **Confidence Ratio**: Distance/Frisco accuracy ratio for overconfidence detection
+
+**Positioning Method Detection**:
+- **WIFI**: When VLSS accuracy < 250m (WiFi-based positioning)
+- **CELL**: When VLSS accuracy ≥ 250m (cell tower fallback)
+- **DYNAMIC**: Determined based on VLSS accuracy thresholds
+
+#### 5.3) Structured Logging Schema
 Each comparison event must produce a comprehensive structured log entry containing:
 
 - **Request Context**:
@@ -290,6 +316,13 @@ Each comparison event must produce a comprehensive structured log entry containi
   - AP summary statistics (total, used, status counts)
   - Algorithm selection details and reasoning
   - Selection context (signal quality, geometric quality, etc.)
+
+- **Agreement Analysis and Service Performance**:
+  - Agreement analysis category (PERFECT AGREEMENT, GOOD AGREEMENT, etc.)
+  - Confidence ratio for overconfidence detection
+  - Expected uncertainty calculation
+  - Frisco response time and calculation time metrics
+  - Distance analysis and positioning method detection
 
 - **Diagnostic Information**:
   - Data transformation notes (frequency defaults used, APs dropped, etc.)
@@ -345,8 +378,45 @@ Since both VLSS and Frisco use the same AP location database, result combination
 - **VLSS Error + Frisco Success**: Unexpected scenario (same AP database)
   - Log: "VLSS_ERROR_FRISCO_SUCCESS" 
   - Analysis: Possible VLSS service issue or different filtering logic
+
+- **VLSS Success + Frisco Non-AP Error**: VLSS succeeded but Frisco failed for other reasons
+  - Log: "VLSS_SUCCESS_FRISCO_ERROR"
+  - Analysis: Service timeouts, calculation errors, or other non-AP failures
+  - Agreement Analysis: "FRISCO FAILURE" if VLSS accuracy < 250m, "NO WIFI COVERAGE" if ≥ 250m
+
+- **VLSS Not Provided**: Only Frisco positioning available
+  - Log: "FRISCO_ONLY_ANALYSIS"
+  - Analysis: Single service evaluation when VLSS response unavailable
   
 All scenarios logged with full request/response details, AP counts, cell tower presence, and categorized for positioning method analysis.
+
+#### 8.2) Agreement Analysis Implementation
+The service implements comprehensive agreement analysis as specified in the requirements:
+
+**When Both Services Report Location**:
+- **Location Type**: WIFI
+- **Distance**: Haversine distance between VLSS and Frisco positions
+- **Agreement Analysis**:
+  - If Distance = 0: "PERFECT AGREEMENT"
+  - If VLSS accuracy ≥ 250m: "WIFI VS CELL DISAGREEMENT"
+  - If Distance < Expected uncertainty: "GOOD AGREEMENT"
+  - If Distance > Expected uncertainty: Calculate Frisco confidence ratio
+    - Ratio ≤ 1.0: "FRISCO WITHIN BOUNDS"
+    - Ratio 1.0-1.5: "FRISCO MODERATELY OVERCONFIDENT"
+    - Ratio 1.5-2.5: "FRISCO OVERCONFIDENT"
+    - Ratio > 2.5: "FRISCO EXTREMELY OVERCONFIDENT"
+
+**When VLSS Reports but Frisco Reports "No AP Found" Error**:
+- **Location Type**: CELL (determined by VLSS accuracy)
+- **Agreement Analysis**: "NO WIFI COVERAGE"
+
+**When VLSS Reports but Frisco Has Other Errors**:
+- **Location Type**: WIFI if VLSS accuracy < 250m, CELL if ≥ 250m
+- **Agreement Analysis**: "FRISCO FAILURE" if WIFI, "NO WIFI COVERAGE" if CELL
+
+**Expected Uncertainty Calculation**:
+- Formula: √(VLSS_accuracy² + Frisco_accuracy²)
+- Used to determine if positions are within statistical agreement bounds
 
 #### 9) Configuration keys (proposed)
 ```yaml
@@ -404,7 +474,29 @@ management:
 - Use same actuator exposure, swagger paths, logging levels, and port conventions as other services.
 - Maintain consistent package naming under `com.wifi.positioning`.
 
-#### 11) Async Processing Health Monitoring
+#### 11) Structured Logging Implementation
+The service implements comprehensive structured logging for Splunk dashboard analysis:
+
+**Core Integration Logs**:
+- **INTEGRATION_COMPARISON_EVENT**: Summary log with correlation ID, scenario, and processing time
+- **INPUT_DATA_QUALITY**: Request analysis including AP count and selection context
+- **AP_DATA_QUALITY**: Access point processing results and quality factors
+- **FRISCO_PERFORMANCE**: Service performance metrics and error details
+- **VLSS_FRISCO_COMPARISON**: Detailed comparison metrics and agreement analysis
+- **CELL_TOWER_FALLBACK_DETECTED**: Cell tower usage detection and reasoning
+
+**Logging Levels**:
+- **INFO**: Core comparison events and metrics for Splunk dashboard
+- **DEBUG**: Detailed payloads and calculation information (configurable)
+- **WARN**: Service degradation or unusual scenarios
+- **ERROR**: Processing failures or service errors
+
+**Correlation and Tracking**:
+- All logs include `correlationId` and `requestId` for request tracing
+- Timestamps in ISO 8601 format for time-based analysis
+- Structured JSON format for easy Splunk parsing and dashboard creation
+
+#### 12) Async Processing Health Monitoring
 
 The service includes comprehensive health monitoring for asynchronous processing that:
 - **Does NOT affect overall service health** - async metrics are isolated from the main health endpoint

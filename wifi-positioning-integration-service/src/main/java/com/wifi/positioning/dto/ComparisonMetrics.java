@@ -3,233 +3,160 @@ package com.wifi.positioning.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
-
 import java.util.List;
 import java.util.Map;
 
 /**
- * Comprehensive metrics comparing VLSS source response with Frisco positioning service results.
- * Enhanced to support cross-service analysis and cell tower fallback detection.
+ * Streamlined metrics for VLSS vs Frisco service comparison based on requirements.
+ * Focuses only on the 5 core requirements for Splunk dashboard.
  */
 @Data
 public class ComparisonMetrics {
     
-    // === Cross-Service Analysis ===
+    // === Core Cross-Service Analysis ===
     
-    /**
-     * Classification of the comparison scenario (e.g., BOTH_WIFI_SUCCESS, VLSS_CELL_FALLBACK_DETECTED)
-     */
     @JsonProperty("scenario")
     private ComparisonScenario scenario;
     
-    /**
-     * Detected positioning method based on scenario analysis
-     */
     @JsonProperty("positioningMethod")
     private PositioningMethod positioningMethod;
     
-    /**
-     * Whether VLSS service succeeded
-     */
+    @JsonProperty("locationType")
+    private ComparisonScenario.LocationType locationType;
+    
     @JsonProperty("vlssSuccess")
     private Boolean vlssSuccess;
     
-    /**
-     * Whether Frisco service succeeded
-     */
     @JsonProperty("friscoSuccess")
     private Boolean friscoSuccess;
     
-    // === Position Comparison (when both services succeed) ===
+    // === 1. Input Data Quality ===
     
     /**
-     * Haversine distance between the two positions in meters
-     * (null if either position is missing)
-     */
-    @JsonProperty("haversineDistanceMeters")
-    private Double haversineDistanceMeters;
-    
-    /**
-     * Latitude difference (Frisco - VLSS) in decimal degrees
-     */
-    @JsonProperty("latitudeDelta")
-    private Double latitudeDelta;
-    
-    /**
-     * Longitude difference (Frisco - VLSS) in decimal degrees
-     */
-    @JsonProperty("longitudeDelta")
-    private Double longitudeDelta;
-    
-    /**
-     * Altitude difference (Frisco - VLSS) in meters (if available)
-     */
-    @JsonProperty("altitudeDelta")
-    private Double altitudeDelta;
-    
-    /**
-     * Difference in accuracy estimates (Frisco - VLSS)
-     * Positive means Frisco reported higher accuracy
-     */
-    @JsonProperty("accuracyDelta")
-    private Double accuracyDelta;
-    
-    /**
-     * Difference in confidence values (Frisco - VLSS)
-     * Positive means Frisco reported higher confidence
-     */
-    @JsonProperty("confidenceDelta")
-    private Double confidenceDelta;
-    
-    /**
-     * Whether both services produced valid positions for comparison
-     */
-    @JsonProperty("positionsComparable")
-    private Boolean positionsComparable;
-    
-    // === Method Analysis ===
-    
-    /**
-     * Positioning methods used by the Frisco service
-     */
-    @JsonProperty("friscoMethodsUsed")
-    private List<String> friscoMethodsUsed;
-    
-    /**
-     * VLSS positioning method used (if indicated in response)
-     */
-    @JsonProperty("vlssMethodUsed")
-    private String vlssMethodUsed;
-    
-    /**
-     * Comparison of methods used by both services
-     */
-    @JsonProperty("methodComparison")
-    private String methodComparison;
-    
-    // === Access Point Analysis ===
-    
-    /**
-     * Number of access points used by Frisco in positioning calculation
-     */
-    @JsonProperty("friscoApCount")
-    private Integer friscoApCount;
-    
-    /**
-     * Number of WiFi APs in the original request
+     * Number of APs in original request
      */
     @JsonProperty("requestApCount")
     private Integer requestApCount;
     
     /**
-     * Number of cell towers in the original request (if any)
+     * Selection context from Frisco calculationInfo
      */
-    @JsonProperty("requestCellCount")
-    private Integer requestCellCount;
+    @JsonProperty("selectionContextInfo")
+    private Map<String, Object> selectionContextInfo;
+    
+    // === 2. AP Data Quality ===
     
     /**
-     * Access point enrichment metrics from Frisco service response
+     * Access points details from Frisco calculationInfo
      */
-    @JsonProperty("accessPointEnrichment")
-    private AccessPointEnrichmentMetrics accessPointEnrichment;
-    
-    // === Performance Metrics ===
+    @JsonProperty("calculationAccessPoints")
+    private List<Map<String, Object>> calculationAccessPoints;
     
     /**
-     * Frisco service response time (wall time) in milliseconds
+     * Access point summary from Frisco calculationInfo
+     */
+    @JsonProperty("calculationAccessPointSummary")
+    private Map<String, Object> calculationAccessPointSummary;
+    
+    /**
+     * Status ratio: used count / total count
+     */
+    @JsonProperty("statusRatio")
+    private Double statusRatio;
+    
+    /**
+     * Quality factors from Frisco selectionContext
+     */
+    @JsonProperty("geometricQualityFactor")
+    private String geometricQualityFactor;
+    
+    @JsonProperty("signalQualityFactor")
+    private String signalQualityFactor;
+    
+    @JsonProperty("signalDistributionFactor")
+    private String signalDistributionFactor;
+    
+    // === 3. Algorithm Usage ===
+    
+    /**
+     * Algorithms used by Frisco service
+     */
+    @JsonProperty("friscoMethodsUsed")
+    private List<String> friscoMethodsUsed;
+    
+    // === 4. Frisco Service Performance ===
+    
+    @JsonProperty("friscoAccuracy")
+    private Double friscoAccuracy;
+    
+    @JsonProperty("friscoConfidence")
+    private Double friscoConfidence;
+    
+    @JsonProperty("friscoErrorDetails")
+    private String friscoErrorDetails;
+    
+    /**
+     * Frisco service response time in milliseconds
      */
     @JsonProperty("friscoResponseTimeMs")
     private Long friscoResponseTimeMs;
     
     /**
-     * Frisco internal calculation time in milliseconds
+     * Frisco calculation time in milliseconds
      */
     @JsonProperty("friscoCalculationTimeMs")
     private Long friscoCalculationTimeMs;
     
-    /**
-     * Request transformation time in milliseconds
-     */
-    @JsonProperty("transformationTimeMs")
-    private Long transformationTimeMs;
+    // === 5. VLSS vs Frisco Service Performance ===
+    
+    @JsonProperty("vlssAccuracy")
+    private Double vlssAccuracy;
+    
+    @JsonProperty("vlssConfidence")
+    private Double vlssConfidence;
     
     /**
-     * Total integration processing time in milliseconds
+     * Haversine distance between positions (when both succeed)
      */
-    @JsonProperty("totalProcessingTimeMs")
-    private Long totalProcessingTimeMs;
+    @JsonProperty("haversineDistanceMeters")
+    private Double haversineDistanceMeters;
     
     /**
-     * Performance breakdown (network vs computation time)
+     * Expected uncertainty = √(VLSS_accuracy² + Frisco_accuracy²)
      */
-    @JsonProperty("performanceBreakdown")
-    private Map<String, Long> performanceBreakdown;
-    
-    // === Data Quality Analysis ===
+    @JsonProperty("expectedUncertaintyMeters")
+    private Double expectedUncertaintyMeters;
     
     /**
-     * Signal strength statistics from original request
+     * Agreement analysis result (GOOD AGREEMENT, FRISCO WITHIN BOUNDS, etc.)
      */
-    @JsonProperty("signalStrengthStats")
-    private SignalStrengthStats signalStrengthStats;
+    @JsonProperty("agreementAnalysis")
+    private String agreementAnalysis;
     
     /**
-     * Number of APs with valid frequency data
+     * Confidence ratio = Distance / Reported_Accuracy
      */
-    @JsonProperty("validFrequencyApCount")
-    private Integer validFrequencyApCount;
+    @JsonProperty("confidenceRatio")
+    private Double confidenceRatio;
     
-    /**
-     * Whether frequency defaults were used during transformation
-     */
-    @JsonProperty("frequencyDefaultsUsed")
-    private Boolean frequencyDefaultsUsed;
+
     
-    /**
-     * Data quality flags and warnings
-     */
-    @JsonProperty("dataQualityFlags")
-    private List<String> dataQualityFlags;
+    // === Basic Service Info (for context) ===
     
-    // === Error Analysis (when services fail) ===
+    @JsonProperty("requestCellCount")
+    private Integer requestCellCount;
     
-    /**
-     * Frisco service error details (if failed)
-     */
-    @JsonProperty("friscoErrorDetails")
-    private String friscoErrorDetails;
-    
-    /**
-     * VLSS service error details (if failed)
-     */
     @JsonProperty("vlssErrorDetails")
     private String vlssErrorDetails;
     
-    /**
-     * Structured VLSS error information (if failed)
-     */
-    @JsonProperty("vlssErrors")
-    private List<VlssError> vlssErrors;
-    
-    /**
-     * Primary VLSS error code (from first error in array)
-     */
-    @JsonProperty("vlssErrorCode")
-    private Integer vlssErrorCode;
-    
-    /**
-     * Analysis of why positioning failed
-     */
-    @JsonProperty("failureAnalysis")
-    private String failureAnalysis;
-    
-    // === Legacy Fields (for backwards compatibility) ===
+    // === Legacy Fields (backwards compatibility) ===
     
     /**
      * @deprecated Use friscoMethodsUsed instead
      */
     @JsonProperty("methodsUsed")
     @Deprecated(since = "2.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
     private List<String> methodsUsed;
     
     /**
@@ -237,6 +164,7 @@ public class ComparisonMetrics {
      */
     @JsonProperty("apCount")
     @Deprecated(since = "2.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
     private Integer apCount;
     
     /**
@@ -244,28 +172,6 @@ public class ComparisonMetrics {
      */
     @JsonProperty("calculationTimeMs")
     @Deprecated(since = "2.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
     private Long calculationTimeMs;
-    
-    // === Helper Inner Class ===
-    
-    /**
-     * Signal strength statistics for data quality analysis
-     */
-    @Data
-    public static class SignalStrengthStats {
-        @JsonProperty("minSignalStrength")
-        private Double minSignalStrength;
-        
-        @JsonProperty("maxSignalStrength")
-        private Double maxSignalStrength;
-        
-        @JsonProperty("avgSignalStrength")
-        private Double avgSignalStrength;
-        
-        @JsonProperty("signalRange")
-        private Double signalRange;
-        
-        @JsonProperty("weakSignalCount")
-        private Integer weakSignalCount; // Count of signals < -80 dBm
-    }
 }

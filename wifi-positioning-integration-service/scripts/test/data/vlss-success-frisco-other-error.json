@@ -1,0 +1,43 @@
+{
+  "sourceRequest": {
+    "svcHeader": {
+      "authToken": "test-token-vlss-success-frisco-other-error"
+    },
+    "svcBody": {
+      "svcReq": {
+        "clientId": "vlss-success-frisco-other-error-test-client",
+        "requestId": "vlss-success-frisco-other-error-test-$(date +%s)",
+        "wifiInfo": [
+          {
+            "id": "DD:DD:DD:DD:DD:01",
+            "signalStrength": -60.0,
+            "frequency": 2437,
+            "ssid": "Unknown_AP_4"
+          }
+        ],
+        "cellInfo": []
+      }
+    }
+  },
+  "sourceResponse": {
+    "success": true,
+    "locationInfo": {
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "accuracy": 35.0,
+      "confidence": 0.80
+    },
+    "requestId": "vlss-success-frisco-other-error-client-response"
+  },
+  "options": {
+    "calculationDetail": true,
+    "processingMode": "sync"
+  },
+  "metadata": {
+    "correlationId": "vlss-success-frisco-other-error-test-$(date +%s)",
+    "testCase": "vlss-success-frisco-other-error",
+    "description": "VLSS success with accuracy < 250, Frisco has different error (not no AP found)",
+    "expectedOutcome": "VLSS_SUCCESS_FRISCO_ERROR scenario with FRISCO FAILURE agreement analysis",
+    "note": "This test case simulates a different Frisco error by using a MAC address that might trigger a different error type"
+  }
+}

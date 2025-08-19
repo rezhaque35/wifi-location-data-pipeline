@@ -228,7 +228,7 @@ send_async_request() {
     
     # Add correlation ID and set async processing mode in the request body
     jq --arg cid "$correlation_id" \
-       '.sourceRequest.svcBody.svcReq.correlationId = $cid | .options.processingMode = "async"' \
+       '.metadata.correlationId = $cid | .options.processingMode = "async"' \
        "$temp_file" > "${temp_file}.tmp"
     mv "${temp_file}.tmp" "$temp_file"
     
@@ -266,7 +266,7 @@ send_sync_request() {
     
     # Add correlation ID and set sync processing mode in the request body
     jq --arg cid "$correlation_id" \
-       '.sourceRequest.svcBody.svcReq.correlationId = $cid | .options.processingMode = "sync"' \
+       '.metadata.correlationId = $cid | .options.processingMode = "sync"' \
        "$temp_file" > "${temp_file}.tmp"
     mv "${temp_file}.tmp" "$temp_file"
     
@@ -333,7 +333,8 @@ verify_sync_response() {
     # Sync requests should return 200 OK with final results
     if [ "$http_code" -eq 200 ]; then
         # Check if response contains final results (not job references)
-        local has_results=$(echo "$response_body" | jq -r 'has("results") or has("data") or has("accessPoints") // false')
+        # Our integration service returns: success, positioningRequest, positioningResult, comparison, totalProcessingTimeMs, etc.
+        local has_results=$(echo "$response_body" | jq -r 'has("success") or has("positioningResult") or has("comparison") // false')
         local has_job_id=$(echo "$response_body" | jq -r 'has("jobId") or has("id") // false')
         
         if [ "$has_results" = "true" ] && [ "$has_job_id" = "false" ]; then

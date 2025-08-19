@@ -1,0 +1,56 @@
+{
+  "sourceRequest": {
+    "svcHeader": {
+      "authToken": "test-token-vlss-cell"
+    },
+    "svcBody": {
+      "svcReq": {
+        "clientId": "vlss-cell-test-client",
+        "requestId": "vlss-cell-test-$(date +%s)",
+        "wifiInfo": [
+          {
+            "id": "FF:FF:FF:FF:FF:01",
+            "signalStrength": -45.0,
+            "frequency": 2437,
+            "ssid": "Unknown_AP_1"
+          },
+          {
+            "id": "FF:FF:FF:FF:FF:02", 
+            "signalStrength": -52.0,
+            "frequency": 5180,
+            "ssid": "Unknown_AP_2"
+          }
+        ],
+        "cellInfo": [
+          {
+            "mcc": "310",
+            "mnc": "260",
+            "lac": "12345",
+            "cellId": "67890",
+            "signalStrength": -85
+          }
+        ]
+      }
+    }
+  },
+  "sourceResponse": {
+    "success": true,
+    "locationInfo": {
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "accuracy": 275.0,
+      "confidence": 0.35
+    },
+    "requestId": "vlss-cell-client-response"
+  },
+  "options": {
+    "calculationDetail": true,
+    "processingMode": "sync"
+  },
+  "metadata": {
+    "correlationId": "vlss-cell-test-$(date +%s)",
+    "testCase": "vlss-cell-fallback",
+    "description": "VLSS cell fallback test using MACs not in database to trigger Frisco 'no AP found' error",
+    "expectedOutcome": "VLSS_CELL_FALLBACK_DETECTED scenario with NO WIFI COVERAGE agreement analysis"
+  }
+}

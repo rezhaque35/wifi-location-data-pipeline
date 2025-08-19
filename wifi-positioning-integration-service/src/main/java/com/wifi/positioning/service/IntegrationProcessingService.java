@@ -22,6 +22,8 @@ import java.time.Instant;
 @Slf4j
 public class IntegrationProcessingService {
 
+    private static final String ASYNC_MODE = "async";
+
     private final SampleInterfaceMapper mapper;
     private final PositioningServiceClient positioningClient;
     private final ComparisonService comparisonService;
@@ -98,18 +100,14 @@ public class IntegrationProcessingService {
     private ComparisonResult performResultsComparison(ProcessingContext context, 
             TransformationResult transformation, PositioningResult positioning) {
         
-        ComparisonService.PerformanceData performanceData = new ComparisonService.PerformanceData(
-            positioning.getResult().getLatencyMs(), 
-            transformation.getTransformationTimeMs(),
-            positioning.getResult().getResponseBody()
-        );
-        
         ComparisonMetrics comparison = comparisonService.compareResults(
             context.getRequest().getSourceResponse(), 
             positioning.getResult().getResponseBody(),
             context.getRequest().getSourceRequest().getSvcBody().getSvcReq().getWifiInfo(),
-            context.getRequest().getSourceRequest().getSvcBody().getSvcReq().getCellInfo(),
-            performanceData);
+            context.getRequest().getSourceRequest().getSvcBody().getSvcReq().getCellInfo());
+        
+        // Set the measured response time from the positioning service call
+        comparison.setFriscoResponseTimeMs(positioning.getResult().getLatencyMs());
         
         return new ComparisonResult(comparison);
     }
@@ -175,36 +173,22 @@ public class IntegrationProcessingService {
     }
 
     /**
-     * Logs comprehensive structured integration event for observability.
+     * Logs a simple summary of the integration event.
+     * Detailed metrics are logged separately in logSpecificRequirements().
      */
     private void logIntegrationEvent(ProcessingContext context, ComparisonMetrics comparison, long totalProcessingTimeMs) {
         
-        String logPrefix = "async".equals(context.getProcessingMode()) ? "ASYNC_INTEGRATION_COMPARISON_EVENT" : "INTEGRATION_COMPARISON_EVENT";
+        String logPrefix = ASYNC_MODE.equals(context.getProcessingMode()) ? "ASYNC_INTEGRATION_COMPARISON_EVENT" : "INTEGRATION_COMPARISON_EVENT";
         
-        // Enhanced structured logging with processing mode context
-        log.info("{}: " +
-                "correlationId='{}', requestId='{}', processingMode='{}', " +
-                "scenario='{}', positioningMethod='{}', " +
-                "vlssSuccess={}, friscoSuccess={}, " +
-                "positionsComparable={}, haversineDistanceMeters={}, " +
-                "requestApCount={}, friscoApCount={}, requestCellCount={}, " +
-                "friscoResponseTimeMs={}, transformationTimeMs={}, totalProcessingTimeMs={}, " +
-                "friscoMethodsUsed={}, vlssMethodUsed='{}', methodComparison='{}', " +
-                "accuracyDelta={}, confidenceDelta={}, " +
-                "dataQualityFlags={}, failureAnalysis='{}', " +
-                "friscoErrorDetails='{}', vlssErrorDetails='{}'",
+        // Simple summary log - detailed metrics are in specific requirement logs below
+        log.info("{}: correlationId='{}', requestId='{}', processingMode='{}', " +
+                "scenario='{}', totalProcessingTimeMs={}",
             logPrefix,
             context.getCorrelationId(), context.getRequestId(), context.getProcessingMode(),
-            comparison.getScenario(), comparison.getPositioningMethod(),
-            comparison.getVlssSuccess(), comparison.getFriscoSuccess(),
-            comparison.getPositionsComparable(), comparison.getHaversineDistanceMeters(),
-            comparison.getRequestApCount(), comparison.getFriscoApCount(), comparison.getRequestCellCount(),
-            comparison.getFriscoResponseTimeMs(), comparison.getTransformationTimeMs(), totalProcessingTimeMs,
-            comparison.getFriscoMethodsUsed(), comparison.getVlssMethodUsed(), comparison.getMethodComparison(),
-            comparison.getAccuracyDelta(), comparison.getConfidenceDelta(),
-            comparison.getDataQualityFlags(), comparison.getFailureAnalysis(),
-            comparison.getFriscoErrorDetails(), comparison.getVlssErrorDetails()
-        );
+            comparison.getScenario(), totalProcessingTimeMs);
+        
+        // Log detailed requirements for Splunk dashboard
+        logSpecificRequirements(context, comparison);
         
         // Additional DEBUG level logging
         if (log.isDebugEnabled()) {
@@ -217,37 +201,11 @@ public class IntegrationProcessingService {
      */
     private void logDetailedBreakdown(ProcessingContext context, ComparisonMetrics comparison) {
         
-        String logPrefix = "async".equals(context.getProcessingMode()) ? "ASYNC_" : "";
+        String logPrefix = ASYNC_MODE.equals(context.getProcessingMode()) ? "ASYNC_" : "";
         
-        // Performance breakdown
-        if (comparison.getPerformanceBreakdown() != null) {
-            log.debug("{}PERFORMANCE_BREAKDOWN: correlationId='{}', requestId='{}', breakdown={}",
-                logPrefix, context.getCorrelationId(), context.getRequestId(), comparison.getPerformanceBreakdown());
-        }
+        // Frisco calculation details - already logged in AP_DATA_QUALITY_SUCCESS above
         
-        // Signal strength analysis
-        if (comparison.getSignalStrengthStats() != null) {
-            log.debug("{}SIGNAL_STRENGTH_ANALYSIS: correlationId='{}', requestId='{}', " +
-                    "minSignal={}, maxSignal={}, avgSignal={}, range={}, weakSignalCount={}",
-                logPrefix, context.getCorrelationId(), context.getRequestId(),
-                comparison.getSignalStrengthStats().getMinSignalStrength(),
-                comparison.getSignalStrengthStats().getMaxSignalStrength(),
-                comparison.getSignalStrengthStats().getAvgSignalStrength(),
-                comparison.getSignalStrengthStats().getSignalRange(),
-                comparison.getSignalStrengthStats().getWeakSignalCount());
-        }
-        
-        // Access point enrichment details
-        if (comparison.getAccessPointEnrichment() != null) {
-            log.debug("{}ACCESS_POINT_ENRICHMENT: correlationId='{}', requestId='{}', " +
-                    "foundCount={}, usedCount={}, percentFound={}, percentUsed={}, statusCounts={}",
-                logPrefix, context.getCorrelationId(), context.getRequestId(),
-                comparison.getAccessPointEnrichment().getFoundApCount(),
-                comparison.getAccessPointEnrichment().getUsedApCount(),
-                comparison.getAccessPointEnrichment().getPercentRequestFound(),
-                comparison.getAccessPointEnrichment().getPercentFoundUsed(),
-                comparison.getAccessPointEnrichment().getFoundApStatusCounts());
-        }
+        // Selection context details - already logged in INPUT_DATA_QUALITY above
         
         // Cell tower fallback detection
         if (comparison.getScenario() == ComparisonScenario.VLSS_CELL_FALLBACK_DETECTED) {
@@ -256,6 +214,59 @@ public class IntegrationProcessingService {
                     "requestApCount={}, requestCellCount={}",
                 logPrefix, context.getCorrelationId(), context.getRequestId(),
                 comparison.getRequestApCount(), comparison.getRequestCellCount());
+        }
+        
+
+    }
+    
+    /**
+     * Logs specific requirements for Splunk dashboard analysis.
+     */
+    private void logSpecificRequirements(ProcessingContext context, ComparisonMetrics comparison) {
+        
+        String logPrefix = ASYNC_MODE.equals(context.getProcessingMode()) ? "ASYNC_" : "";
+        
+        // 1. Input data quality - print total AP count and selection context
+        log.info("{}INPUT_DATA_QUALITY: correlationId='{}', requestId='{}', " +
+                "totalApCount={}, selectionContextInfo={}",
+            logPrefix, context.getCorrelationId(), context.getRequestId(),
+            comparison.getRequestApCount(), comparison.getSelectionContextInfo());
+        
+        // 2. AP Data Quality - comprehensive metrics for all scenarios
+        log.info("{}AP_DATA_QUALITY: correlationId='{}', requestId='{}', " +
+                "requestApCount={}, friscoSuccess={}, " +
+                "calculationAccessPoints={}, accessPointSummary={}, statusRatio={}, " +
+                "geometricQualityFactor={}, signalQualityFactor={}, signalDistributionFactor={}",
+            logPrefix, context.getCorrelationId(), context.getRequestId(),
+            comparison.getRequestApCount(), comparison.getFriscoSuccess(),
+            comparison.getCalculationAccessPoints(), comparison.getCalculationAccessPointSummary(), 
+            comparison.getStatusRatio(), comparison.getGeometricQualityFactor(),
+            comparison.getSignalQualityFactor(), comparison.getSignalDistributionFactor());
+        
+        // 3. Algorithm Usage - print used algorithms
+        if (comparison.getFriscoMethodsUsed() != null && !comparison.getFriscoMethodsUsed().isEmpty()) {
+            log.info("{}ALGORITHM_USAGE: correlationId='{}', requestId='{}', usedAlgorithms={}",
+                logPrefix, context.getCorrelationId(), context.getRequestId(),
+                comparison.getFriscoMethodsUsed());
+        }
+        
+        // 4. Frisco Service Performance - unified success/failure metrics
+        log.info("{}FRISCO_PERFORMANCE: correlationId='{}', requestId='{}', " +
+                "friscoSuccess={}, friscoAccuracy={}, friscoConfidence={}, friscoErrorDetails={}, " +
+                "friscoResponseTimeMs={}, friscoCalculationTimeMs={}",
+            logPrefix, context.getCorrelationId(), context.getRequestId(),
+            comparison.getFriscoSuccess(), comparison.getFriscoAccuracy(), comparison.getFriscoConfidence(),
+            comparison.getFriscoErrorDetails(), comparison.getFriscoResponseTimeMs(), comparison.getFriscoCalculationTimeMs());
+        
+        // 5. VLSS VS Frisco Service Performance Analysis
+        if (comparison.getLocationType() != null) {
+            log.info("{}VLSS_FRISCO_COMPARISON: correlationId='{}', requestId='{}', " +
+                    "locationType='{}', distance={}, expectedUncertainty={}, agreementAnalysis='{}', " +
+                    "vlssAccuracy={}, friscoAccuracy={}, confidenceRatio={}",
+                logPrefix, context.getCorrelationId(), context.getRequestId(),
+                comparison.getLocationType(), comparison.getHaversineDistanceMeters(), 
+                comparison.getExpectedUncertaintyMeters(), comparison.getAgreementAnalysis(),
+                comparison.getVlssAccuracy(), comparison.getFriscoAccuracy(), comparison.getConfidenceRatio());
         }
     }
     
