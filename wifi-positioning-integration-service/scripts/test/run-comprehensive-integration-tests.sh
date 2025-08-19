@@ -61,7 +61,8 @@ while [[ $# -gt 0 ]]; do
                     PORT="${HOST_PORT#*:}"
                 else
                     HOST="$2"
-                    PORT="$DEFAULT_PORT"
+                    # Don't set a default port when only host is provided
+                    PORT=""
                 fi
                 shift 2
             else
@@ -84,8 +85,11 @@ while [[ $# -gt 0 ]]; do
             echo "Examples:"
             echo "  $0                                    # Use localhost:8083 with HTTP"
             echo "  $0 -h 192.168.1.100:8083             # Use specific host:port"
-            echo "  $0 -h api.example.com -s              # Use HTTPS with host"
+            echo "  $0 -h api.example.com -s              # Use HTTPS with host (no port)"
             echo "  $0 --host staging:9090                # Use staging host on port 9090"
+            echo ""
+            echo "Note: When only host is specified without port, the script will use"
+            echo "      standard HTTP/HTTPS ports (80/443) instead of the default port 8083."
             exit 0
             ;;
         *)
@@ -98,7 +102,10 @@ done
 
 # Set default values if not specified
 HOST="${HOST:-$DEFAULT_HOST}"
-PORT="${PORT:-$DEFAULT_PORT}"
+# Only set default port if no port was explicitly provided
+if [ -z "$PORT" ]; then
+    PORT="$DEFAULT_PORT"
+fi
 
 # Build service URL based on configuration
 if [ "$USE_HTTPS" = true ]; then
@@ -107,7 +114,12 @@ else
     PROTOCOL="http"
 fi
 
-INTEGRATION_SERVICE_URL="${PROTOCOL}://${HOST}:${PORT}/wifi-positioning-integration-service"
+# Construct service URL with or without port
+if [ -n "$PORT" ]; then
+    INTEGRATION_SERVICE_URL="${PROTOCOL}://${HOST}:${PORT}/wifi-positioning-integration-service"
+else
+    INTEGRATION_SERVICE_URL="${PROTOCOL}://${HOST}/wifi-positioning-integration-service"
+fi
 
 # Color codes for terminal output formatting
 GREEN='\033[0;32m'    # Success messages
@@ -166,7 +178,11 @@ echo -e "${BLUE}================================================================
 echo ""
 echo -e "${YELLOW}Configuration:${NC}"
 echo "  Host: $HOST"
-echo "  Port: $PORT"
+if [ -n "$PORT" ]; then
+    echo "  Port: $PORT"
+else
+    echo "  Port: None (using default HTTP/HTTPS ports)"
+fi
 echo "  Protocol: $PROTOCOL"
 echo "  Service URL: $INTEGRATION_SERVICE_URL"
 echo ""
@@ -241,10 +257,14 @@ if ! check_service_health "Integration Service" "$INTEGRATION_SERVICE_URL" "/hea
     echo "You can also specify a different host:port using:"
     echo "  $0 -h <host>:<port>"
     echo "  $0 --host <host>:<port>"
+    echo "  $0 -h <host>                    # Use host without port (standard HTTP/HTTPS ports)"
+    echo "  $0 --host <host>                # Use host without port (standard HTTP/HTTPS ports)"
     echo ""
     echo "Or use HTTPS:"
     echo "  $0 -h <host>:<port> -s"
     echo "  $0 --host <host>:<port> --https"
+    echo "  $0 -h <host> -s                 # Use HTTPS with host (no port)"
+    echo "  $0 --host <host> --https        # Use HTTPS with host (no port)"
     exit 1
 fi
 
@@ -469,11 +489,18 @@ else
         HTTPS_FLAG=""
     fi
     
-    echo "  Executing: $ASYNC_TEST_SCRIPT -h $HOST:$PORT $HTTPS_FLAG"
+    # Build host argument for async test script
+    if [ -n "$PORT" ]; then
+        HOST_ARG="$HOST:$PORT"
+    else
+        HOST_ARG="$HOST"
+    fi
+    
+    echo "  Executing: $ASYNC_TEST_SCRIPT -h $HOST_ARG $HTTPS_FLAG"
     echo ""
     
     # Execute the async test script
-    if "$ASYNC_TEST_SCRIPT" -h "$HOST:$PORT" $HTTPS_FLAG; then
+    if "$ASYNC_TEST_SCRIPT" -h "$HOST_ARG" $HTTPS_FLAG; then
         echo -e "${GREEN}✓ Async processing tests PASSED${NC}"
         ASYNC_TESTS_PASSED=true
     else
