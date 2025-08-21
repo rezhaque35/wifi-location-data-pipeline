@@ -1,15 +1,18 @@
 // com/wifi/positioning/dto/IntegrationMetadata.java
 package com.wifi.positioning.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.time.Instant;
+import java.util.Map;
 
 /**
  * Metadata for integration request tracking and auditing.
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class IntegrationMetadata {
     
     /**
@@ -20,9 +23,10 @@ public class IntegrationMetadata {
     
     /**
      * Timestamp when request was received by client
+     * Using custom Jackson configuration for flexible parsing
      */
     @JsonProperty("receivedAt")
-    private Instant receivedAt;
+    private String receivedAt;
     
     /**
      * Client IP address for logging
@@ -35,4 +39,16 @@ public class IntegrationMetadata {
      */
     @JsonProperty("userAgent")
     private String userAgent;
+    
+    /**
+     * Bridge script identifier
+     */
+    @JsonProperty("bridgeScript")
+    private String bridgeScript;
+    
+    /**
+     * VLSS-specific metadata
+     */
+    @JsonProperty("vlls")
+    private Map<String, Object> vlls;
 }

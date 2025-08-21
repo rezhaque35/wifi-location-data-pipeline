@@ -3,7 +3,11 @@ package com.wifi.positioning.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wifi.positioning.dto.*;
+import com.wifi.positioning.dto.ComparisonMetrics;
+import com.wifi.positioning.dto.ComparisonScenario;
+import com.wifi.positioning.dto.SourceResponse;
+import com.wifi.positioning.dto.VlssError;
+import com.wifi.positioning.dto.WifiInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,7 +37,7 @@ public class ComparisonService {
      * Main comparison method - streamlined for requirements only.
      */
     public ComparisonMetrics compareResults(SourceResponse sourceResponse, Object positioningServiceResponse,
-            List<WifiInfo> originalWifiInfo, List<CellInfo> cellInfo) {
+            List<WifiInfo> originalWifiInfo) {
 
         ComparisonMetrics metrics = new ComparisonMetrics();
 
@@ -56,12 +60,10 @@ public class ComparisonService {
                 friscoErrorMessage, vlssAccuracy);
         metrics.setScenario(scenario);
 
-        // Set location type
-        setLocationType(metrics, scenario, sourceResponse);
+        // Set location type directly from scenario
+        metrics.setLocationType(scenario.getLocationType());
 
-        // Set positioning method
-        PositioningMethod method = PositioningMethod.determineMethod(scenario, null);
-        metrics.setPositioningMethod(method);
+
 
         // === 1. Input Data Quality ===
         setInputDataQuality(metrics, originalWifiInfo, positioningServiceResponse);
@@ -79,12 +81,6 @@ public class ComparisonService {
         setVlssFriscoComparison(metrics, sourceResponse, positioningServiceResponse);
 
         // Basic service info
-        if (cellInfo != null) {
-            metrics.setRequestCellCount(cellInfo.size());
-        }
-
-        // Set legacy fields for backwards compatibility
-        setLegacyFields(metrics, positioningServiceResponse);
 
         return metrics;
     }
@@ -266,9 +262,10 @@ public class ComparisonService {
                 // VLSS succeeded with cell fallback, Frisco failed due to no APs found
                 metrics.setAgreementAnalysis("NO WIFI COVERAGE");
                 return;
-            } else if (metrics.getScenario() == ComparisonScenario.VLSS_SUCCESS_FRISCO_ERROR) {
+            } else if (metrics.getScenario() == ComparisonScenario.VLSS_SUCCESS_FRISCO_ERROR_WIFI ||
+                       metrics.getScenario() == ComparisonScenario.VLSS_SUCCESS_FRISCO_ERROR_CELL) {
                 // VLSS succeeded but Frisco had other errors (not no AP found)
-                if (vlssAcc != null && vlssAcc < 250.0) {
+                if (metrics.getScenario() == ComparisonScenario.VLSS_SUCCESS_FRISCO_ERROR_WIFI) {
                     metrics.setAgreementAnalysis("FRISCO FAILURE");
                 } else {
                     metrics.setAgreementAnalysis("NO WIFI COVERAGE");
@@ -422,19 +419,7 @@ public class ComparisonService {
         return sourceResponse.getErrorMessage();
     }
 
-    private void setLocationType(ComparisonMetrics metrics, ComparisonScenario scenario,
-            SourceResponse sourceResponse) {
-        ComparisonScenario.LocationType locationType = scenario.getLocationType();
 
-        // Handle dynamic location type based on VLSS accuracy
-        if (locationType == ComparisonScenario.LocationType.DYNAMIC && sourceResponse != null &&
-                sourceResponse.getLocationInfo() != null) {
-            locationType = ComparisonScenario.LocationType
-                    .fromVlssAccuracy(sourceResponse.getLocationInfo().getAccuracy());
-        }
-
-        metrics.setLocationType(locationType);
-    }
 
     private double calculateHaversineDistance(double lat1, double lon1, double lat2, double lon2) {
         double lat1Rad = Math.toRadians(lat1);
@@ -452,20 +437,7 @@ public class ComparisonService {
         return EARTH_RADIUS_METERS * c;
     }
 
-    @SuppressWarnings("deprecation") // Intentionally using deprecated methods for backwards compatibility
-    private void setLegacyFields(ComparisonMetrics metrics, Object positioningServiceResponse) {
-        try {
-            JsonNode node = objectMapper.valueToTree(positioningServiceResponse);
-            JsonNode wifiPosition = node.get(WIFI_POSITION_FIELD);
-            if (wifiPosition != null) {
-                metrics.setMethodsUsed(metrics.getFriscoMethodsUsed());
-                metrics.setApCount(getIntegerValue(wifiPosition, "apCount"));
-                metrics.setCalculationTimeMs(getLongValue(wifiPosition, "calculationTimeMs"));
-            }
-        } catch (Exception e) {
-            log.debug("Could not set legacy fields: {}", e.getMessage());
-        }
-    }
+
 
     // JSON helper methods
     private String getTextValue(JsonNode node, String fieldName) {
@@ -488,14 +460,14 @@ public class ComparisonService {
         return field != null && !field.isNull() ? field.asLong() : null;
     }
 
-    // === Legacy Method Overloads ===
+    // === Legacy Method Overloads for Backward Compatibility ===
 
     public ComparisonMetrics compareResults(SourceResponse sourceResponse, Object positioningServiceResponse) {
-        return compareResults(sourceResponse, positioningServiceResponse, null, null);
+        return compareResults(sourceResponse, positioningServiceResponse, null);
     }
 
     public ComparisonMetrics compareResults(SourceResponse sourceResponse, Object positioningServiceResponse,
-            List<WifiInfo> originalWifiInfo) {
-        return compareResults(sourceResponse, positioningServiceResponse, originalWifiInfo, null);
+            List<WifiInfo> originalWifiInfo, List<Object> cellInfo) {
+        return compareResults(sourceResponse, positioningServiceResponse, originalWifiInfo);
     }
 }

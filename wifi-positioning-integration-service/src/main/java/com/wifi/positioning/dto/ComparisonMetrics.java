@@ -18,8 +18,7 @@ public class ComparisonMetrics {
     @JsonProperty("scenario")
     private ComparisonScenario scenario;
     
-    @JsonProperty("positioningMethod")
-    private PositioningMethod positioningMethod;
+
     
     @JsonProperty("locationType")
     private ComparisonScenario.LocationType locationType;
@@ -143,8 +142,7 @@ public class ComparisonMetrics {
     
     // === Basic Service Info (for context) ===
     
-    @JsonProperty("requestCellCount")
-    private Integer requestCellCount;
+
     
     @JsonProperty("vlssErrorDetails")
     private String vlssErrorDetails;

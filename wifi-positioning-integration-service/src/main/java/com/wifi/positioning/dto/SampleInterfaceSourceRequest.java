@@ -1,6 +1,7 @@
 // com/wifi/positioning/dto/SampleInterfaceSourceRequest.java
 package com.wifi.positioning.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +12,7 @@ import lombok.Data;
  * Represents the original request format that clients may use.
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SampleInterfaceSourceRequest {
     
     /**

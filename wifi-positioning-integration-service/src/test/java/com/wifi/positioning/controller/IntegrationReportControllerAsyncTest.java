@@ -99,8 +99,6 @@ class IntegrationReportControllerAsyncTest {
             .positioningRequest(positioningRequest)
             .positioningResult(positioningResult)
             .comparison(comparisonMetrics)
-            .totalProcessingTimeMs(100L)
-            .transformationTimeMs(10L)
             .build();
 
         when(integrationProcessingService.processIntegrationReport(any())).thenReturn(syncResult);
@@ -146,8 +144,6 @@ class IntegrationReportControllerAsyncTest {
             .positioningRequest(positioningRequest)
             .positioningResult(positioningResult)
             .comparison(comparisonMetrics)
-            .totalProcessingTimeMs(100L)
-            .transformationTimeMs(10L)
             .build();
 
         when(integrationProcessingService.processIntegrationReport(any())).thenReturn(syncResult);
@@ -178,8 +174,6 @@ class IntegrationReportControllerAsyncTest {
             .positioningRequest(positioningRequest)
             .positioningResult(positioningResult)
             .comparison(comparisonMetrics)
-            .totalProcessingTimeMs(100L)
-            .transformationTimeMs(10L)
             .build();
 
         when(integrationProcessingService.processIntegrationReport(any())).thenReturn(syncResult);
@@ -207,8 +201,6 @@ class IntegrationReportControllerAsyncTest {
             .positioningRequest(positioningRequest)
             .positioningResult(positioningResult)
             .comparison(comparisonMetrics)
-            .totalProcessingTimeMs(100L)
-            .transformationTimeMs(10L)
             .build();
 
         when(integrationProcessingService.processIntegrationReport(any())).thenReturn(syncResult);
@@ -324,7 +316,7 @@ class IntegrationReportControllerAsyncTest {
     private ComparisonMetrics createMockComparisonMetrics() {
         ComparisonMetrics metrics = new ComparisonMetrics();
         metrics.setScenario(ComparisonScenario.BOTH_WIFI_SUCCESS);
-        metrics.setPositioningMethod(PositioningMethod.WIFI_ONLY);
+
         return metrics;
     }
 }

@@ -1,6 +1,7 @@
 // com/wifi/positioning/dto/CellInfo.java
 package com.wifi.positioning.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -9,6 +10,7 @@ import lombok.Data;
  * This data is preserved but not used for WiFi positioning.
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CellInfo {
     
     @JsonProperty("id")

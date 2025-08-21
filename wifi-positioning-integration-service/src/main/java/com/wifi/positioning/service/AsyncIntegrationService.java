@@ -39,15 +39,12 @@ public class AsyncIntegrationService {
     @Async("integrationAsyncExecutor")
     public CompletableFuture<Void> processIntegrationReportAsync(
             String correlationId, String requestId, Instant receivedAt, IntegrationReportRequest request) {
-        
+
         // Check if async processing is enabled
-        if (!integrationProperties.getProcessing().getAsync().isEnabled()) {
-            log.warn("Async processing is disabled but async method was called - correlationId: {}", correlationId);
-            throw new IllegalStateException("Async processing is not enabled in configuration");
+        if (!isAsyncProcessingAvailable()) {
+            throw new IllegalStateException("Async processing is not enabled");
         }
-        
-        log.debug("Starting async processing - correlationId: {}, requestId: {}", correlationId, requestId);
-        
+
         try {
             // Create processing context for async mode
             IntegrationProcessingService.ProcessingContext context = IntegrationProcessingService.ProcessingContext.builder()
@@ -62,7 +59,6 @@ public class AsyncIntegrationService {
             IntegrationProcessingService.ProcessingResult result = integrationProcessingService.processIntegrationReport(context);
             
             if (result.isSuccess()) {
-                log.debug("Async processing completed successfully - correlationId: {}, requestId: {}", correlationId, requestId);
                 healthIndicator.incrementSuccessfulProcessing();
             } else {
                 log.warn("Async processing completed with errors - correlationId: {}, requestId: {}, errorType: {}, error: {}", 

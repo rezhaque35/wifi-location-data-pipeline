@@ -1,12 +1,10 @@
 // com/wifi/positioning/controller/IntegrationReportController.java
 package com.wifi.positioning.controller;
 
-import com.wifi.positioning.client.PositioningServiceClient;
 import com.wifi.positioning.config.AsyncConfig;
 import com.wifi.positioning.dto.*;
 import com.wifi.positioning.exception.AsyncProcessingUnavailableException;
 import com.wifi.positioning.exception.IntegrationProcessingException;
-import com.wifi.positioning.mapper.SampleInterfaceMapper;
 import com.wifi.positioning.service.AsyncIntegrationService;
 import com.wifi.positioning.service.IntegrationProcessingService;
 import io.swagger.v3.oas.annotations.Operation;

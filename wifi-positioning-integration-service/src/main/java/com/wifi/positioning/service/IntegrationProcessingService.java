@@ -3,7 +3,7 @@ package com.wifi.positioning.service;
 
 import com.wifi.positioning.client.PositioningServiceClient;
 import com.wifi.positioning.dto.*;
-import com.wifi.positioning.mapper.SampleInterfaceMapper;
+import com.wifi.positioning.mapper.VLSSInterfaceMapper;
 import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,7 @@ public class IntegrationProcessingService {
 
     private static final String ASYNC_MODE = "async";
 
-    private final SampleInterfaceMapper mapper;
+    private final VLSSInterfaceMapper mapper;
     private final PositioningServiceClient positioningClient;
     private final ComparisonService comparisonService;
 
@@ -36,18 +36,17 @@ public class IntegrationProcessingService {
      * @return ProcessingResult containing all processing outcomes and metrics
      */
     public ProcessingResult processIntegrationReport(ProcessingContext context) {
-        ProcessingTimer timer = ProcessingTimer.start();
         logProcessingStart(context);
         
         try {
-            TransformationResult transformation = performRequestTransformation(context);
-            PositioningResult positioning = callPositioningService(transformation.getRequest());
-            ComparisonResult comparison = performResultsComparison(context, transformation, positioning);
+            WifiPositioningRequest wifiPositioningRequest = performRequestTransformation(context);
+            ClientResult positioning = positioningClient.invoke(wifiPositioningRequest);
+            ComparisonMetrics comparison = performResultsComparison(context, positioning);
             
-            timer.stop();
-            logProcessingSuccess(context, transformation, positioning, comparison, timer);
+
+            logProcessingSuccess(context, positioning, comparison);
             
-            return buildSuccessResult(transformation, positioning, comparison, timer);
+            return buildSuccessResult(wifiPositioningRequest, positioning, comparison);
             
         } catch (IllegalArgumentException e) {
             return handleValidationError(context, e);
@@ -67,78 +66,56 @@ public class IntegrationProcessingService {
     /**
      * Performs request transformation from source format to positioning service format.
      */
-    private TransformationResult performRequestTransformation(ProcessingContext context) {
-        ProcessingTimer transformationTimer = ProcessingTimer.start();
+    private WifiPositioningRequest performRequestTransformation(ProcessingContext context) {
         
-        WifiPositioningRequest positioningRequest = mapper.mapToPositioningRequest(
-            context.getRequest().getSourceRequest(), context.getRequest().getOptions());
+        return mapper.mapToPositioningRequest(context.getRequest().getSourceRequest(), context.getRequest().getOptions());
         
-        transformationTimer.stop();
-        
-        log.debug("Mapped to positioning request with {} WiFi scan results in {}ms - correlationId: {}, mode: {}", 
-            positioningRequest.getWifiScanResults().size(), transformationTimer.getElapsedMs(), 
-            context.getCorrelationId(), context.getProcessingMode());
-        
-        return new TransformationResult(positioningRequest, transformationTimer.getElapsedMs());
     }
 
-    /**
-     * Calls the positioning service with the transformed request.
-     */
-    private PositioningResult callPositioningService(WifiPositioningRequest positioningRequest) {
-        ClientResult positioningResult = positioningClient.invoke(positioningRequest);
-        
-        log.debug("Positioning service call completed - httpStatus: {}, latency: {}ms", 
-            positioningResult.getHttpStatus(), positioningResult.getLatencyMs());
-        
-        return new PositioningResult(positioningResult);
-    }
+
 
     /**
      * Performs comprehensive comparison between source and positioning service results.
      */
-    private ComparisonResult performResultsComparison(ProcessingContext context, 
-            TransformationResult transformation, PositioningResult positioning) {
+    private ComparisonMetrics performResultsComparison(ProcessingContext context,
+                                                      ClientResult positioning) {
         
         ComparisonMetrics comparison = comparisonService.compareResults(
             context.getRequest().getSourceResponse(), 
-            positioning.getResult().getResponseBody(),
-            context.getRequest().getSourceRequest().getSvcBody().getSvcReq().getWifiInfo(),
-            context.getRequest().getSourceRequest().getSvcBody().getSvcReq().getCellInfo());
+            positioning.getResponseBody(),
+            context.getRequest().getSourceRequest().getSvcBody().getSvcReq().getWifiInfo());
         
         // Set the measured response time from the positioning service call
-        comparison.setFriscoResponseTimeMs(positioning.getResult().getLatencyMs());
+        comparison.setFriscoResponseTimeMs(positioning.getLatencyMs());
         
-        return new ComparisonResult(comparison);
+        return comparison;
     }
 
     /**
      * Logs successful processing completion with metrics.
      */
-    private void logProcessingSuccess(ProcessingContext context, TransformationResult transformation, 
-            PositioningResult positioning, ComparisonResult comparison, ProcessingTimer timer) {
+    private void logProcessingSuccess(ProcessingContext context,
+                                      ClientResult positioning, ComparisonMetrics comparison) {
         
-        logIntegrationEvent(context, comparison.getMetrics(), timer.getElapsedMs());
+        logIntegrationEvent(context, comparison);
         
         log.info("Integration processing completed successfully - correlationId: {}, requestId: {}, mode: {}, " +
-                "totalTime: {}ms, positioningTime: {}ms, transformationTime: {}ms", 
+                " positioning Latency Time: {}ms",
             context.getCorrelationId(), context.getRequestId(), context.getProcessingMode(),
-            timer.getElapsedMs(), positioning.getResult().getLatencyMs(), transformation.getTransformationTimeMs());
+             positioning.getLatencyMs());
     }
 
     /**
      * Builds successful processing result.
      */
-    private ProcessingResult buildSuccessResult(TransformationResult transformation, 
-            PositioningResult positioning, ComparisonResult comparison, ProcessingTimer timer) {
+    private ProcessingResult buildSuccessResult(WifiPositioningRequest request,
+            ClientResult positioning, ComparisonMetrics comparison) {
         
         return ProcessingResult.builder()
             .success(true)
-            .positioningRequest(transformation.getRequest())
-            .positioningResult(positioning.getResult())
-            .comparison(comparison.getMetrics())
-            .totalProcessingTimeMs(timer.getElapsedMs())
-            .transformationTimeMs(transformation.getTransformationTimeMs())
+            .positioningRequest(request)
+            .positioningResult(positioning)
+            .comparison(comparison)
             .build();
     }
 
@@ -176,48 +153,23 @@ public class IntegrationProcessingService {
      * Logs a simple summary of the integration event.
      * Detailed metrics are logged separately in logSpecificRequirements().
      */
-    private void logIntegrationEvent(ProcessingContext context, ComparisonMetrics comparison, long totalProcessingTimeMs) {
+    private void logIntegrationEvent(ProcessingContext context, ComparisonMetrics comparison) {
         
         String logPrefix = ASYNC_MODE.equals(context.getProcessingMode()) ? "ASYNC_INTEGRATION_COMPARISON_EVENT" : "INTEGRATION_COMPARISON_EVENT";
         
         // Simple summary log - detailed metrics are in specific requirement logs below
         log.info("{}: correlationId='{}', requestId='{}', processingMode='{}', " +
-                "scenario='{}', totalProcessingTimeMs={}",
+                "scenario='{}' ",
             logPrefix,
             context.getCorrelationId(), context.getRequestId(), context.getProcessingMode(),
-            comparison.getScenario(), totalProcessingTimeMs);
+            comparison.getScenario());
         
         // Log detailed requirements for Splunk dashboard
         logSpecificRequirements(context, comparison);
-        
-        // Additional DEBUG level logging
-        if (log.isDebugEnabled()) {
-            logDetailedBreakdown(context, comparison);
-        }
-    }
-    
-    /**
-     * Logs detailed breakdown at DEBUG level.
-     */
-    private void logDetailedBreakdown(ProcessingContext context, ComparisonMetrics comparison) {
-        
-        String logPrefix = ASYNC_MODE.equals(context.getProcessingMode()) ? "ASYNC_" : "";
-        
-        // Frisco calculation details - already logged in AP_DATA_QUALITY_SUCCESS above
-        
-        // Selection context details - already logged in INPUT_DATA_QUALITY above
-        
-        // Cell tower fallback detection
-        if (comparison.getScenario() == ComparisonScenario.VLSS_CELL_FALLBACK_DETECTED) {
-            log.debug("{}CELL_TOWER_FALLBACK_DETECTED: correlationId='{}', requestId='{}', " +
-                    "reason='WiFi APs not found in database, VLSS used cell towers', " +
-                    "requestApCount={}, requestCellCount={}",
-                logPrefix, context.getCorrelationId(), context.getRequestId(),
-                comparison.getRequestApCount(), comparison.getRequestCellCount());
-        }
-        
 
     }
+    
+
     
     /**
      * Logs specific requirements for Splunk dashboard analysis.
@@ -281,81 +233,6 @@ public class IntegrationProcessingService {
     }
 
     /**
-     * Timer utility for measuring processing times with high precision.
-     */
-    private static class ProcessingTimer {
-        private long startTime;
-        private long endTime;
-        
-        private ProcessingTimer() {
-            this.startTime = System.nanoTime();
-        }
-        
-        public static ProcessingTimer start() {
-            return new ProcessingTimer();
-        }
-        
-        public void stop() {
-            this.endTime = System.nanoTime();
-        }
-        
-        public long getElapsedMs() {
-            return (endTime - startTime) / 1_000_000;
-        }
-    }
-
-    /**
-     * Result of request transformation step.
-     */
-    private static class TransformationResult {
-        private final WifiPositioningRequest request;
-        private final long transformationTimeMs;
-        
-        public TransformationResult(WifiPositioningRequest request, long transformationTimeMs) {
-            this.request = request;
-            this.transformationTimeMs = transformationTimeMs;
-        }
-        
-        public WifiPositioningRequest getRequest() {
-            return request;
-        }
-        
-        public long getTransformationTimeMs() {
-            return transformationTimeMs;
-        }
-    }
-
-    /**
-     * Result of positioning service call step.
-     */
-    private static class PositioningResult {
-        private final ClientResult result;
-        
-        public PositioningResult(ClientResult result) {
-            this.result = result;
-        }
-        
-        public ClientResult getResult() {
-            return result;
-        }
-    }
-
-    /**
-     * Result of comparison step.
-     */
-    private static class ComparisonResult {
-        private final ComparisonMetrics metrics;
-        
-        public ComparisonResult(ComparisonMetrics metrics) {
-            this.metrics = metrics;
-        }
-        
-        public ComparisonMetrics getMetrics() {
-            return metrics;
-        }
-    }
-
-    /**
      * Processing context containing all necessary data for integration processing.
      */
     @Data
@@ -378,8 +255,6 @@ public class IntegrationProcessingService {
         private final WifiPositioningRequest positioningRequest;
         private final ClientResult positioningResult;
         private final ComparisonMetrics comparison;
-        private final long totalProcessingTimeMs;
-        private final long transformationTimeMs;
         private final String errorType;
         private final String errorMessage;
     }

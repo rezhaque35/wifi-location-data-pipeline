@@ -1,6 +1,7 @@
 // com/wifi/positioning/dto/SvcReq.java
 package com.wifi.positioning.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -13,6 +14,7 @@ import java.util.List;
  * Service request payload from the sample interface containing positioning data.
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SvcReq {
     
     /**

@@ -1,6 +1,7 @@
 // com/wifi/positioning/dto/WifiInfo.java
 package com.wifi.positioning.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +12,7 @@ import lombok.Data;
  * Represents a single WiFi scan result with MAC address and signal strength.
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class WifiInfo {
     
     /**

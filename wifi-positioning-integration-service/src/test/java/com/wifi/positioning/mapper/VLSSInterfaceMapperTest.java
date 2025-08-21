@@ -18,11 +18,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.lenient;
 
 /**
- * Unit tests for SampleInterfaceMapper.
+ * Unit tests for VLSSInterfaceMapper.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-class SampleInterfaceMapperTest {
+class VLSSInterfaceMapperTest {
 
     @Mock
     private IntegrationProperties properties;
@@ -30,15 +30,15 @@ class SampleInterfaceMapperTest {
     @Mock
     private IntegrationProperties.Mapping mappingConfig;
 
-    private SampleInterfaceMapper mapper;
+    private VLSSInterfaceMapper mapper;
 
     @BeforeEach
     void setUp() {
         lenient().when(properties.getMapping()).thenReturn(mappingConfig);
         lenient().when(mappingConfig.isDropMissingFrequency()).thenReturn(true);
         lenient().when(mappingConfig.getDefaultFrequencyMhz()).thenReturn(2412);
-        
-        mapper = new SampleInterfaceMapper(properties);
+
+        mapper = new VLSSInterfaceMapper(properties);
     }
 
     @Test
@@ -55,10 +55,10 @@ class SampleInterfaceMapperTest {
         assertNotNull(result);
         assertEquals("test-client", result.getClient());
         assertEquals("test-request-123", result.getRequestId());
-        assertEquals("wifi-positioning-integration-service", result.getApplication());
+        assertEquals("GIZMO", result.getApplication());
         assertTrue(result.getCalculationDetail());
         assertEquals(2, result.getWifiScanResults().size());
-        
+
         WifiScanResult scanResult = result.getWifiScanResults().get(0);
         assertEquals("00:11:22:33:44:55", scanResult.getMacAddress());
         assertEquals(-65.0, scanResult.getSignalStrength());
@@ -75,29 +75,13 @@ class SampleInterfaceMapperTest {
 
         // Then
         assertNotNull(result);
-        assertFalse(result.getCalculationDetail()); // Should default to false
-    }
-
-    @Test
-    void mapToPositioningRequest_MissingFrequencyDropped() {
-        // Given
-        SampleInterfaceSourceRequest sourceRequest = createSourceRequestWithMissingFrequency();
-        lenient().when(mappingConfig.isDropMissingFrequency()).thenReturn(true);
-
-        // When
-        WifiPositioningRequest result = mapper.mapToPositioningRequest(sourceRequest, null);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(1, result.getWifiScanResults().size()); // One should be dropped
-        assertEquals(2437, result.getWifiScanResults().get(0).getFrequency()); // Only the one with frequency
+        assertTrue(result.getCalculationDetail()); // Always true in VLSSInterfaceMapper
     }
 
     @Test
     void mapToPositioningRequest_MissingFrequencyWithDefault() {
         // Given
         SampleInterfaceSourceRequest sourceRequest = createSourceRequestWithMissingFrequency();
-        lenient().when(mappingConfig.isDropMissingFrequency()).thenReturn(false);
         lenient().when(mappingConfig.getDefaultFrequencyMhz()).thenReturn(2412);
 
         // When
@@ -106,15 +90,17 @@ class SampleInterfaceMapperTest {
         // Then
         assertNotNull(result);
         assertEquals(2, result.getWifiScanResults().size()); // Both should be kept
-        
+
         // Find the one that had missing frequency
         WifiScanResult withDefault = result.getWifiScanResults().stream()
-            .filter(r -> r.getMacAddress().equals("AA:BB:CC:DD:EE:FF"))
-            .findFirst()
-            .orElse(null);
+                .filter(r -> r.getMacAddress().equals("AA:BB:CC:DD:EE:FF"))
+                .findFirst()
+                .orElse(null);
         assertNotNull(withDefault);
         assertEquals(2412, withDefault.getFrequency()); // Should have default frequency
     }
+
+
 
     @Test
     void mapToPositioningRequest_NoValidWifiInfo() {
@@ -123,8 +109,8 @@ class SampleInterfaceMapperTest {
 
         // When & Then
         IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
-            () -> mapper.mapToPositioningRequest(sourceRequest, null)
+                IllegalArgumentException.class,
+                () -> mapper.mapToPositioningRequest(sourceRequest, null)
         );
         assertTrue(exception.getMessage().contains("No valid WiFi scan results"));
     }

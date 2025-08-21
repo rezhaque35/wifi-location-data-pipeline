@@ -5,10 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wifi.positioning.dto.ComparisonMetrics;
 import com.wifi.positioning.dto.ComparisonScenario;
 import com.wifi.positioning.dto.LocationInfo;
-import com.wifi.positioning.dto.PositioningMethod;
+
 import com.wifi.positioning.dto.SourceResponse;
 import com.wifi.positioning.dto.WifiInfo;
-import com.wifi.positioning.dto.CellInfo;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -38,12 +38,12 @@ class ComparisonServiceTest {
         Object positioningResponse = createFriscoResponse(37.7750, -122.4195, 25.0, 0.85);
 
         // When
-        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of(), List.of());
+        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of());
 
         // Then
         assertNotNull(result);
         assertEquals(ComparisonScenario.BOTH_WIFI_SUCCESS, result.getScenario());
-        assertEquals(PositioningMethod.WIFI_ONLY, result.getPositioningMethod());
+
         assertEquals(Boolean.TRUE, result.getVlssSuccess());
         assertEquals(Boolean.TRUE, result.getFriscoSuccess());
         
@@ -68,7 +68,7 @@ class ComparisonServiceTest {
         Object positioningResponse = createFriscoResponse(lat, lon, 45.0, 0.85);
 
         // When
-        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of(), List.of());
+        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of());
 
         // Then
         assertEquals("PERFECT AGREEMENT", result.getAgreementAnalysis());
@@ -83,7 +83,7 @@ class ComparisonServiceTest {
         Object positioningResponse = createFriscoResponse(37.8000, -122.5000, 25.0, 0.85);
 
         // When
-        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of(), List.of());
+        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of());
 
         // Then
         assertEquals("WIFI VS CELL DISAGREEMENT", result.getAgreementAnalysis());
@@ -98,7 +98,7 @@ class ComparisonServiceTest {
         Object positioningResponse = createFriscoResponse(37.7750, -122.4195, 50.0, 0.85);
 
         // When
-        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of(), List.of());
+        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of());
 
         // Then - small distance should result in GOOD AGREEMENT
         assertEquals("GOOD AGREEMENT", result.getAgreementAnalysis());
@@ -113,7 +113,7 @@ class ComparisonServiceTest {
         Object positioningResponse = createFriscoResponse(37.7800, -122.4300, 30.0, 0.85);
 
         // When
-        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of(), List.of());
+        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of());
 
         // Then - distance should be large, ratio > 1.5
         assertTrue(result.getConfidenceRatio() > 1.5);
@@ -150,7 +150,7 @@ class ComparisonServiceTest {
                 List.of(createWifiInfo("00:11:22:33:44:55")), List.of());
 
         // Then - should NOT be VLSS_CELL_FALLBACK_DETECTED since VLSS accuracy < 250m
-        assertEquals(ComparisonScenario.VLSS_SUCCESS_FRISCO_ERROR, result.getScenario());
+        assertEquals(ComparisonScenario.VLSS_SUCCESS_FRISCO_ERROR_WIFI, result.getScenario());
         assertEquals(Boolean.TRUE, result.getVlssSuccess());
         assertEquals(Boolean.FALSE, result.getFriscoSuccess());
         // For WiFi positioning, location type should be WIFI
@@ -164,10 +164,10 @@ class ComparisonServiceTest {
         Object positioningResponse = createFriscoErrorResponse("Service temporarily unavailable");
 
         // When
-        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of(), List.of());
+        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of());
 
         // Then
-        assertEquals(ComparisonScenario.VLSS_SUCCESS_FRISCO_ERROR, result.getScenario());
+        assertEquals(ComparisonScenario.VLSS_SUCCESS_FRISCO_ERROR_CELL, result.getScenario());
         assertEquals("CELL", result.getLocationType().toString()); // VLSS accuracy >= 250
     }
 
@@ -177,7 +177,7 @@ class ComparisonServiceTest {
         Object positioningResponse = createFriscoResponse(37.7749, -122.4194, 25.0, 0.85);
 
         // When
-        ComparisonMetrics result = comparisonService.compareResults(null, positioningResponse, List.of(), List.of());
+        ComparisonMetrics result = comparisonService.compareResults(null, positioningResponse, List.of());
 
         // Then
         assertEquals(ComparisonScenario.FRISCO_ONLY_ANALYSIS, result.getScenario());
@@ -193,7 +193,7 @@ class ComparisonServiceTest {
         Object positioningResponse = createFriscoErrorResponse("Insufficient access points");
 
         // When
-        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of(), List.of());
+        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of());
 
         // Then
         assertEquals(ComparisonScenario.BOTH_INSUFFICIENT_DATA, result.getScenario());
@@ -227,7 +227,7 @@ class ComparisonServiceTest {
         Object positioningResponse = createFriscoResponseWithCalculationInfo(37.7750, -122.4195, 25.0, 0.85);
 
         // When
-        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of(), List.of());
+        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of());
 
         // Then
         assertNotNull(result.getCalculationAccessPoints());
@@ -243,7 +243,7 @@ class ComparisonServiceTest {
                 List.of("weighted_centroid", "rss_ranging"));
 
         // When
-        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of(), List.of());
+        ComparisonMetrics result = comparisonService.compareResults(sourceResponse, positioningResponse, List.of());
 
         // Then - check if methods are extracted (might be null if extraction logic differs)
         assertNotNull(result); // Just verify the result is created

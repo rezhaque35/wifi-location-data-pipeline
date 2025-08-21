@@ -21,7 +21,7 @@ public enum ComparisonScenario {
      * Key scenario for detecting cell tower usage.
      * Location Type: Determined by VLSS accuracy (WiFi if < 250m, CELL if >= 250m)
      */
-    VLSS_CELL_FALLBACK_DETECTED("VLSS_CELL_FALLBACK_DETECTED", "VLSS succeeded (likely using cell towers), Frisco failed", LocationType.DYNAMIC),
+    VLSS_CELL_FALLBACK_DETECTED("VLSS_CELL_FALLBACK_DETECTED", "VLSS succeeded (likely using cell towers), Frisco failed", LocationType.CELL),
     
     /**
      * Both services failed to determine position.
@@ -47,9 +47,15 @@ public enum ComparisonScenario {
     
     /**
      * VLSS succeeded but Frisco failed due to errors other than insufficient APs.
-     * Location Type: Determined by VLSS accuracy (WiFi if < 250m, CELL if >= 250m)
+     * Location Type: WiFi-based positioning (VLSS accuracy < 250m)
      */
-    VLSS_SUCCESS_FRISCO_ERROR("VLSS_SUCCESS_FRISCO_ERROR", "VLSS succeeded but Frisco failed with non-AP error", LocationType.DYNAMIC),
+    VLSS_SUCCESS_FRISCO_ERROR_WIFI("VLSS_SUCCESS_FRISCO_ERROR_WIFI", "VLSS succeeded using WiFi but Frisco failed with non-AP error", LocationType.WIFI),
+    
+    /**
+     * VLSS succeeded but Frisco failed due to errors other than insufficient APs.
+     * Location Type: Cell tower-based positioning (VLSS accuracy >= 250m)
+     */
+    VLSS_SUCCESS_FRISCO_ERROR_CELL("VLSS_SUCCESS_FRISCO_ERROR_CELL", "VLSS succeeded using cell towers but Frisco failed with non-AP error", LocationType.CELL),
     
     /**
      * Both services provided responses but in unexpected combinations.
@@ -66,6 +72,8 @@ public enum ComparisonScenario {
         this.description = description;
         this.locationType = locationType;
     }
+    
+
     
     public String getCode() {
         return code;
@@ -106,7 +114,12 @@ public enum ComparisonScenario {
                 if (isInsufficientApError(friscoErrorMessage) && vlssAccuracy != null && vlssAccuracy >= 250.0) {
                     return VLSS_CELL_FALLBACK_DETECTED;
                 } else {
-                    return VLSS_SUCCESS_FRISCO_ERROR;
+                    // For VLSS_SUCCESS_FRISCO_ERROR, determine location type based on VLSS accuracy
+                    if (vlssAccuracy != null && vlssAccuracy >= 250.0) {
+                        return VLSS_SUCCESS_FRISCO_ERROR_CELL;
+                    } else {
+                        return VLSS_SUCCESS_FRISCO_ERROR_WIFI;
+                    }
                 }
             }
         } else {
@@ -156,7 +169,6 @@ public enum ComparisonScenario {
         WIFI("WIFI", "WiFi-based positioning"),
         CELL("CELL", "Cell tower-based positioning"), 
         NONE("NONE", "No positioning successful"),
-        DYNAMIC("DYNAMIC", "Type determined dynamically based on accuracy"),
         UNKNOWN("UNKNOWN", "Unknown positioning type");
         
         private final String code;
@@ -175,17 +187,6 @@ public enum ComparisonScenario {
             return description;
         }
         
-        /**
-         * Determines location type based on VLSS accuracy for dynamic scenarios.
-         * 
-         * @param vlssAccuracy VLSS accuracy in meters
-         * @return WiFi if accuracy < 250m, CELL if >= 250m
-         */
-        public static LocationType fromVlssAccuracy(Double vlssAccuracy) {
-            if (vlssAccuracy == null) {
-                return UNKNOWN;
-            }
-            return vlssAccuracy < 250.0 ? WIFI : CELL;
-        }
+
     }
 }

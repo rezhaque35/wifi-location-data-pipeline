@@ -94,10 +94,15 @@
               - 1.5 < ratio ≤ 2.5: Agreement Analysis = FRISCO OVERCONFIDENT
               - ratio > 2.5: Agreement Analysis = FRISCO EXTREMELY OVERCONFIDENT
 
-    - When VLSS reports but Frisco reports error "No known access points found in database" or  "No access points with valid status found"  
-      - Location Type = CELL
-      - Distance = N/A (not 0, since only one position exists)
-      - Agreement Analysis =  = NO WIFI COVERAGE
+    - When VLSS reports but Frisco reports error "No known access points found in database" or  "No access points with valid status found" 
+      -  if VLSS VLSS accuracy >= 250:
+         - Location Type = CELL
+         - Distance = N/A (not 0, since only one position exists)
+         - Agreement Analysis =  = NO WIFI COVERAGE
+      -  else if VLSS VLSS accuracy < 250:
+         - Location Type = WIFI
+         - Distance = N/A (not 0, since only one position exists)
+         - Agreement Analysis =  = FRISCO MISSING AP
 
     - When VLSS reports but Frisco has other errors:
       - Location Type = (VLSS accuracy < 250) ? WIFI : CELL

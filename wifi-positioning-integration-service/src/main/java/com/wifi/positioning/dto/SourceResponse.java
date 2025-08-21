@@ -1,6 +1,7 @@
 // com/wifi/positioning/dto/SourceResponse.java
 package com.wifi.positioning.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -9,6 +10,7 @@ import lombok.Data;
  * Used for comparison against our positioning service results.
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SourceResponse {
     
     /**

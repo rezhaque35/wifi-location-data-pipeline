@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,14 +60,14 @@ class AsyncIntegrationServiceTest {
         requestId = "test-request-456";
         receivedAt = Instant.now();
 
-        when(integrationProperties.getProcessing()).thenReturn(processing);
-        when(processing.getAsync()).thenReturn(asyncConfig);
+        lenient().when(integrationProperties.getProcessing()).thenReturn(processing);
+        lenient().when(processing.getAsync()).thenReturn(asyncConfig);
     }
 
     @Test
     void shouldReturnTrueWhenAsyncProcessingIsEnabled() {
         // Given
-        when(asyncConfig.isEnabled()).thenReturn(true);
+        lenient().when(asyncConfig.isEnabled()).thenReturn(true);
 
         // When
         boolean isAvailable = asyncIntegrationService.isAsyncProcessingAvailable();
@@ -78,7 +79,7 @@ class AsyncIntegrationServiceTest {
     @Test
     void shouldReturnFalseWhenAsyncProcessingIsDisabled() {
         // Given
-        when(asyncConfig.isEnabled()).thenReturn(false);
+        lenient().when(asyncConfig.isEnabled()).thenReturn(false);
 
         // When
         boolean isAvailable = asyncIntegrationService.isAsyncProcessingAvailable();
@@ -99,7 +100,7 @@ class AsyncIntegrationServiceTest {
     @Test
     void shouldThrowExceptionWhenAsyncProcessingIsDisabled() {
         // Given
-        when(asyncConfig.isEnabled()).thenReturn(false);
+        lenient().when(asyncConfig.isEnabled()).thenReturn(false);
 
         // When & Then
         assertThatThrownBy(() -> 
@@ -112,15 +113,13 @@ class AsyncIntegrationServiceTest {
     @Test
     void shouldProcessIntegrationReportAsyncWhenEnabled() {
         // Given
-        when(asyncConfig.isEnabled()).thenReturn(true);
+        lenient().when(asyncConfig.isEnabled()).thenReturn(true);
         
         IntegrationProcessingService.ProcessingResult successResult = IntegrationProcessingService.ProcessingResult.builder()
             .success(true)
-            .totalProcessingTimeMs(100L)
-            .transformationTimeMs(10L)
             .build();
         
-        when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
+        lenient().when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
 
         // When
         CompletableFuture<Void> future = asyncIntegrationService.processIntegrationReportAsync(
@@ -138,8 +137,8 @@ class AsyncIntegrationServiceTest {
     @Test
     void shouldHandleExceptionInAsyncProcessing() {
         // Given
-        when(asyncConfig.isEnabled()).thenReturn(true);
-        when(integrationProcessingService.processIntegrationReport(any()))
+        lenient().when(asyncConfig.isEnabled()).thenReturn(true);
+        lenient().when(integrationProcessingService.processIntegrationReport(any()))
             .thenThrow(new RuntimeException("Test exception"));
 
         // When
@@ -158,9 +157,9 @@ class AsyncIntegrationServiceTest {
     @Test
     void shouldCreateAsyncConfigurationObject() {
         // Given
-        when(asyncConfig.isEnabled()).thenReturn(true);
-        when(asyncConfig.getQueueCapacity()).thenReturn(1000);
-        when(asyncConfig.getWorkers()).thenReturn(4);
+        lenient().when(asyncConfig.isEnabled()).thenReturn(true);
+        lenient().when(asyncConfig.getQueueCapacity()).thenReturn(1000);
+        lenient().when(asyncConfig.getWorkers()).thenReturn(4);
 
         // When
         IntegrationProperties.Processing.Async config = asyncIntegrationService.getAsyncConfig();
@@ -177,15 +176,13 @@ class AsyncIntegrationServiceTest {
     @Test
     void shouldProcessRequestWithComplexData() {
         // Given
-        when(asyncConfig.isEnabled()).thenReturn(true);
+        lenient().when(asyncConfig.isEnabled()).thenReturn(true);
         
         IntegrationProcessingService.ProcessingResult successResult = IntegrationProcessingService.ProcessingResult.builder()
             .success(true)
-            .totalProcessingTimeMs(150L)
-            .transformationTimeMs(15L)
             .build();
         
-        when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
+        lenient().when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
 
         // When
         CompletableFuture<Void> future = asyncIntegrationService.processIntegrationReportAsync(
@@ -200,15 +197,13 @@ class AsyncIntegrationServiceTest {
     @Test
     void shouldHandleNullCorrelationId() {
         // Given
-        when(asyncConfig.isEnabled()).thenReturn(true);
+        lenient().when(asyncConfig.isEnabled()).thenReturn(true);
         
         IntegrationProcessingService.ProcessingResult successResult = IntegrationProcessingService.ProcessingResult.builder()
             .success(true)
-            .totalProcessingTimeMs(100L)
-            .transformationTimeMs(10L)
             .build();
         
-        when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
+        lenient().when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
 
         // When
         CompletableFuture<Void> future = asyncIntegrationService.processIntegrationReportAsync(
@@ -223,15 +218,13 @@ class AsyncIntegrationServiceTest {
     @Test
     void shouldHandleNullRequestId() {
         // Given
-        when(asyncConfig.isEnabled()).thenReturn(true);
+        lenient().when(asyncConfig.isEnabled()).thenReturn(true);
         
         IntegrationProcessingService.ProcessingResult successResult = IntegrationProcessingService.ProcessingResult.builder()
             .success(true)
-            .totalProcessingTimeMs(100L)
-            .transformationTimeMs(10L)
             .build();
         
-        when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
+        lenient().when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
 
         // When
         CompletableFuture<Void> future = asyncIntegrationService.processIntegrationReportAsync(
@@ -246,15 +239,13 @@ class AsyncIntegrationServiceTest {
     @Test
     void shouldHandleNullReceivedAt() {
         // Given
-        when(asyncConfig.isEnabled()).thenReturn(true);
+        lenient().when(asyncConfig.isEnabled()).thenReturn(true);
         
         IntegrationProcessingService.ProcessingResult successResult = IntegrationProcessingService.ProcessingResult.builder()
             .success(true)
-            .totalProcessingTimeMs(100L)
-            .transformationTimeMs(10L)
             .build();
         
-        when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
+        lenient().when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
 
         // When
         CompletableFuture<Void> future = asyncIntegrationService.processIntegrationReportAsync(
@@ -269,17 +260,15 @@ class AsyncIntegrationServiceTest {
     @Test
     void shouldIncrementFailedProcessingWhenResultIsNotSuccess() {
         // Given
-        when(asyncConfig.isEnabled()).thenReturn(true);
+        lenient().when(asyncConfig.isEnabled()).thenReturn(true);
         
         IntegrationProcessingService.ProcessingResult failedResult = IntegrationProcessingService.ProcessingResult.builder()
             .success(false)
             .errorType("VALIDATION_ERROR")
             .errorMessage("Test validation error")
-            .totalProcessingTimeMs(50L)
-            .transformationTimeMs(5L)
             .build();
         
-        when(integrationProcessingService.processIntegrationReport(any())).thenReturn(failedResult);
+        lenient().when(integrationProcessingService.processIntegrationReport(any())).thenReturn(failedResult);
 
         // When
         CompletableFuture<Void> future = asyncIntegrationService.processIntegrationReportAsync(
@@ -297,15 +286,13 @@ class AsyncIntegrationServiceTest {
     @Test
     void shouldIncrementSuccessfulProcessingWhenResultIsSuccess() {
         // Given
-        when(asyncConfig.isEnabled()).thenReturn(true);
+        lenient().when(asyncConfig.isEnabled()).thenReturn(true);
         
         IntegrationProcessingService.ProcessingResult successResult = IntegrationProcessingService.ProcessingResult.builder()
             .success(true)
-            .totalProcessingTimeMs(120L)
-            .transformationTimeMs(12L)
             .build();
         
-        when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
+        lenient().when(integrationProcessingService.processIntegrationReport(any())).thenReturn(successResult);
 
         // When
         CompletableFuture<Void> future = asyncIntegrationService.processIntegrationReportAsync(

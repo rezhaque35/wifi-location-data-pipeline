@@ -1,6 +1,7 @@
 // com/wifi/positioning/dto/IntegrationReportRequest.java
 package com.wifi.positioning.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +12,7 @@ import lombok.Data;
  * optional response, processing options, and metadata.
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class IntegrationReportRequest {
     
     /**
