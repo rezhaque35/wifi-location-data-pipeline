@@ -148,21 +148,30 @@ class MessageConsumptionActivityHealthIndicatorTest {
   }
 
   @Test
-  @DisplayName("should_ReturnDown_When_PollTimeoutExceeded")
-  void should_ReturnDown_When_PollTimeoutExceeded() {
-    // Given - only setup what's needed for this test path
+  @DisplayName("should_ReturnUpWithWarning_When_PollTimeoutExceeded")
+  void should_ReturnUpWithWarning_When_PollTimeoutExceeded() {
+    // Given - setup all required mocks for this test path
     when(kafkaMonitoringService.isConsumerConnected()).thenReturn(true);
     when(kafkaMonitoringService.isConsumerGroupActive()).thenReturn(true);
     when(kafkaMonitoringService.getTimeSinceLastPoll())
         .thenReturn(400000L); // 400 seconds > 5 minute (300 second) threshold
+    when(kafkaMonitoringService.isConsumerStuck()).thenReturn(false);
+    when(kafkaMonitoringService.getMessageConsumptionRate()).thenReturn(0.0);
+    when(kafkaMonitoringService.getMetrics()).thenReturn(metrics);
+    when(metrics.getTotalMessagesConsumed()).thenReturn(new AtomicLong(0));
+    when(metrics.getTotalMessagesProcessed()).thenReturn(new AtomicLong(0));
+    when(metrics.getSuccessRate()).thenReturn(0.0);
 
     // When
     Health health = healthIndicator.health();
 
     // Then
-    assertThat(health.getStatus()).isEqualTo(Status.DOWN);
-    assertThat(health.getDetails().get("reason").toString())
+    assertThat(health.getStatus()).isEqualTo(Status.UP);
+    assertThat(health.getDetails().get("hasMessageTimeout")).isEqualTo(true);
+    assertThat(health.getDetails().get("warning").toString())
         .contains("Consumer hasn't received messages in");
+    assertThat(health.getDetails().get("reason"))
+        .isEqualTo("Consumer is healthy but hasn't received messages recently - see warning details");
   }
 
   @Test
@@ -236,6 +245,7 @@ class MessageConsumptionActivityHealthIndicatorTest {
             "messageTimeoutThresholdMs",
             "consumerStuck",
             "healthyConsumption",
+            "hasMessageTimeout",
             "reason",
             "checkTimestamp");
   }

@@ -138,7 +138,6 @@ public class EnhancedSslCertificateHealthIndicator implements HealthIndicator {
    */
   @Override
   public Health health() {
-    log.debug("Performing enhanced SSL certificate readiness health check");
 
     Map<String, Object> details = new HashMap<>();
 

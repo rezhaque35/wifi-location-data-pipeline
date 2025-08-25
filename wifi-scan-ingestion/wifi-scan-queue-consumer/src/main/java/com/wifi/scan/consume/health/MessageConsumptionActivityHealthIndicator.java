@@ -59,6 +59,10 @@ public class MessageConsumptionActivityHealthIndicator implements HealthIndicato
   /** Service for Kafka consumer monitoring and metrics collection */
   private final KafkaMonitoringService kafkaMonitoringService;
 
+  // Constants for health check details
+  private static final String REASON_DETAIL = "reason";
+  private static final String CHECK_TIMESTAMP_DETAIL = "checkTimestamp";
+
   // Configuration properties with defaults
 
   /** Timeout threshold for message activity in minutes (default: 5 minutes) */
@@ -161,21 +165,25 @@ public class MessageConsumptionActivityHealthIndicator implements HealthIndicato
       long timeSinceLastPoll = kafkaMonitoringService.getTimeSinceLastPoll();
       boolean consumerStuck = kafkaMonitoringService.isConsumerStuck();
 
-      // Check if consumer hasn't received messages recently (may indicate inactive consumer or no
-      // available messages)
-      long timeoutThresholdMs = getMessageTimeoutThresholdMs();
-      if (timeSinceLastPoll > timeoutThresholdMs) {
-        return buildDownHealth(
-            String.format(
-                "Consumer hasn't received messages in %d ms (threshold: %d ms) - may indicate inactive consumer or no available messages",
-                timeSinceLastPoll, timeoutThresholdMs),
-            checkTimestamp);
-      }
 
       // Check if consumer is stuck (polling but not advancing)
       if (consumerStuck) {
         return buildDownHealth(
             "Consumer is stuck - polling but not advancing position", checkTimestamp);
+      }
+
+
+            // Check if consumer hasn't received messages recently (may indicate inactive consumer or no
+      // available messages)
+      long timeoutThresholdMs = getMessageTimeoutThresholdMs();
+      boolean hasMessageTimeout = timeSinceLastPoll > timeoutThresholdMs;
+      String timeoutWarning = null;
+      
+      if (hasMessageTimeout) {
+        timeoutWarning = String.format(
+            "Consumer hasn't received messages in %d ms (threshold: %d ms) - may indicate inactive consumer or no available messages",
+            timeSinceLastPoll, timeoutThresholdMs);
+        log.warn("Message consumption timeout detected: {}", timeoutWarning);
       }
 
       // Get consumption metrics for detailed health analysis
@@ -187,26 +195,31 @@ public class MessageConsumptionActivityHealthIndicator implements HealthIndicato
 
       // Check consumption rate only if we have meaningful data and recent activity
       // Avoid false alarms during idle periods or startup
-      if (totalMessagesConsumed >= 10 && timeSinceLastPoll <= (timeoutThresholdMs / 2)) {
-        // Only check rate if we have enough message history and recent activity
-        if (consumptionRate > 0 && consumptionRate < consumptionRateThreshold) {
-          log.warn(
-              "Low consumption rate detected: {} msgs/min (threshold: {} msgs/min)",
-              consumptionRate,
-              consumptionRateThreshold);
-          // Note: Currently we just warn, but could make this configurable
-          // to fail health check in environments where low rate indicates problems
-        }
+      if (totalMessagesConsumed >= 10 
+          && timeSinceLastPoll <= (timeoutThresholdMs / 2)
+          && consumptionRate > 0 
+          && consumptionRate < consumptionRateThreshold) {
+        log.warn(
+            "Low consumption rate detected: {} msgs/min (threshold: {} msgs/min)",
+            consumptionRate,
+            consumptionRateThreshold);
+        // Note: Currently we just warn, but could make this configurable
+        // to fail health check in environments where low rate indicates problems
       }
 
       // Determine if consumption is healthy (consumer is working properly)
+      // Note: Message timeout is now treated as warning, not a health failure
       boolean healthyConsumption =
           consumerConnected
               && consumerGroupActive
-              && timeSinceLastPoll <= timeoutThresholdMs
               && !consumerStuck;
 
-      return healthBuilder
+      // Determine appropriate reason message based on timeout status
+      String reasonMessage = hasMessageTimeout 
+          ? "Consumer is healthy but hasn't received messages recently - see warning details"
+          : "Consumer is healthy - actively polling for messages";
+
+      var healthDetailsBuilder = healthBuilder
           .withDetail("consumerConnected", consumerConnected)
           .withDetail("consumerGroupActive", consumerGroupActive)
           .withDetail("consumptionRate", consumptionRate)
@@ -217,16 +230,23 @@ public class MessageConsumptionActivityHealthIndicator implements HealthIndicato
           .withDetail("messageTimeoutThresholdMs", timeoutThresholdMs)
           .withDetail("consumerStuck", consumerStuck)
           .withDetail("healthyConsumption", healthyConsumption)
-          .withDetail("reason", "Consumer is healthy - actively polling for messages")
-          .withDetail("checkTimestamp", checkTimestamp)
-          .build();
+          .withDetail("hasMessageTimeout", hasMessageTimeout)
+          .withDetail(REASON_DETAIL, reasonMessage)
+          .withDetail(CHECK_TIMESTAMP_DETAIL, checkTimestamp);
+
+      // Add warning message if there's a timeout
+      if (timeoutWarning != null) {
+        healthDetailsBuilder.withDetail("warning", timeoutWarning);
+      }
+
+      return healthDetailsBuilder.build();
 
     } catch (Exception e) {
       log.error("Error checking consumer consumption activity liveness", e);
       return Health.down()
           .withDetail("error", e.getMessage())
-          .withDetail("reason", "Health check failed due to exception")
-          .withDetail("checkTimestamp", System.currentTimeMillis())
+          .withDetail(REASON_DETAIL, "Health check failed due to exception")
+          .withDetail(CHECK_TIMESTAMP_DETAIL, System.currentTimeMillis())
           .build();
     }
   }
@@ -244,10 +264,10 @@ public class MessageConsumptionActivityHealthIndicator implements HealthIndicato
     }
 
     return Health.down()
-        .withDetail("reason", reason)
+        .withDetail(REASON_DETAIL, reason)
         .withDetail("consumerConnected", consumerConnected)
         .withDetail("consumerGroupActive", consumerGroupActive)
-        .withDetail("checkTimestamp", checkTimestamp)
+        .withDetail(CHECK_TIMESTAMP_DETAIL, checkTimestamp)
         .build();
   }
 }

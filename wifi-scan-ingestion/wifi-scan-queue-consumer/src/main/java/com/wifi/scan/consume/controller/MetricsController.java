@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.wifi.scan.consume.service.BatchFirehoseMessageService;
 import com.wifi.scan.consume.service.KafkaMonitoringService;
-import com.wifi.scan.consume.service.MessageCompressionService;
+import com.wifi.scan.consume.service.MessageTransformationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,7 +54,7 @@ public class MetricsController {
   private final KafkaMonitoringService monitoringService;
 
   /** Service for compressing and encoding messages */
-  private final MessageCompressionService compressionService;
+  private final MessageTransformationService compressionService;
 
   /** Service for delivering messages to Firehose */
   private final BatchFirehoseMessageService firehoseService;
@@ -262,7 +262,7 @@ public class MetricsController {
       log.debug("Created single-element message list for batch processing");
 
       // Step 3: Compress and encode the message
-      List<String> compressedMessages = compressionService.compressAndEncodeBatch(messageList);
+      List<String> compressedMessages = compressionService.transform(messageList);
       if (compressedMessages.isEmpty()) {
         response.put("status", "error");
         response.put("message", "Failed to compress and encode message");

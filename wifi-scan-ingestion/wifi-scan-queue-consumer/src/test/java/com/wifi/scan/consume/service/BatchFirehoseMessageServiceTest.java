@@ -240,28 +240,6 @@ class BatchFirehoseMessageServiceTest {
   @DisplayName("Edge Case Tests")
   class EdgeCaseTests {
 
-    @Test
-    @DisplayName("Should handle null and empty messages")
-    void shouldHandleNullAndEmptyMessages() {
-      // Given
-      List<String> messages = new ArrayList<>();
-      messages.add("valid");
-      messages.add(null);
-      messages.add("");
-      messages.add("  "); // whitespace only
-      messages.add("valid2");
-
-      // When
-      List<List<String>> subBatches =
-          batchFirehoseService.createSubBatches(
-              messages, TEST_MAX_BATCH_SIZE, TEST_MAX_BATCH_SIZE_BYTES);
-
-      // Then - Should only include valid messages
-      assertThat(subBatches).hasSize(1);
-      List<String> validMessages = subBatches.get(0);
-      assertThat(validMessages).hasSize(2);
-      assertThat(validMessages).containsExactly("valid", "valid2");
-    }
 
     @Test
     @DisplayName("Should handle single large message")

@@ -139,7 +139,7 @@ public class FirehoseConfiguration {
     }
 
     // Priority 2: Explicit Firehose endpoint (for production optimization)
-    if (!firehoseEndpointUrl.isEmpty()) {
+    if (firehoseEndpointUrl!= null && !firehoseEndpointUrl.isEmpty()) {
       log.info("Using explicit Firehose endpoint: {}", firehoseEndpointUrl);
       builder.endpointOverride(URI.create(firehoseEndpointUrl));
       return;

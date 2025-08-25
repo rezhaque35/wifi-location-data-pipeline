@@ -19,7 +19,7 @@ import org.springframework.kafka.support.Acknowledgment;
 import com.wifi.scan.consume.metrics.KafkaConsumerMetrics;
 import com.wifi.scan.consume.service.BatchFirehoseMessageService;
 import com.wifi.scan.consume.service.KafkaMonitoringService;
-import com.wifi.scan.consume.service.MessageCompressionService;
+import com.wifi.scan.consume.service.MessageTransformationService;
 
 /**
  * Test class for WifiScanBatchMessageListener following TDD principles. Tests the simplified batch
@@ -37,7 +37,7 @@ class WifiScanBatchMessageListenerTest {
 
   @Mock private KafkaMonitoringService mockMonitoringService;
 
-  @Mock private MessageCompressionService mockCompressionService;
+  @Mock private MessageTransformationService mockTransformationService;
 
   @Mock private Acknowledgment mockAcknowledgment;
 
@@ -51,12 +51,12 @@ class WifiScanBatchMessageListenerTest {
     setPrivateField(batchListener, "batchFirehoseService", mockBatchFirehoseService);
     setPrivateField(batchListener, "metrics", mockMetrics);
     setPrivateField(batchListener, "monitoringService", mockMonitoringService);
-    setPrivateField(batchListener, "compressionService", mockCompressionService);
+    setPrivateField(batchListener, "compressionService", mockTransformationService);
 
     // Setup default mock behavior for successful processing (using lenient to avoid unnecessary
     // stubbing warnings)
     lenient()
-        .when(mockCompressionService.compressAndEncodeBatch(anyList()))
+        .when(mockTransformationService.transform(anyList()))
         .thenReturn(List.of("compressed_test_content"));
     lenient().when(mockBatchFirehoseService.deliverBatch(anyList())).thenReturn(true);
   }
@@ -143,14 +143,12 @@ class WifiScanBatchMessageListenerTest {
     // Given
     ConsumerRecords<String, String> records = createTestBatchWithInvalidMessages();
 
-    // Setup compression service to return empty list (all messages failed validation/compression)
-    when(mockCompressionService.compressAndEncodeBatch(anyList())).thenReturn(List.of());
-
     // When
     batchListener.listenBatch(records, mockAcknowledgment);
 
     // Then
     verify(mockAcknowledgment).acknowledge(); // Empty batch should be acknowledged
+    verify(mockTransformationService, never()).transform(anyList());
     verify(mockBatchFirehoseService, never()).deliverBatch(anyList());
   }
 
@@ -161,7 +159,7 @@ class WifiScanBatchMessageListenerTest {
     ConsumerRecords<String, String> records = createTestBatch(3);
 
     List<String> compressedMessages = List.of("compressed1", "compressed2", "compressed3");
-    when(mockCompressionService.compressAndEncodeBatch(anyList())).thenReturn(compressedMessages);
+    when(mockTransformationService.transform(anyList())).thenReturn(compressedMessages);
 
     // When
     batchListener.listenBatch(records, mockAcknowledgment);
@@ -229,7 +227,7 @@ class WifiScanBatchMessageListenerTest {
             new ConsumerRecord<>("test-topic", 0, 0, "key1", "invalid json"),
             new ConsumerRecord<>("test-topic", 0, 1, "key2", null),
             new ConsumerRecord<>("test-topic", 0, 2, "key3", ""),
-            new ConsumerRecord<>("test-topic", 0, 3, "key4", "{\"valid\":\"json\"}"));
+            new ConsumerRecord<>("test-topic", 0, 3, "key4", "{\"valid\":\"json\""));
 
     records.put(partition, recordList);
     return new ConsumerRecords<>(records);
