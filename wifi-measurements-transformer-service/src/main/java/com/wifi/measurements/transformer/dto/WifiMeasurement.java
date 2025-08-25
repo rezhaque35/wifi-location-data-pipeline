@@ -11,6 +11,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * <p>This represents the final transformed data that will be written to storage.
  */
 public record WifiMeasurement(
+    // Unique Identifier
+    @JsonProperty("id") String id,
+    
     // Primary Keys
     @JsonProperty("bssid") String bssid,
     @JsonProperty("measurement_timestamp") Long measurementTimestamp,
@@ -78,6 +81,9 @@ public record WifiMeasurement(
 
   /** Builder class for constructing WifiMeasurement instances. */
   public static class Builder {
+    // Unique Identifier
+    private String id;
+    
     // Primary Keys
     private String bssid;
     private Long measurementTimestamp;
@@ -139,6 +145,11 @@ public record WifiMeasurement(
     private Double qualityScore;
 
     // Builder methods
+    public Builder id(String id) {
+      this.id = id;
+      return this;
+    }
+
     public Builder bssid(String bssid) {
       this.bssid = bssid;
       return this;
@@ -331,6 +342,7 @@ public record WifiMeasurement(
 
     public WifiMeasurement build() {
       return new WifiMeasurement(
+          id,
           bssid,
           measurementTimestamp,
           eventId,

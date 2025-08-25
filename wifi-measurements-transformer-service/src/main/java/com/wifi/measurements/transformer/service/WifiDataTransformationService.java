@@ -273,6 +273,9 @@ public class WifiDataTransformationService {
 
     return Optional.of(
         WifiMeasurement.builder()
+            // Unique Identifier
+            .id(UUID.randomUUID().toString())
+            
             // Primary Keys
             .bssid(normalizedBssid(event.wifiConnectedInfo().bssid()))
             .measurementTimestamp(event.timestamp())
@@ -457,6 +460,9 @@ public class WifiDataTransformationService {
       // This creates a normalized measurement with all required fields and metadata
       WifiMeasurement measurement =
           WifiMeasurement.builder()
+              // Unique Identifier
+              .id(UUID.randomUUID().toString())
+              
               // Primary Keys - These uniquely identify each measurement
               .bssid(normalizedBssid(entry.bssid())) // Normalized BSSID format
               .measurementTimestamp(scanResult.timestamp()) // When the scan occurred

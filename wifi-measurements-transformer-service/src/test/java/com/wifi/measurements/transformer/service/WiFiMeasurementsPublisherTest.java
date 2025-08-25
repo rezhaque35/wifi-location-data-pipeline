@@ -201,6 +201,7 @@ class WiFiMeasurementsPublisherTest {
 
   private WifiMeasurement createTestMeasurement() {
     return new WifiMeasurement(
+        UUID.randomUUID().toString(), // id
         "00:11:22:33:44:55",
         Instant.now().toEpochMilli(),
         "test-event-" + UUID.randomUUID(),
