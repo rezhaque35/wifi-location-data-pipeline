@@ -145,8 +145,14 @@ public class EnhancedSslCertificateHealthIndicator implements HealthIndicator {
     details.put("readinessOptimized", true);
     details.put("checkTimestamp", System.currentTimeMillis());
 
-    if (!kafkaProperties.getSsl().isEnabled()) {
-      return buildSslDisabledResponse(details);
+    try {
+      // Check SSL configuration with null safety
+      if (kafkaProperties.getSsl() == null || !kafkaProperties.getSsl().isEnabled()) {
+        return buildSslDisabledResponse(details);
+      }
+    } catch (Exception e) {
+      log.error("Error accessing SSL configuration", e);
+      return buildFailureResponse(e, details);
     }
 
     try {

@@ -6,10 +6,12 @@
 CREATE TABLE wifi_measurements (
   -- Primary Keys
   bssid                    STRING,
+  id                       STRING,
+
   measurement_timestamp    BIGINT,
-  event_id                STRING,
-  
+
   -- Device Information
+  event_id                STRING,
   device_id               STRING,
   device_model            STRING,
   device_manufacturer     STRING,

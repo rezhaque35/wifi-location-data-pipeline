@@ -50,10 +50,19 @@ public class SslCertificateHealthIndicator implements HealthIndicator {
 
   @Override
   public Health health() {
-    if (!kafkaProperties.getSsl().isEnabled()) {
-      return Health.up()
-          .withDetail("sslEnabled", false)
-          .withDetail(REASON_KEY, "SSL is not enabled")
+    try {
+      // Check SSL configuration with null safety
+      if (kafkaProperties.getSsl() == null || !kafkaProperties.getSsl().isEnabled()) {
+        return Health.up()
+            .withDetail("sslEnabled", false)
+            .withDetail(REASON_KEY, "SSL is not enabled")
+            .withDetail(CHECK_TIMESTAMP_KEY, System.currentTimeMillis())
+            .build();
+      }
+    } catch (Exception e) {
+      log.error("Error accessing SSL configuration", e);
+      return Health.down()
+          .withDetail("error", e.getMessage())
           .withDetail(CHECK_TIMESTAMP_KEY, System.currentTimeMillis())
           .build();
     }
