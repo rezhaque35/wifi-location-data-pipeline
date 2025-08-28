@@ -10,6 +10,10 @@ import org.springframework.context.annotation.Configuration;
 
 import com.wifi.measurements.transformer.config.properties.S3ConfigurationProperties;
 import com.wifi.measurements.transformer.config.properties.SqsConfigurationProperties;
+import com.wifi.measurements.transformer.service.SqsMonitoringService;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -171,5 +175,25 @@ public class AwsConfiguration {
     }
 
     return builder.build();
+  }
+
+  /**
+   * SQS monitoring service with properly injected Micrometer counter.
+   * 
+   * <p>Creates the SqsMonitoringService with the same counter used by SqsMessageReceiver
+   * to eliminate duplicate metric tracking and ensure consistency.
+   */
+  @Bean
+  public SqsMonitoringService sqsMonitoringService(
+      SqsClient sqsClient,
+      String resolvedQueueUrl,
+      MeterRegistry meterRegistry) {
+    
+    // Create the same counter that SqsMessageReceiver uses
+    Counter messagesReceivedCounter = Counter.builder("sqs.messages.received")
+        .description("Total number of SQS messages received")
+        .register(meterRegistry);
+        
+    return new SqsMonitoringService(sqsClient, resolvedQueueUrl, messagesReceivedCounter);
   }
 }

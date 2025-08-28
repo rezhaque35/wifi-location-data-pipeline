@@ -67,11 +67,11 @@ management:
     readinessstate:
       enabled: true
     sqs-message-processing:
-      message-timeout-threshold: 5  # 5 minutes - fails liveness if no processing activity
-      processing-rate-threshold: 0.1  # Minimum processing rate in messages per minute
+      message-timeout-threshold: 5  # 5 minutes - reports IDLE_TIMEOUT status for monitoring
+      processing-rate-threshold: 0.1  # Minimum processing rate threshold for monitoring (messages per minute)
     firehose-delivery:
-      delivery-timeout-threshold: 10  # 10 minutes - fails liveness if no delivery activity
-      delivery-rate-threshold: 0.05  # Minimum delivery rate in batches per minute
+      delivery-timeout-threshold: 10  # 10 minutes - reports IDLE_TIMEOUT status for monitoring
+      delivery-rate-threshold: 0.05  # Minimum delivery rate threshold for monitoring (batches per minute)
 
 # Enhanced Health Indicator Configuration
 health:

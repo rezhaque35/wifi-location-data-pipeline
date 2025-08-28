@@ -7,8 +7,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+
+import io.micrometer.core.instrument.Counter;
 
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
@@ -53,20 +53,19 @@ import software.amazon.awssdk.services.sqs.model.SqsException;
  * @version 1.0
  * @since 2024
  */
-@Service
 public class SqsMonitoringService {
 
   private static final Logger logger = LoggerFactory.getLogger(SqsMonitoringService.class);
 
   private final SqsClient sqsClient;
   private final String queueUrl;
+  private final Counter messagesReceivedCounter;
 
   // Activity tracking
   private final AtomicReference<Instant> lastMessageReceivedTime =
       new AtomicReference<>(Instant.now());
   private final AtomicReference<Instant> lastProcessingActivityTime =
       new AtomicReference<>(Instant.now());
-  private final AtomicLong totalMessagesReceived = new AtomicLong(0);
   private final AtomicLong totalMessagesProcessed = new AtomicLong(0);
   private final AtomicLong totalMessagesSucceeded = new AtomicLong(0);
   private final AtomicLong totalMessagesFailed = new AtomicLong(0);
@@ -80,12 +79,15 @@ public class SqsMonitoringService {
    *
    * @param sqsClient AWS SQS client for queue operations
    * @param queueUrl Resolved SQS queue URL
+   * @param messagesReceivedCounter Micrometer counter for tracking received messages
    */
   public SqsMonitoringService(
       SqsClient sqsClient, 
-      @Value("#{@resolvedQueueUrl}") String queueUrl) {
+      String queueUrl,
+      Counter messagesReceivedCounter) {
     this.sqsClient = sqsClient;
     this.queueUrl = queueUrl;
+    this.messagesReceivedCounter = messagesReceivedCounter;
   }
 
   /**
@@ -201,7 +203,7 @@ public class SqsMonitoringService {
     // 1. We have received messages but haven't processed any recently
     // 2. Processing activity has been idle for an extended period
     long timeSinceLastActivity = getTimeSinceLastProcessingActivity();
-    long totalReceived = totalMessagesReceived.get();
+    long totalReceived = (long) messagesReceivedCounter.count();
     long totalProcessed = totalMessagesProcessed.get();
 
     // If we have received messages but processing activity is stale
@@ -214,10 +216,10 @@ public class SqsMonitoringService {
   }
 
   /** Records that a message was received from SQS. */
-  public void recordMessageReceived() {
+  public void recordMessageReceived(long value) {
     lastMessageReceivedTime.set(Instant.now());
-    totalMessagesReceived.incrementAndGet();
-    logger.debug("Message received recorded - total: {}", totalMessagesReceived.get());
+    messagesReceivedCounter.increment(value);
+    logger.debug("Message received recorded - total: {}", messagesReceivedCounter.count());
   }
 
   /**
@@ -249,7 +251,7 @@ public class SqsMonitoringService {
    */
   public SqsMetrics getMetrics() {
     return new SqsMetrics(
-        totalMessagesReceived.get(),
+        (long) messagesReceivedCounter.count(),
         totalMessagesProcessed.get(),
         totalMessagesSucceeded.get(),
         totalMessagesFailed.get(),
