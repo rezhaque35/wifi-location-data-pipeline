@@ -129,27 +129,7 @@ class WifiDataTransformationServiceTest {
     transformationService = new WifiDataTransformationService(validationService, filteringConfig);
   }
 
-  /**
-   * Tests that null input data throws IllegalArgumentException.
-   *
-   * <p><strong>Test Scenario:</strong>
-   *
-   * <ul>
-   *   <li><strong>Input:</strong> null WiFi scan data
-   *   <li><strong>Expected:</strong> IllegalArgumentException with specific error message
-   *   <li><strong>Purpose:</strong> Validates input parameter validation
-   * </ul>
-   *
-   * <p><strong>Business Rule:</strong> The service must reject null input data to prevent
-   * downstream processing errors and ensure data integrity.
-   */
-  @Test
-  void transformToMeasurements_NullData_ThrowsException() {
-    // When & Then: Verify that null input throws appropriate exception
-    assertThatThrownBy(() -> transformationService.transformToMeasurements(null, "batch-123"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("WiFi scan data cannot be null");
-  }
+
 
   /**
    * Tests successful transformation of valid WiFi connected event data.

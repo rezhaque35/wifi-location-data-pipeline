@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import com.wifi.measurements.transformer.dto.S3EventRecord;
+import com.wifi.measurements.transformer.dto.FeedUploadEvent;
 import com.wifi.measurements.transformer.processor.impl.DefaultFeedProcessor;
 
 /**
@@ -88,7 +88,7 @@ class FeedProcessorFactoryTest {
   @DisplayName("Should return default processor for any stream")
   void shouldReturnDefaultProcessorForAnyStream() {
     // Given
-    S3EventRecord s3Event = createS3EventRecord("MVS-stream");
+    FeedUploadEvent s3Event = createS3EventRecord("MVS-stream");
 
     // When
     FeedProcessor result = factory.getProcessor(s3Event);
@@ -102,7 +102,7 @@ class FeedProcessorFactoryTest {
   @DisplayName("Should return default processor for unknown stream")
   void shouldReturnDefaultProcessorForUnknownStream() {
     // Given
-    S3EventRecord s3Event = createS3EventRecord("unknown-stream");
+    FeedUploadEvent s3Event = createS3EventRecord("unknown-stream");
 
     // When
     FeedProcessor result = factory.getProcessor(s3Event);
@@ -116,7 +116,7 @@ class FeedProcessorFactoryTest {
   @DisplayName("Should return default processor even for specific stream names")
   void shouldReturnDefaultProcessorForSpecificStreamName() {
     // Given
-    S3EventRecord s3Event = createS3EventRecord("GPS-data");
+    FeedUploadEvent s3Event = createS3EventRecord("GPS-data");
     when(mockDefaultProcessor.canProcess("GPS-data")).thenReturn(true);
 
     // When
@@ -154,8 +154,8 @@ class FeedProcessorFactoryTest {
     assertThrows(NullPointerException.class, () -> factory.getProcessor(null));
   }
 
-  private S3EventRecord createS3EventRecord(String streamName) {
-    return new S3EventRecord(
+  private FeedUploadEvent createS3EventRecord(String streamName) {
+    return new FeedUploadEvent(
         "test-id",
         Instant.now(),
         "us-east-1",

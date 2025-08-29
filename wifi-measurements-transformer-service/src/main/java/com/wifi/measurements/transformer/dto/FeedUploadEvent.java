@@ -12,7 +12,7 @@ import java.util.List;
  * <p>This record contains all the essential information needed for processing S3 object creation
  * events, including metadata for feed detection and data processing.
  */
-public record S3EventRecord(
+public record FeedUploadEvent(
     String id,
     Instant time,
     String region,
@@ -43,7 +43,7 @@ public record S3EventRecord(
    * @param requestId Request ID
    * @return S3EventRecord with extracted stream name
    */
-  public static S3EventRecord of(
+  public static FeedUploadEvent of(
       String id,
       Instant time,
       String region,
@@ -57,7 +57,7 @@ public record S3EventRecord(
 
     String streamName = extractStreamName(objectKey);
 
-    return new S3EventRecord(
+    return new FeedUploadEvent(
         id,
         time,
         region,

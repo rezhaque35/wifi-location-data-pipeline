@@ -1,7 +1,7 @@
 // wifi-measurements-transformer-service/src/main/java/com/wifi/measurements/transformer/service/FeedProcessor.java
 package com.wifi.measurements.transformer.processor;
 
-import com.wifi.measurements.transformer.dto.S3EventRecord;
+import com.wifi.measurements.transformer.dto.FeedUploadEvent;
 
 /**
  * Interface for processing different types of data feeds from S3 events.
@@ -36,10 +36,10 @@ public interface FeedProcessor {
    * transformation logic 3. Validate and filter data according to feed requirements 4. Write
    * processed data to the appropriate destination 5. Handle errors and log processing statistics
    *
-   * @param s3EventRecord The S3 event record to process
+   * @param feedUploadEvent The S3 event record to process
    * @return true if processing was successful, false otherwise
    */
-  boolean processS3Event(S3EventRecord s3EventRecord);
+  boolean process(FeedUploadEvent feedUploadEvent);
 
   /**
    * Gets processing metrics for monitoring and observability.

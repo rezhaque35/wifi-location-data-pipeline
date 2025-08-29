@@ -135,7 +135,7 @@ class ComprehensiveIntegrationTest {
         .messageId("test-message-id")
         .receiptHandle("test-receipt-handle")
         .build();
-    boolean processingResult = messageProcessor.processMessage(sqsMessage);
+    boolean processingResult = messageProcessor.processMessage(sqsMessage).status();
 
     // Then: Verify processing was successful
     assertTrue(processingResult, "Message processing should succeed");
@@ -160,7 +160,7 @@ class ComprehensiveIntegrationTest {
         .messageId("test-mixed-data-msg")
         .receiptHandle("test-receipt-handle-2")
         .build();
-    boolean processingResult = messageProcessor.processMessage(sqsMessage);
+    boolean processingResult = messageProcessor.processMessage(sqsMessage).status();
 
     // Then: Verify processing completed
     assertTrue(processingResult, "Mixed data processing should succeed");
@@ -182,7 +182,7 @@ class ComprehensiveIntegrationTest {
         .messageId("test-connection-status-msg")
         .receiptHandle("test-receipt-handle-3")
         .build();
-    boolean processingResult = messageProcessor.processMessage(sqsMessage);
+    boolean processingResult = messageProcessor.processMessage(sqsMessage).status();
 
     // Then: Verify processing completed
     assertTrue(processingResult, "Connection status processing should succeed");
@@ -214,7 +214,7 @@ class ComprehensiveIntegrationTest {
           .messageId("test-batch-msg-" + i)
           .receiptHandle("test-receipt-handle-batch-" + i)
           .build();
-      boolean result = messageProcessor.processMessage(sqsMessage);
+      boolean result = messageProcessor.processMessage(sqsMessage).status();
       if (result) successfulProcessing++;
     }
 
@@ -240,7 +240,7 @@ class ComprehensiveIntegrationTest {
         .messageId("test-comprehensive-filtering-msg")
         .receiptHandle("test-receipt-handle-comprehensive")
         .build();
-    boolean processingResult = messageProcessor.processMessage(sqsMessage);
+    boolean processingResult = messageProcessor.processMessage(sqsMessage).status();
 
     // Then: Verify processing completed
     assertTrue(processingResult, "Comprehensive filtering processing should succeed");
@@ -267,7 +267,7 @@ class ComprehensiveIntegrationTest {
         .messageId("test-graceful-stop-msg")
         .receiptHandle("test-receipt-handle-graceful")
         .build();
-    boolean processingResult = messageProcessor.processMessage(sqsMessage);
+    boolean processingResult = messageProcessor.processMessage(sqsMessage).status();
 
     // Then: Verify processing completed successfully
     assertTrue(processingResult, "Graceful stop processing should succeed");
@@ -290,7 +290,7 @@ class ComprehensiveIntegrationTest {
         .messageId("test-mobile-hotspot-msg")
         .receiptHandle("test-receipt-handle-hotspot")
         .build();
-    boolean processingResult = messageProcessor.processMessage(sqsMessage);
+    boolean processingResult = messageProcessor.processMessage(sqsMessage).status();
 
     // Then: Verify processing completed
     assertTrue(processingResult, "Mobile hotspot processing should succeed");
@@ -315,7 +315,7 @@ class ComprehensiveIntegrationTest {
         .messageId("test-low-linkspeed-msg")
         .receiptHandle("test-receipt-handle-linkspeed")
         .build();
-    boolean processingResult = messageProcessor.processMessage(sqsMessage);
+    boolean processingResult = messageProcessor.processMessage(sqsMessage).status();
 
     // Then: Verify processing completed
     assertTrue(processingResult, "Low link speed processing should succeed");
@@ -340,7 +340,7 @@ class ComprehensiveIntegrationTest {
         .messageId("test-timestamp-validation-msg")
         .receiptHandle("test-receipt-handle-timestamp")
         .build();
-    boolean processingResult = messageProcessor.processMessage(sqsMessage);
+    boolean processingResult = messageProcessor.processMessage(sqsMessage).status();
 
     // Then: Verify processing completed
     assertTrue(processingResult, "Timestamp validation processing should succeed");
@@ -365,7 +365,7 @@ class ComprehensiveIntegrationTest {
         .messageId("test-missing-fields-msg")
         .receiptHandle("test-receipt-handle-missing-fields")
         .build();
-    boolean processingResult = messageProcessor.processMessage(sqsMessage);
+    boolean processingResult = messageProcessor.processMessage(sqsMessage).status();
 
     // Then: Verify processing completed
     assertTrue(processingResult, "Missing fields processing should succeed");

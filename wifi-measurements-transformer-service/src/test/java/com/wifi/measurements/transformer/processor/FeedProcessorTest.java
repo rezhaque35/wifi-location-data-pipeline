@@ -9,7 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.wifi.measurements.transformer.dto.S3EventRecord;
+import com.wifi.measurements.transformer.dto.FeedUploadEvent;
 
 /**
  * Unit tests for FeedProcessor implementations.
@@ -34,13 +34,13 @@ class FeedProcessorTest {
 
   @Test
   @DisplayName("Should process S3 event successfully")
-  void shouldProcessS3EventSuccessfully() {
+  void shouldProcessSuccessfully() {
     // Given
     TestFeedProcessor processor = new TestFeedProcessor("MVS-stream");
-    S3EventRecord eventRecord = createTestS3EventRecord("MVS-stream");
+    FeedUploadEvent eventRecord = createTestS3EventRecord("MVS-stream");
 
     // When
-    boolean result = processor.processS3Event(eventRecord);
+    boolean result = processor.process(eventRecord);
 
     // Then
     assertTrue(result);
@@ -52,7 +52,7 @@ class FeedProcessorTest {
   void shouldHandleUnsupportedFeedTypeGracefully() {
     // Given
     TestFeedProcessor processor = new TestFeedProcessor("MVS-stream");
-    S3EventRecord eventRecord = createTestS3EventRecord("GPS-data");
+    FeedUploadEvent eventRecord = createTestS3EventRecord("GPS-data");
 
     // When
     boolean canProcess = processor.canProcess(eventRecord.streamName());
@@ -85,11 +85,11 @@ class FeedProcessorTest {
     assertFalse(metrics.trim().isEmpty());
   }
 
-  private S3EventRecord createTestS3EventRecord(String streamName) {
+  private FeedUploadEvent createTestS3EventRecord(String streamName) {
     // Use the simplified format where stream name is immediately before the filename
     String objectKey = "2025/07/28/19/" + streamName + "/" + streamName + "-2025-07-28-19-12-23-15993907-a5fe-4793-8182-064acc85cf20.txt";
 
-    return S3EventRecord.of(
+    return FeedUploadEvent.of(
         "test-id",
         Instant.now(),
         "us-east-1",
@@ -121,9 +121,9 @@ class FeedProcessorTest {
     }
 
     @Override
-    public boolean processS3Event(S3EventRecord s3EventRecord) {
+    public boolean process(FeedUploadEvent feedUploadEvent) {
       // Simple test implementation - just check if we can process the feed type
-      return canProcess(s3EventRecord.streamName());
+      return canProcess(feedUploadEvent.streamName());
     }
 
     @Override

@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wifi.measurements.transformer.dto.S3EventRecord;
+import com.wifi.measurements.transformer.dto.FeedUploadEvent;
 
 /**
  * Comprehensive S3 event extraction and validation service for SQS message processing.
@@ -69,9 +69,9 @@ import com.wifi.measurements.transformer.dto.S3EventRecord;
  * @since 2024
  */
 @Service
-public class S3EventExtractor {
+public class FeedEventParser {
 
-  private static final Logger logger = LoggerFactory.getLogger(S3EventExtractor.class);
+  private static final Logger logger = LoggerFactory.getLogger(FeedEventParser.class);
   private final ObjectMapper objectMapper;
 
   // Validation patterns
@@ -83,7 +83,7 @@ public class S3EventExtractor {
   private static final String RECORDS_FIELD = "Records";
   private static final String OBJECT_FIELD = "object";
 
-  public S3EventExtractor() {
+  public FeedEventParser() {
     this.objectMapper = new ObjectMapper();
   }
 
@@ -127,7 +127,7 @@ public class S3EventExtractor {
    *     otherwise
    * @throws IllegalArgumentException if messageBody is null (though this is handled gracefully)
    */
-  public Optional<S3EventRecord> extractS3Event(String messageBody) {
+  public Optional<FeedUploadEvent> parseFrom(String messageBody) {
     if (messageBody == null || messageBody.trim().isEmpty()) {
       logger.warn("Message body is null or empty");
       return Optional.empty();
@@ -172,7 +172,7 @@ public class S3EventExtractor {
   }
 
   /** Extracts S3EventRecord from validated JsonNode. */
-  private Optional<S3EventRecord> extractS3EventRecord(JsonNode eventNode) {
+  private Optional<FeedUploadEvent> extractS3EventRecord(JsonNode eventNode) {
     try {
       // Get the first S3 event record from the Records array
       JsonNode eventRecord = eventNode.get(RECORDS_FIELD).get(0);
@@ -193,8 +193,8 @@ public class S3EventExtractor {
       // Extract request parameters if available
       String requestId = extractOptionalS3Field(eventRecord.get("responseElements"), "x-amz-request-id", null);
 
-      S3EventRecord s3EventRecord =
-          S3EventRecord.of(
+      FeedUploadEvent feedUploadEvent =
+          FeedUploadEvent.of(
               eventVersion,
               time,
               region,
@@ -205,14 +205,13 @@ public class S3EventExtractor {
               etag,
               sequencer, // Use sequencer instead of versionId
               requestId);
-
-      logger.debug(
-          "Successfully extracted S3 event: bucket={}, key={}, stream={}",
-          bucketName,
-          objectKey,
-          s3EventRecord.streamName());
-
-      return Optional.of(s3EventRecord);
+      logger.info(
+              "Successfully extracted S3 event - bucket: {}, key: {}, size: {} bytes, stream: {}",
+              feedUploadEvent.bucketName(),
+              feedUploadEvent.objectKey(),
+              feedUploadEvent.objectSize(),
+              feedUploadEvent.streamName());
+      return Optional.of(feedUploadEvent);
 
     } catch (Exception e) {
       logger.error("Error extracting S3 event from message body", e);

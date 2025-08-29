@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import com.wifi.measurements.transformer.dto.S3EventRecord;
+import com.wifi.measurements.transformer.dto.FeedUploadEvent;
 
 import software.amazon.awssdk.services.sqs.model.Message;
 
@@ -65,7 +65,7 @@ import software.amazon.awssdk.services.sqs.model.Message;
  */
 class MessageProcessorTest {
 
-  @Mock private S3EventExtractor s3EventExtractor;
+  @Mock private FeedEventParser feedEventParser;
 
   @Mock private FeedProcessorFactory feedProcessorFactory;
 
@@ -76,7 +76,7 @@ class MessageProcessorTest {
   @BeforeEach
   void setUp() {
     MockitoAnnotations.openMocks(this);
-    processor = new MessageProcessor(s3EventExtractor, feedProcessorFactory);
+    processor = new MessageProcessor(feedEventParser, feedProcessorFactory);
   }
 
   @Test
@@ -87,8 +87,8 @@ class MessageProcessorTest {
     String messageBody = "{\"test\": \"message\"}";
     Message message = Message.builder().messageId(messageId).body(messageBody).build();
 
-    S3EventRecord mockS3Event =
-        new S3EventRecord(
+    FeedUploadEvent mockS3Event =
+        new FeedUploadEvent(
             "test-id",
             Instant.now(),
             "us-east-1",
@@ -101,18 +101,18 @@ class MessageProcessorTest {
             "test-request-id",
             "MVS-stream");
 
-    when(s3EventExtractor.extractS3Event(messageBody)).thenReturn(Optional.of(mockS3Event));
+    when(feedEventParser.parseFrom(messageBody)).thenReturn(Optional.of(mockS3Event));
     when(feedProcessorFactory.getProcessor(mockS3Event)).thenReturn(mockFeedProcessor);
-    when(mockFeedProcessor.processS3Event(mockS3Event)).thenReturn(true);
+    when(mockFeedProcessor.process(mockS3Event)).thenReturn(true);
 
     // When
-    boolean result = processor.processMessage(message);
+    MessageProcessingResult result = processor.processMessage(message);
 
     // Then
-    assertTrue(result);
-    verify(s3EventExtractor).extractS3Event(messageBody);
+    assertTrue(result.status());
+    verify(feedEventParser).parseFrom(messageBody);
     verify(feedProcessorFactory).getProcessor(mockS3Event);
-    verify(mockFeedProcessor).processS3Event(mockS3Event);
+    verify(mockFeedProcessor).process(mockS3Event);
   }
 
   @Test
@@ -123,14 +123,14 @@ class MessageProcessorTest {
     String messageBody = "{\"invalid\": \"message\"}";
     Message message = Message.builder().messageId(messageId).body(messageBody).build();
 
-    when(s3EventExtractor.extractS3Event(messageBody)).thenReturn(Optional.empty());
+    when(feedEventParser.parseFrom(messageBody)).thenReturn(Optional.empty());
 
     // When
-    boolean result = processor.processMessage(message);
+    MessageProcessingResult result = processor.processMessage(message);
 
     // Then
-    assertFalse(result);
-    verify(s3EventExtractor).extractS3Event(messageBody);
+    assertFalse(result.status());
+    verify(feedEventParser).parseFrom(messageBody);
   }
 
   @Test
@@ -140,14 +140,14 @@ class MessageProcessorTest {
     String messageId = "test-message-id";
     Message message = Message.builder().messageId(messageId).body(null).build();
 
-    when(s3EventExtractor.extractS3Event(null)).thenReturn(Optional.empty());
+    when(feedEventParser.parseFrom(null)).thenReturn(Optional.empty());
 
     // When
-    boolean result = processor.processMessage(message);
+    MessageProcessingResult result = processor.processMessage(message);
 
     // Then
-    assertFalse(result);
-    verify(s3EventExtractor).extractS3Event(null);
+    assertFalse(result.status());
+    verify(feedEventParser).parseFrom(null);
   }
 
   @Test
@@ -158,15 +158,15 @@ class MessageProcessorTest {
     String messageBody = "{\"test\": \"message\"}";
     Message message = Message.builder().messageId(messageId).body(messageBody).build();
 
-    when(s3EventExtractor.extractS3Event(messageBody))
+    when(feedEventParser.parseFrom(messageBody))
         .thenThrow(new RuntimeException("Test exception"));
 
     // When
-    boolean result = processor.processMessage(message);
+    MessageProcessingResult result = processor.processMessage(message);
 
     // Then
-    assertFalse(result);
-    verify(s3EventExtractor).extractS3Event(messageBody);
+    assertFalse(result.status());
+    verify(feedEventParser).parseFrom(messageBody);
   }
 
   @Test
@@ -177,8 +177,8 @@ class MessageProcessorTest {
     String messageBody = "{\"test\": \"message\"}";
     Message message = Message.builder().messageId(messageId).body(messageBody).build();
 
-    S3EventRecord mockS3Event =
-        new S3EventRecord(
+    FeedUploadEvent mockS3Event =
+        new FeedUploadEvent(
             "test-id",
             Instant.now(),
             "us-east-1",
@@ -191,17 +191,17 @@ class MessageProcessorTest {
             "test-request-id",
             "test-stream");
 
-    when(s3EventExtractor.extractS3Event(messageBody)).thenReturn(Optional.of(mockS3Event));
+    when(feedEventParser.parseFrom(messageBody)).thenReturn(Optional.of(mockS3Event));
     when(feedProcessorFactory.getProcessor(mockS3Event)).thenReturn(mockFeedProcessor);
-    when(mockFeedProcessor.processS3Event(mockS3Event)).thenReturn(true);
+    when(mockFeedProcessor.process(mockS3Event)).thenReturn(true);
 
     // When
-    boolean result = processor.processMessage(message);
+    MessageProcessingResult result = processor.processMessage(message);
 
     // Then
-    assertTrue(result);
-    verify(s3EventExtractor).extractS3Event(messageBody);
+    assertTrue(result.status());
+    verify(feedEventParser).parseFrom(messageBody);
     verify(feedProcessorFactory).getProcessor(mockS3Event);
-    verify(mockFeedProcessor).processS3Event(mockS3Event);
+    verify(mockFeedProcessor).process(mockS3Event);
   }
 }

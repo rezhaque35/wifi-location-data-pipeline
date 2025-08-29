@@ -9,6 +9,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
+import com.wifi.measurements.transformer.processor.MessageProcessingResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -26,14 +27,7 @@ import jakarta.annotation.PreDestroy;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
-/**
- * Processing result for a single message, containing  status and receipt handle.
- *
- * @param status        whether the message was processed successfully
- * @param receiptHandle the SQS receipt handle for message deletion
- */
-record MessageProcessingResult(boolean status, String receiptHandle) {
-}
+
 
 
 /**
@@ -539,7 +533,7 @@ public class SqsMessageReceiver {
             logger.debug("Processing SQS message: {}", messageId);
 
             // Process the message using the message processor
-            MessageProcessingResult result = new MessageProcessingResult(messageProcessor.processMessage(message), message.receiptHandle());
+            MessageProcessingResult result  = messageProcessor.processMessage(message);
             // Record processing activity in monitoring service
             sqsMonitoringService.recordMessageProcessed(result.status());
 

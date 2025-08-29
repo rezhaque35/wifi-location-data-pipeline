@@ -11,8 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.wifi.measurements.transformer.dto.S3EventRecord;
-import com.wifi.measurements.transformer.processor.S3EventExtractor;
+import com.wifi.measurements.transformer.dto.FeedUploadEvent;
+import com.wifi.measurements.transformer.processor.FeedEventParser;
 
 /**
  * Comprehensive unit tests for S3EventExtractor using S3 Event Notification format.
@@ -20,13 +20,13 @@ import com.wifi.measurements.transformer.processor.S3EventExtractor;
  * <p>Tests cover: - Valid S3 event extraction - Field validation - Security validation - Edge cases
  * and error handling - Stream name extraction with URL decoding
  */
-class S3EventExtractorTest {
+class FeedEventParserTest {
 
-  private S3EventExtractor extractor;
+  private FeedEventParser extractor;
 
   @BeforeEach
   void setUp() {
-    extractor = new S3EventExtractor();
+    extractor = new FeedEventParser();
   }
 
   @Test
@@ -76,11 +76,11 @@ class S3EventExtractorTest {
             """;
 
     // When
-    Optional<S3EventRecord> result = extractor.extractS3Event(validMessage);
+    Optional<FeedUploadEvent> result = extractor.parseFrom(validMessage);
 
     // Then
     assertTrue(result.isPresent());
-    S3EventRecord eventRecord = result.get();
+    FeedUploadEvent eventRecord = result.get();
 
     assertEquals("2.1", eventRecord.id()); // eventVersion
     assertEquals(Instant.parse("2025-08-13T22:30:10.778Z"), eventRecord.time());
@@ -133,7 +133,7 @@ class S3EventExtractorTest {
       String expectedStreamName = testCase[1];
       String description = testCase[2];
 
-      String actualStreamName = S3EventRecord.extractStreamName(objectKey);
+      String actualStreamName = FeedUploadEvent.extractStreamName(objectKey);
       assertEquals(expectedStreamName, actualStreamName, 
           String.format("Failed for %s: %s", description, objectKey));
     }
@@ -143,35 +143,35 @@ class S3EventExtractorTest {
   @DisplayName("Should handle edge cases and error conditions robustly")
   void shouldHandleEdgeCasesRobustly() {
     // Null and empty cases
-    assertEquals("unknown", S3EventRecord.extractStreamName(null));
-    assertEquals("unknown", S3EventRecord.extractStreamName(""));
-    assertEquals("unknown", S3EventRecord.extractStreamName("   "));
+    assertEquals("unknown", FeedUploadEvent.extractStreamName(null));
+    assertEquals("unknown", FeedUploadEvent.extractStreamName(""));
+    assertEquals("unknown", FeedUploadEvent.extractStreamName("   "));
 
     // Single component (no stream name possible)
-    assertEquals("unknown", S3EventRecord.extractStreamName("filename.txt"));
-    assertEquals("unknown", S3EventRecord.extractStreamName("just-a-file"));
+    assertEquals("unknown", FeedUploadEvent.extractStreamName("filename.txt"));
+    assertEquals("unknown", FeedUploadEvent.extractStreamName("just-a-file"));
 
     // Invalid URL encoding (should gracefully handle by returning original)
-    assertEquals("MVS-stream", S3EventRecord.extractStreamName("year%3D2025/month%3D08/day%3D13/hour%3D22/MVS-stream/file.txt")); // valid
-    assertEquals("stream", S3EventRecord.extractStreamName("year%ZZ2025/month%3D08/day%3D13/hour%3D22/stream/file.txt")); // invalid encoding, still works
+    assertEquals("MVS-stream", FeedUploadEvent.extractStreamName("year%3D2025/month%3D08/day%3D13/hour%3D22/MVS-stream/file.txt")); // valid
+    assertEquals("stream", FeedUploadEvent.extractStreamName("year%ZZ2025/month%3D08/day%3D13/hour%3D22/stream/file.txt")); // invalid encoding, still works
 
     // Valid long stream name
     String longStreamName = "valid-stream-name-with-many-components";
     String longKey = "year%3D2025/month%3D08/day%3D13/hour%3D22/" + longStreamName + "/file.txt";
-    assertEquals(longStreamName, S3EventRecord.extractStreamName(longKey));
+    assertEquals(longStreamName, FeedUploadEvent.extractStreamName(longKey));
 
     // Very long stream name (should be rejected)
     String tooLongStreamName = "a".repeat(250);
     String tooLongKey = "year%3D2025/month%3D08/day%3D13/hour%3D22/" + tooLongStreamName + "/file.txt";
-    assertEquals("unknown", S3EventRecord.extractStreamName(tooLongKey));
+    assertEquals("unknown", FeedUploadEvent.extractStreamName(tooLongKey));
 
     // Empty path components (double slash creates empty component)
-    assertEquals("unknown", S3EventRecord.extractStreamName("prefix/stream//file.txt")); // double slash creates empty component before filename
-    assertEquals("unknown", S3EventRecord.extractStreamName("//file.txt")); // starts with slashes, not enough components
+    assertEquals("unknown", FeedUploadEvent.extractStreamName("prefix/stream//file.txt")); // double slash creates empty component before filename
+    assertEquals("unknown", FeedUploadEvent.extractStreamName("//file.txt")); // starts with slashes, not enough components
     
     // Stream names that could be edge cases but are now accepted
-    assertEquals("2025", S3EventRecord.extractStreamName("prefix/2025/file.txt")); // numbers are now accepted
-    assertEquals("month=08", S3EventRecord.extractStreamName("prefix/month=08/file.txt")); // partition-looking names are accepted
+    assertEquals("2025", FeedUploadEvent.extractStreamName("prefix/2025/file.txt")); // numbers are now accepted
+    assertEquals("month=08", FeedUploadEvent.extractStreamName("prefix/month=08/file.txt")); // partition-looking names are accepted
   }
 
   @Test
@@ -204,7 +204,7 @@ class S3EventExtractorTest {
       String expectedStreamName = testCase[1];
       String description = testCase[2];
 
-      String actualStreamName = S3EventRecord.extractStreamName(objectKey);
+      String actualStreamName = FeedUploadEvent.extractStreamName(objectKey);
       assertEquals(expectedStreamName, actualStreamName, 
           String.format("Failed for %s: %s", description, objectKey));
     }
@@ -213,17 +213,17 @@ class S3EventExtractorTest {
   @Test
   @DisplayName("Should return empty for null or empty message body")
   void shouldReturnEmptyForNullOrEmptyMessageBody() {
-    assertTrue(extractor.extractS3Event(null).isEmpty());
-    assertTrue(extractor.extractS3Event("").isEmpty());
-    assertTrue(extractor.extractS3Event("   ").isEmpty());
+    assertTrue(extractor.parseFrom(null).isEmpty());
+    assertTrue(extractor.parseFrom("").isEmpty());
+    assertTrue(extractor.parseFrom("   ").isEmpty());
   }
 
   @Test
   @DisplayName("Should return empty for invalid JSON")
   void shouldReturnEmptyForInvalidJson() {
-    assertTrue(extractor.extractS3Event("invalid json").isEmpty());
-    assertTrue(extractor.extractS3Event("{").isEmpty());
-    assertTrue(extractor.extractS3Event("null").isEmpty());
+    assertTrue(extractor.parseFrom("invalid json").isEmpty());
+    assertTrue(extractor.parseFrom("{").isEmpty());
+    assertTrue(extractor.parseFrom("null").isEmpty());
   }
 
   @Test
@@ -238,7 +238,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    assertTrue(extractor.extractS3Event(missingRecords).isEmpty());
+    assertTrue(extractor.parseFrom(missingRecords).isEmpty());
   }
 
   @Test
@@ -251,7 +251,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    assertTrue(extractor.extractS3Event(emptyRecords).isEmpty());
+    assertTrue(extractor.parseFrom(emptyRecords).isEmpty());
   }
 
   @Test
@@ -274,7 +274,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    assertTrue(extractor.extractS3Event(wrongEventSource).isEmpty());
+    assertTrue(extractor.parseFrom(wrongEventSource).isEmpty());
   }
 
   @Test
@@ -293,7 +293,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    assertTrue(extractor.extractS3Event(missingS3).isEmpty());
+    assertTrue(extractor.parseFrom(missingS3).isEmpty());
   }
 
   @Test
@@ -317,7 +317,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    assertTrue(extractor.extractS3Event(invalidTimeFormat).isEmpty());
+    assertTrue(extractor.parseFrom(invalidTimeFormat).isEmpty());
 
     // Time too far in the past
     String pastTime =
@@ -337,7 +337,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    assertTrue(extractor.extractS3Event(pastTime).isEmpty());
+    assertTrue(extractor.parseFrom(pastTime).isEmpty());
 
     // Time too far in the future
     String futureTime =
@@ -357,7 +357,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    assertTrue(extractor.extractS3Event(futureTime).isEmpty());
+    assertTrue(extractor.parseFrom(futureTime).isEmpty());
   }
 
   @Test
@@ -380,7 +380,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    assertTrue(extractor.extractS3Event(invalidBucketName).isEmpty());
+    assertTrue(extractor.parseFrom(invalidBucketName).isEmpty());
   }
 
   @Test
@@ -403,7 +403,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    assertTrue(extractor.extractS3Event(dangerousKey).isEmpty());
+    assertTrue(extractor.parseFrom(dangerousKey).isEmpty());
   }
 
   @Test
@@ -427,7 +427,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    assertTrue(extractor.extractS3Event(negativeSize).isEmpty());
+    assertTrue(extractor.parseFrom(negativeSize).isEmpty());
 
     // Too large size
     String tooLargeSize =
@@ -447,7 +447,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    assertTrue(extractor.extractS3Event(tooLargeSize).isEmpty());
+    assertTrue(extractor.parseFrom(tooLargeSize).isEmpty());
   }
 
   @Test
@@ -471,10 +471,10 @@ class S3EventExtractorTest {
             }
             """;
 
-    Optional<S3EventRecord> result = extractor.extractS3Event(minimalMessage);
+    Optional<FeedUploadEvent> result = extractor.parseFrom(minimalMessage);
     assertTrue(result.isPresent());
 
-    S3EventRecord eventRecord = result.get();
+    FeedUploadEvent eventRecord = result.get();
     assertNull(eventRecord.etag());
     assertNull(eventRecord.versionId()); // sequencer
     assertNull(eventRecord.requestId());
@@ -505,7 +505,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    Optional<S3EventRecord> result = extractor.extractS3Event(invalidEtag);
+    Optional<FeedUploadEvent> result = extractor.parseFrom(invalidEtag);
     assertTrue(result.isPresent());
     assertNull(result.get().etag()); // Should be null for invalid ETag
   }
@@ -534,7 +534,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    Optional<S3EventRecord> result = extractor.extractS3Event(messageWithRequestId);
+    Optional<FeedUploadEvent> result = extractor.parseFrom(messageWithRequestId);
     assertTrue(result.isPresent());
     assertEquals("8C3VR6DWXN808YJP", result.get().requestId());
   }
@@ -559,7 +559,7 @@ class S3EventExtractorTest {
             }
             """;
 
-    Optional<S3EventRecord> result = extractor.extractS3Event(missingEventVersion);
+    Optional<FeedUploadEvent> result = extractor.parseFrom(missingEventVersion);
     assertTrue(result.isPresent());
     assertNull(result.get().id()); // eventVersion should be null
   }

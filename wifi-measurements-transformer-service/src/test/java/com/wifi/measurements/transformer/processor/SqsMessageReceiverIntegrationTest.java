@@ -196,10 +196,10 @@ class SqsMessageReceiverIntegrationTest {
         .messageId("test-valid-s3-msg")
         .receiptHandle("test-receipt-handle-valid")
         .build();
-    boolean processingResult = messageProcessor.processMessage(sqsMessage);
+    MessageProcessingResult processingResult = messageProcessor.processMessage(sqsMessage);
 
     // Then: Verify processing was successful
-    assertTrue(processingResult, "Valid S3 event processing should succeed");
+    assertTrue(processingResult.status(), "Valid S3 event processing should succeed");
     
     logger.info("Valid S3 event processing test completed successfully!");
   }
@@ -215,11 +215,11 @@ class SqsMessageReceiverIntegrationTest {
         .messageId("test-invalid-json-msg")
         .receiptHandle("test-receipt-handle-invalid")
         .build();
-    boolean processingResult = messageProcessor.processMessage(sqsMessage);
+    MessageProcessingResult processingResult = messageProcessor.processMessage(sqsMessage);
 
     // Then: Verify processing handled the invalid message gracefully
     // (depending on implementation, this might return false or throw exception - adjust as needed)
-    assertFalse(processingResult, "Invalid JSON processing should fail gracefully");
+    assertFalse(processingResult.status(), "Invalid JSON processing should fail gracefully");
     
     logger.info("Invalid JSON message handling test completed successfully!");
   }
@@ -235,10 +235,10 @@ class SqsMessageReceiverIntegrationTest {
         .messageId("test-malformed-s3-msg")
         .receiptHandle("test-receipt-handle-malformed")
         .build();
-    boolean processingResult = messageProcessor.processMessage(sqsMessage);
+    MessageProcessingResult processingResult = messageProcessor.processMessage(sqsMessage);
 
     // Then: Verify processing handled the error gracefully
-    assertFalse(processingResult, "Malformed S3 event processing should fail gracefully");
+    assertFalse(processingResult.status(), "Malformed S3 event processing should fail gracefully");
     
     logger.info("S3 event processing error handling test completed successfully!");
   }

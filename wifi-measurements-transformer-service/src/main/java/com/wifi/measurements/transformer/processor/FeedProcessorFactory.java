@@ -7,7 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.wifi.measurements.transformer.dto.S3EventRecord;
+import com.wifi.measurements.transformer.dto.FeedUploadEvent;
 import com.wifi.measurements.transformer.processor.impl.DefaultFeedProcessor;
 
 /**
@@ -109,12 +109,12 @@ public class FeedProcessorFactory {
    *   <li>Consistent selection behavior across concurrent calls
    * </ul>
    *
-   * @param s3EventRecord The S3 event record containing stream information for processor selection
+   * @param feedUploadEvent The S3 event record containing stream information for processor selection
    * @return The appropriate feed processor for the stream type, never null
    * @throws IllegalArgumentException if s3EventRecord is null
    */
-  public FeedProcessor getProcessor(S3EventRecord s3EventRecord) {
-    String feedType = s3EventRecord.streamName();
+  public FeedProcessor getProcessor(FeedUploadEvent feedUploadEvent) {
+    String feedType = feedUploadEvent.streamName();
     return customProcessors.stream()
         .filter(processor -> processor.canProcess(feedType))
         .findFirst()
