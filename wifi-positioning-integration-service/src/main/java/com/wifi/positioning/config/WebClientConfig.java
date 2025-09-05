@@ -41,6 +41,8 @@ public class WebClientConfig {
 
         return WebClient.builder()
             .clientConnector(new ReactorClientHttpConnector(httpClient))
+            // Configure buffer size to handle large response bodies during load testing
+            .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(properties.getPositioning().getMaxBufferSizeBytes()))
             .build();
     }
 }

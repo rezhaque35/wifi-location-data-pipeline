@@ -1,6 +1,7 @@
 // com/wifi/positioning/service/IntegrationProcessingService.java
 package com.wifi.positioning.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wifi.positioning.client.PositioningServiceClient;
 import com.wifi.positioning.dto.*;
 import com.wifi.positioning.mapper.VLSSInterfaceMapper;
@@ -11,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Service that encapsulates the core integration processing logic shared between
@@ -27,6 +30,7 @@ public class IntegrationProcessingService {
     private final VLSSInterfaceMapper mapper;
     private final PositioningServiceClient positioningClient;
     private final ComparisonService comparisonService;
+    private final ObjectMapper objectMapper;
 
     /**
      * Processes an integration report request and returns comprehensive results.
@@ -92,7 +96,7 @@ public class IntegrationProcessingService {
     }
 
     /**
-     * Logs successful processing completion with metrics.
+     * Logs successful processing completion with comprehensive metrics in JSON format.
      */
     private void logProcessingSuccess(ProcessingContext context,
                                       ClientResult positioning, ComparisonMetrics comparison) {
@@ -150,78 +154,109 @@ public class IntegrationProcessingService {
     }
 
     /**
-     * Logs a simple summary of the integration event.
-     * Detailed metrics are logged separately in logSpecificRequirements().
+     * Logs comprehensive integration event metrics as a single JSON structure.
+     * Consolidates all integration data for easier parsing in log aggregation systems.
      */
     private void logIntegrationEvent(ProcessingContext context, ComparisonMetrics comparison) {
-        
-        String logPrefix = ASYNC_MODE.equals(context.getProcessingMode()) ? "ASYNC_INTEGRATION_COMPARISON_EVENT" : "INTEGRATION_COMPARISON_EVENT";
-        
-        // Simple summary log - detailed metrics are in specific requirement logs below
-        log.info("{}: correlationId='{}', requestId='{}', processingMode='{}', " +
-                "scenario='{}' ",
-            logPrefix,
-            context.getCorrelationId(), context.getRequestId(), context.getProcessingMode(),
-            comparison.getScenario());
-        
-        // Log detailed requirements for Splunk dashboard
-        logSpecificRequirements(context, comparison);
-
+        try {
+            String eventType = ASYNC_MODE.equals(context.getProcessingMode()) ? 
+                "ASYNC_INTEGRATION_COMPARISON_EVENT" : "INTEGRATION_COMPARISON_EVENT";
+            
+            Map<String, Object> logData = createIntegrationLogData(context, comparison, eventType);
+            String jsonLog = objectMapper.writeValueAsString(logData);
+            
+            log.info("{}: {}", eventType, jsonLog);
+            
+        } catch (Exception e) {
+            // Fallback to basic logging if JSON serialization fails
+            log.error("Failed to serialize integration log data - correlationId: {}, requestId: {}, error: {}", 
+                context.getCorrelationId(), context.getRequestId(), e.getMessage());
+            logBasicIntegrationEvent(context, comparison);
+        }
     }
-    
 
-    
     /**
-     * Logs specific requirements for Splunk dashboard analysis.
+     * Creates comprehensive log data structure containing all integration metrics.
      */
-    private void logSpecificRequirements(ProcessingContext context, ComparisonMetrics comparison) {
+    private Map<String, Object> createIntegrationLogData(ProcessingContext context, 
+                                                        ComparisonMetrics comparison, 
+                                                        String eventType) {
+        Map<String, Object> logData = new LinkedHashMap<>();
         
-        String logPrefix = ASYNC_MODE.equals(context.getProcessingMode()) ? "ASYNC_" : "";
+        // Core context information
+        logData.put("eventType", eventType);
+        logData.put("correlationId", context.getCorrelationId());
+        logData.put("requestId", context.getRequestId());
+        logData.put("processingMode", context.getProcessingMode());
+        logData.put("scenario", comparison.getScenario());
+        logData.put("timestamp", Instant.now().toString());
         
-        // 1. Input data quality - print total AP count and selection context
-        log.info("{}INPUT_DATA_QUALITY: correlationId='{}', requestId='{}', " +
-                "totalApCount={}, selectionContextInfo={}",
-            logPrefix, context.getCorrelationId(), context.getRequestId(),
-            comparison.getRequestApCount(), comparison.getSelectionContextInfo());
+        // Input data quality metrics
+        Map<String, Object> inputDataQuality = new LinkedHashMap<>();
+        inputDataQuality.put("totalApCount", comparison.getRequestApCount());
+        inputDataQuality.put("selectionContextInfo", comparison.getSelectionContextInfo());
+        logData.put("inputDataQuality", inputDataQuality);
         
-        // 2. AP Data Quality - comprehensive metrics for all scenarios
-        log.info("{}AP_DATA_QUALITY: correlationId='{}', requestId='{}', " +
-                "requestApCount={}, friscoSuccess={}, " +
-                "calculationAccessPoints={}, accessPointSummary={}, statusRatio={}, " +
-                "geometricQualityFactor={}, signalQualityFactor={}, signalDistributionFactor={}",
-            logPrefix, context.getCorrelationId(), context.getRequestId(),
-            comparison.getRequestApCount(), comparison.getFriscoSuccess(),
-            comparison.getCalculationAccessPoints(), comparison.getCalculationAccessPointSummary(), 
-            comparison.getStatusRatio(), comparison.getGeometricQualityFactor(),
-            comparison.getSignalQualityFactor(), comparison.getSignalDistributionFactor());
+        // AP data quality metrics
+        Map<String, Object> apDataQuality = new LinkedHashMap<>();
+        apDataQuality.put("requestApCount", comparison.getRequestApCount());
+        apDataQuality.put("friscoSuccess", comparison.getFriscoSuccess());
+        apDataQuality.put("calculationAccessPoints", comparison.getCalculationAccessPoints());
+        apDataQuality.put("accessPointSummary", comparison.getCalculationAccessPointSummary());
+        apDataQuality.put("statusRatio", comparison.getStatusRatio());
+        apDataQuality.put("geometricQualityFactor", comparison.getGeometricQualityFactor());
+        apDataQuality.put("signalQualityFactor", comparison.getSignalQualityFactor());
+        apDataQuality.put("signalDistributionFactor", comparison.getSignalDistributionFactor());
+        logData.put("apDataQuality", apDataQuality);
         
-        // 3. Algorithm Usage - print used algorithms
+        // Algorithm usage metrics
         if (comparison.getFriscoMethodsUsed() != null && !comparison.getFriscoMethodsUsed().isEmpty()) {
-            log.info("{}ALGORITHM_USAGE: correlationId='{}', requestId='{}', usedAlgorithms={}",
-                logPrefix, context.getCorrelationId(), context.getRequestId(),
-                comparison.getFriscoMethodsUsed());
+            Map<String, Object> algorithmUsage = new LinkedHashMap<>();
+            algorithmUsage.put("usedAlgorithms", comparison.getFriscoMethodsUsed());
+            logData.put("algorithmUsage", algorithmUsage);
         }
         
-        // 4. Frisco Service Performance - unified success/failure metrics
-        log.info("{}FRISCO_PERFORMANCE: correlationId='{}', requestId='{}', " +
-                "friscoSuccess={}, friscoAccuracy={}, friscoConfidence={}, friscoErrorDetails={}, " +
-                "friscoResponseTimeMs={}, friscoCalculationTimeMs={}",
-            logPrefix, context.getCorrelationId(), context.getRequestId(),
-            comparison.getFriscoSuccess(), comparison.getFriscoAccuracy(), comparison.getFriscoConfidence(),
-            comparison.getFriscoErrorDetails(), comparison.getFriscoResponseTimeMs(), comparison.getFriscoCalculationTimeMs());
+        // Frisco service performance metrics
+        Map<String, Object> friscoPerformance = new LinkedHashMap<>();
+        friscoPerformance.put("friscoSuccess", comparison.getFriscoSuccess());
+        friscoPerformance.put("friscoAccuracy", comparison.getFriscoAccuracy());
+        friscoPerformance.put("friscoConfidence", comparison.getFriscoConfidence());
+        friscoPerformance.put("friscoErrorDetails", comparison.getFriscoErrorDetails());
+        friscoPerformance.put("friscoResponseTimeMs", comparison.getFriscoResponseTimeMs());
+        friscoPerformance.put("friscoCalculationTimeMs", comparison.getFriscoCalculationTimeMs());
+        logData.put("friscoPerformance", friscoPerformance);
         
-        // 5. VLSS VS Frisco Service Performance Analysis
+        // VLSS vs Frisco comparison metrics (only if location data available)
         if (comparison.getLocationType() != null) {
-            log.info("{}VLSS_FRISCO_COMPARISON: correlationId='{}', requestId='{}', " +
-                    "locationType='{}', distance={}, expectedUncertainty={}, agreementAnalysis='{}', " +
-                    "vlssAccuracy={}, friscoAccuracy={}, confidenceRatio={}",
-                logPrefix, context.getCorrelationId(), context.getRequestId(),
-                comparison.getLocationType(), comparison.getHaversineDistanceMeters(), 
-                comparison.getExpectedUncertaintyMeters(), comparison.getAgreementAnalysis(),
-                comparison.getVlssAccuracy(), comparison.getFriscoAccuracy(), comparison.getConfidenceRatio());
+            Map<String, Object> vlssFriscoComparison = new LinkedHashMap<>();
+            vlssFriscoComparison.put("locationType", comparison.getLocationType());
+            vlssFriscoComparison.put("distance", comparison.getHaversineDistanceMeters());
+            vlssFriscoComparison.put("expectedUncertainty", comparison.getExpectedUncertaintyMeters());
+            vlssFriscoComparison.put("agreementAnalysis", comparison.getAgreementAnalysis());
+            vlssFriscoComparison.put("vlssAccuracy", comparison.getVlssAccuracy());
+            vlssFriscoComparison.put("friscoAccuracy", comparison.getFriscoAccuracy());
+            vlssFriscoComparison.put("confidenceRatio", comparison.getConfidenceRatio());
+            logData.put("vlssFriscoComparison", vlssFriscoComparison);
         }
+        
+        return logData;
     }
-    
+
+    /**
+     * Fallback logging method if JSON serialization fails.
+     */
+    private void logBasicIntegrationEvent(ProcessingContext context, ComparisonMetrics comparison) {
+        String eventType = ASYNC_MODE.equals(context.getProcessingMode()) ? 
+            "ASYNC_INTEGRATION_COMPARISON_EVENT" : "INTEGRATION_COMPARISON_EVENT";
+        
+        log.info("{}: correlationId='{}', requestId='{}', processingMode='{}', scenario='{}', " +
+                "friscoSuccess={}, vlssSuccess={}", 
+            eventType, context.getCorrelationId(), context.getRequestId(), 
+            context.getProcessingMode(), comparison.getScenario(), 
+            comparison.getFriscoSuccess(), comparison.getVlssSuccess());
+    }
+
+
     /**
      * Logs processing errors for monitoring and debugging.
      */

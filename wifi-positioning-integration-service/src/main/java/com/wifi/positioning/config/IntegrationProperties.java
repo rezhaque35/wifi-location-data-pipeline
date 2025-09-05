@@ -25,6 +25,7 @@ public class IntegrationProperties {
         private String path = "/api/positioning/calculate";
         private long connectTimeoutMs = 300;
         private long readTimeoutMs = 800;
+        private int maxBufferSizeBytes = 262144; // Default 256KB, same as Spring's default
     }
 
     @Data

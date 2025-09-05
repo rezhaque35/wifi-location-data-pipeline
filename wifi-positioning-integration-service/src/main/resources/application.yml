@@ -64,6 +64,7 @@ integration:
     health-path: /health
     connect-timeout-ms: 1000
     read-timeout-ms: 5000
+    max-buffer-size-bytes: 1048576  # 1MB buffer for large responses
   processing:
     default-mode: sync # or async
     async:
