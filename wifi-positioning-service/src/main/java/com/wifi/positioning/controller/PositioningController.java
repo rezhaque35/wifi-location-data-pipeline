@@ -27,7 +27,7 @@ import jakarta.validation.Valid;
  * Server Error: For unexpected system errors
  */
 @RestController
-@RequestMapping("/api/positioning")
+@RequestMapping("/v1/wifi")
 @Validated
 @Tag(name = "WiFi Positioning", description = "APIs for WiFi-based indoor positioning")
 public class PositioningController {
@@ -39,7 +39,7 @@ public class PositioningController {
     this.positioningService = positioningService;
   }
 
-  @PostMapping(value = "/calculate", produces = MediaType.APPLICATION_JSON_VALUE)
+  @PostMapping(value = "/position", produces = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
       summary = "Calculate position",
       description = "Calculate position based on WiFi scan results")

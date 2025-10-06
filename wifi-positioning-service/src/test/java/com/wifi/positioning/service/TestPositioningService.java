@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
@@ -15,10 +16,12 @@ import com.wifi.positioning.dto.WifiScanResult;
 
 /**
  * Test implementation of PositioningService that returns predictable responses for integration
- * tests.
+ * tests that need a stub service.
+ * Use @ActiveProfiles({"test", "stub-service"}) to enable this stub.
  */
 @Service
-@Profile("test")
+@Primary
+@Profile("stub-service")
 public class TestPositioningService implements PositioningService {
 
   // Default test coordinates

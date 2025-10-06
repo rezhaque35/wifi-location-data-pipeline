@@ -12,8 +12,6 @@ import com.wifi.positioning.algorithm.PositioningAlgorithmType;
 import com.wifi.positioning.algorithm.selection.factor.APCountFactor;
 import com.wifi.positioning.algorithm.selection.factor.GeometricQualityFactor;
 import com.wifi.positioning.algorithm.selection.factor.SignalQualityFactor;
-import com.wifi.positioning.dto.WifiAccessPoint;
-import com.wifi.positioning.dto.WifiScanResult;
 
 /**
  * Implements the WiFi Positioning Hybrid Algorithm Selection Framework. This framework uses a
@@ -300,20 +298,15 @@ public class AlgorithmSelector {
    * weights based on various factors 3. Finalist Selection - Select the final set of algorithms
    * based on weights
    *
-   * @param validScans The valid WiFi scan results
-   * @param apMap Map of known access points by MAC address
    * @param context Additional context information about the scenario
    * @return AlgorithmSelectionInfo containing weights and detailed selection reasons
    */
-  public AlgorithmSelectionInfo selectAlgorithmsWithReasons(
-      List<WifiScanResult> validScans,
-      Map<String, WifiAccessPoint> apMap,
-      SelectionContext context) {
+  public AlgorithmSelectionInfo selectAlgorithmsWithReasons(SelectionContext context) {
 
     logger.debug("Starting algorithm selection process with context: {}", context);
 
     // -------------- PHASE ONE: HARD CONSTRAINTS ----------------
-    SelectedAlgorithms eligibleAlgorithms = selectAlgorithmsBasedOnHardConstraints(context);
+    SelectedAlgorithms eligibleAlgorithms = selectWithConstraints(context);
 
 
     // -------------- PHASE TWO: ALGORITHM WEIGHTING ----------------
@@ -577,7 +570,7 @@ public class AlgorithmSelector {
    * Apply hard constraints to eliminate algorithms that are mathematically or practically invalid
    * Returns a SelectedAlgorithms containing eligible algorithms and reasons for inclusion/exclusion
    */
-  private SelectedAlgorithms selectAlgorithmsBasedOnHardConstraints(SelectionContext context) {
+  private SelectedAlgorithms selectWithConstraints(SelectionContext context) {
 
     // Handle extremely weak signals - ONLY proximity algorithm is usable
     if (context.getSignalQuality() == SignalQualityFactor.VERY_WEAK_SIGNAL) {

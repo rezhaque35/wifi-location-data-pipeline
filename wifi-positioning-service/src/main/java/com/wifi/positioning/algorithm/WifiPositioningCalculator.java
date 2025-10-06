@@ -15,7 +15,6 @@ import com.wifi.positioning.algorithm.selection.SelectionContextBuilder;
 import com.wifi.positioning.dto.Position;
 import com.wifi.positioning.dto.WifiAccessPoint;
 import com.wifi.positioning.dto.WifiScanResult;
-import com.wifi.positioning.service.SignalPhysicsValidator;
 
 import jakarta.annotation.PreDestroy;
 
@@ -69,20 +68,17 @@ public class WifiPositioningCalculator {
   private final AlgorithmSelector algorithmSelector;
   private final SelectionContextBuilder contextBuilder;
   private final PositionCombiner positionCombiner;
-  private final SignalPhysicsValidator signalPhysicsValidator;
   private final ExecutorService executorService;
 
   public WifiPositioningCalculator(
       List<PositioningAlgorithm> algorithms,
       AlgorithmSelector algorithmSelector,
       SelectionContextBuilder contextBuilder,
-      PositionCombiner positionCombiner,
-      SignalPhysicsValidator signalPhysicsValidator) {
+      PositionCombiner positionCombiner) {
     this.algorithms = algorithms;
     this.algorithmSelector = algorithmSelector;
     this.contextBuilder = contextBuilder;
     this.positionCombiner = positionCombiner;
-    this.signalPhysicsValidator = signalPhysicsValidator;
 
     // Calculate optimal thread pool size: max(MIN_THREAD_POOL_SIZE, availableProcessors /
     // PROCESSOR_DIVISOR)
@@ -97,59 +93,53 @@ public class WifiPositioningCalculator {
 
   /**
    * Calculate position using the best available algorithms for the given scenario.
+   * The WifiAPData is expected to contain pre-validated and filtered data from the service layer.
    *
-   * @param wifiScan List of WiFi scan results
-   * @param knownAPs List of known access points
-   * @return PositioningResult containing the calculated position and information about algorithms
-   *     used, or null if position calculation fails
+   * @param wifiAPData Pre-validated WiFi positioning data with scan results and valid access points
+   * @return PositioningResult containing the calculated position and information about algorithms used.
+   *         If position calculation fails, returns a PositioningResult with null position but includes
+   *         available context, algorithm selection, and error information for debugging.
    */
-  public PositioningResult calculatePosition(
-      List<WifiScanResult> wifiScan, List<WifiAccessPoint> knownAPs) {
-    if (wifiScan == null || wifiScan.isEmpty() || knownAPs == null || knownAPs.isEmpty()) {
-      return null;
-    }
-
-    // Filter valid APs (those we know locations for)
-    Map<String, WifiAccessPoint> apMap = createAPMap(knownAPs);
-    List<WifiScanResult> validScans = filterValidScans(wifiScan, apMap);
-
-    if (validScans.isEmpty()) {
-      return null;
-    }
-
-    // Validate if the signal strengths are physically possible
-    if (!signalPhysicsValidator.isPhysicallyPossible(validScans)) {
-      // Return null when signals violate physical laws
-      return null;
-    }
+  public PositioningResult calculatePosition(com.wifi.positioning.dto.WifiAPData wifiAPData) {
+    // Extract pre-filtered data from the DTO
+    List<WifiScanResult> validScans = wifiAPData.validScans();
+    List<WifiAccessPoint> validAccessPoints = wifiAPData.validAccessPoints();
+        // Create AP map for algorithm processing
+    Map<String, WifiAccessPoint> apMap = createAPMap(validAccessPoints);
 
     // 1. Evaluate scenario characteristics
     SelectionContext context = contextBuilder.buildContext(validScans, apMap);
 
     // 2. Apply algorithm selection rules
     AlgorithmSelector.AlgorithmSelectionInfo selectionInfo =
-        algorithmSelector.selectAlgorithmsWithReasons(validScans, apMap, context);
+        algorithmSelector.selectAlgorithmsWithReasons(context);
 
     Map<PositioningAlgorithm, Double> weightedAlgorithms = selectionInfo.algorithmWeights();
     Map<PositioningAlgorithm, List<String>> selectionReasons = selectionInfo.selectionReasons();
 
+    // Return partial result if no algorithms were selected
     if (weightedAlgorithms.isEmpty()) {
-      return null;
+      logger.error("Failure: No algorithms selected for positioning. Context: {}", context);
+      return new PositioningResult(null, weightedAlgorithms, selectionReasons, context);
     }
 
     // 3. Calculate positions using selected algorithms in parallel
     List<PositionCombiner.WeightedPosition> positions =
-        calculatePositionsInParallel(weightedAlgorithms, validScans, knownAPs);
+        calculatePositionsInParallel(weightedAlgorithms, validScans, validAccessPoints);
 
+    // Return partial result if no positions were calculated
     if (positions.isEmpty()) {
-      return null;
+      logger.error("Failure: No positions calculated from {} selected algorithms", weightedAlgorithms.size());
+      return new PositioningResult(null, weightedAlgorithms, selectionReasons, context);
     }
 
     // 4. Combine results using configured position combiner
     Position combinedPosition = positionCombiner.combinePositions(positions);
 
+    // Return partial result if position combining failed
     if (combinedPosition == null) {
-      return null;
+      logger.error("Failure: Position combiner returned null for {} positions", positions.size());
+      return new PositioningResult(null, weightedAlgorithms, selectionReasons, context);
     }
 
     return new PositioningResult(combinedPosition, weightedAlgorithms, selectionReasons, context);
@@ -308,13 +298,6 @@ public class WifiPositioningCalculator {
                 ap -> ap,
                 (existing, replacement) -> existing // Keep first in case of duplicates
                 ));
-  }
-
-  private List<WifiScanResult> filterValidScans(
-      List<WifiScanResult> wifiScan, Map<String, WifiAccessPoint> apMap) {
-    return wifiScan.stream()
-        .filter(scan -> apMap.containsKey(scan.macAddress()))
-        .collect(Collectors.toList());
   }
 
   /**

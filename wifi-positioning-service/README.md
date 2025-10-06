@@ -154,7 +154,7 @@ Only access points with status "active" or "warning" are used for calculations.
 The service exposes a single API endpoint:
 
 ```
-POST /api/positioning/calculate
+POST /v1/wifi/position
 ```
 
 ### Request Format

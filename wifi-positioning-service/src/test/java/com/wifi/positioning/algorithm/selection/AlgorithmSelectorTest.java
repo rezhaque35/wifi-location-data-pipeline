@@ -102,12 +102,6 @@ class AlgorithmSelectorTest {
     @DisplayName("Single AP - Should only allow Proximity and Log Distance")
     void singleAPDisqualification() {
       // Setup
-      List<WifiScanResult> scans = Arrays.asList(WifiScanResult.of("AP1", -65.0, 2412, "test"));
-
-      Map<String, WifiAccessPoint> apMap = new HashMap<>();
-      apMap.put(
-          "AP1", WifiAccessPoint.builder().macAddress("AP1").latitude(1.0).longitude(1.0).build());
-
       // Properly initialize selection context
       SelectionContext context =
           SelectionContext.builder()
@@ -119,7 +113,7 @@ class AlgorithmSelectorTest {
 
       // Execute
       AlgorithmSelector.AlgorithmSelectionInfo result =
-          algorithmSelector.selectAlgorithmsWithReasons(scans, apMap, context);
+          algorithmSelector.selectAlgorithmsWithReasons(context);
 
       // Verify
       Map<PositioningAlgorithm, Double> weights = result.algorithmWeights();
@@ -177,17 +171,6 @@ class AlgorithmSelectorTest {
     @DisplayName("Two APs - Should disqualify Trilateration and Maximum Likelihood")
     void twoAPDisqualification() {
       // Setup
-      List<WifiScanResult> scans =
-          Arrays.asList(
-              WifiScanResult.of("AP1", -65.0, 2412, "test"),
-              WifiScanResult.of("AP2", -68.0, 5180, "test"));
-
-      Map<String, WifiAccessPoint> apMap = new HashMap<>();
-      apMap.put(
-          "AP1", WifiAccessPoint.builder().macAddress("AP1").latitude(1.0).longitude(1.0).build());
-      apMap.put(
-          "AP2", WifiAccessPoint.builder().macAddress("AP2").latitude(2.0).longitude(2.0).build());
-
       // Properly initialize selection context
       SelectionContext context =
           SelectionContext.builder()
@@ -199,7 +182,7 @@ class AlgorithmSelectorTest {
 
       // Execute
       AlgorithmSelector.AlgorithmSelectionInfo result =
-          algorithmSelector.selectAlgorithmsWithReasons(scans, apMap, context);
+          algorithmSelector.selectAlgorithmsWithReasons(context);
 
       // Verify
       Map<PositioningAlgorithm, Double> weights = result.algorithmWeights();
@@ -240,20 +223,6 @@ class AlgorithmSelectorTest {
     @DisplayName("Three APs with Collinearity - Should disqualify Trilateration")
     void collinearAPDisqualification() {
       // Setup
-      List<WifiScanResult> scans =
-          Arrays.asList(
-              WifiScanResult.of("AP1", -65.0, 2412, "test"),
-              WifiScanResult.of("AP2", -68.0, 5180, "test"),
-              WifiScanResult.of("AP3", -70.0, 2412, "test"));
-
-      Map<String, WifiAccessPoint> apMap = new HashMap<>();
-      apMap.put(
-          "AP1", WifiAccessPoint.builder().macAddress("AP1").latitude(1.0).longitude(1.0).build());
-      apMap.put(
-          "AP2", WifiAccessPoint.builder().macAddress("AP2").latitude(2.0).longitude(2.0).build());
-      apMap.put(
-          "AP3", WifiAccessPoint.builder().macAddress("AP3").latitude(3.0).longitude(3.0).build());
-
       // Set collinearity flag in context
       SelectionContext context =
           SelectionContext.builder()
@@ -265,7 +234,7 @@ class AlgorithmSelectorTest {
 
       // Execute
       AlgorithmSelector.AlgorithmSelectionInfo result =
-          algorithmSelector.selectAlgorithmsWithReasons(scans, apMap, context);
+          algorithmSelector.selectAlgorithmsWithReasons(context);
 
       // Verify
       Map<PositioningAlgorithm, Double> weights = result.algorithmWeights();
@@ -325,20 +294,6 @@ class AlgorithmSelectorTest {
     @DisplayName("Extremely weak signals - Should only allow Proximity Detection")
     void extremelyWeakSignalDisqualification() {
       // Setup - use extremely weak signals
-      List<WifiScanResult> scans =
-          Arrays.asList(
-              WifiScanResult.of("AP1", -96.0, 2412, "test"),
-              WifiScanResult.of("AP2", -97.0, 5180, "test"),
-              WifiScanResult.of("AP3", -99.0, 2437, "test"));
-
-      Map<String, WifiAccessPoint> apMap = new HashMap<>();
-      apMap.put(
-          "AP1", WifiAccessPoint.builder().macAddress("AP1").latitude(1.0).longitude(1.0).build());
-      apMap.put(
-          "AP2", WifiAccessPoint.builder().macAddress("AP2").latitude(2.0).longitude(2.0).build());
-      apMap.put(
-          "AP3", WifiAccessPoint.builder().macAddress("AP3").latitude(3.0).longitude(3.0).build());
-
       // Properly initialize selection context
       SelectionContext context =
           SelectionContext.builder()
@@ -350,7 +305,7 @@ class AlgorithmSelectorTest {
 
       // Execute
       AlgorithmSelector.AlgorithmSelectionInfo result =
-          algorithmSelector.selectAlgorithmsWithReasons(scans, apMap, context);
+          algorithmSelector.selectAlgorithmsWithReasons(context);
 
       // Verify
       Map<PositioningAlgorithm, Double> weights = result.algorithmWeights();
@@ -392,20 +347,6 @@ class AlgorithmSelectorTest {
     @DisplayName("Extremely weak signals - Proximity should be selected regardless of weight")
     void extremelyWeakSignalProximityPrioritization() {
       // Setup - use extremely weak signals
-      List<WifiScanResult> scans =
-          Arrays.asList(
-              WifiScanResult.of("AP1", -96.0, 2412, "test"),
-              WifiScanResult.of("AP2", -98.0, 5180, "test"),
-              WifiScanResult.of("AP3", -99.0, 2437, "test"));
-
-      Map<String, WifiAccessPoint> apMap = new HashMap<>();
-      apMap.put(
-          "AP1", WifiAccessPoint.builder().macAddress("AP1").latitude(1.0).longitude(1.0).build());
-      apMap.put(
-          "AP2", WifiAccessPoint.builder().macAddress("AP2").latitude(2.0).longitude(2.0).build());
-      apMap.put(
-          "AP3", WifiAccessPoint.builder().macAddress("AP3").latitude(3.0).longitude(3.0).build());
-
       // Setup context that properly matches the 3 APs in the test data
       SelectionContext context =
           SelectionContext.builder()
@@ -417,7 +358,7 @@ class AlgorithmSelectorTest {
 
       // Execute
       AlgorithmSelector.AlgorithmSelectionInfo result =
-          algorithmSelector.selectAlgorithmsWithReasons(scans, apMap, context);
+          algorithmSelector.selectAlgorithmsWithReasons(context);
 
       // Verify
       Map<PositioningAlgorithm, Double> weights = result.algorithmWeights();
@@ -472,23 +413,6 @@ class AlgorithmSelectorTest {
     @DisplayName("Four APs with Strong Signals - Maximum Likelihood should have highest weight")
     void fourAPsStrongSignalWeighting() {
       // Setup
-      List<WifiScanResult> scans =
-          Arrays.asList(
-              WifiScanResult.of("AP1", -55.0, 2412, "test"),
-              WifiScanResult.of("AP2", -60.0, 5180, "test"),
-              WifiScanResult.of("AP3", -58.0, 2437, "test"),
-              WifiScanResult.of("AP4", -62.0, 5320, "test"));
-
-      Map<String, WifiAccessPoint> apMap = new HashMap<>();
-      apMap.put(
-          "AP1", WifiAccessPoint.builder().macAddress("AP1").latitude(1.0).longitude(1.0).build());
-      apMap.put(
-          "AP2", WifiAccessPoint.builder().macAddress("AP2").latitude(2.0).longitude(2.0).build());
-      apMap.put(
-          "AP3", WifiAccessPoint.builder().macAddress("AP3").latitude(1.5).longitude(2.5).build());
-      apMap.put(
-          "AP4", WifiAccessPoint.builder().macAddress("AP4").latitude(2.5).longitude(1.5).build());
-
       // Properly initialize selection context
       SelectionContext context =
           SelectionContext.builder()
@@ -500,7 +424,7 @@ class AlgorithmSelectorTest {
 
       // Execute
       AlgorithmSelector.AlgorithmSelectionInfo result =
-          algorithmSelector.selectAlgorithmsWithReasons(scans, apMap, context);
+          algorithmSelector.selectAlgorithmsWithReasons(context);
 
       // Verify
       Map<PositioningAlgorithm, Double> weights = result.algorithmWeights();
@@ -534,23 +458,6 @@ class AlgorithmSelectorTest {
     @DisplayName("Four APs with Weak Signals - Weighted Centroid should be favored")
     void fourAPsWeakSignalWeighting() {
       // Setup
-      List<WifiScanResult> scans =
-          Arrays.asList(
-              WifiScanResult.of("AP1", -86.0, 2412, "test"),
-              WifiScanResult.of("AP2", -88.0, 5180, "test"),
-              WifiScanResult.of("AP3", -90.0, 2437, "test"),
-              WifiScanResult.of("AP4", -87.0, 5320, "test"));
-
-      Map<String, WifiAccessPoint> apMap = new HashMap<>();
-      apMap.put(
-          "AP1", WifiAccessPoint.builder().macAddress("AP1").latitude(1.0).longitude(1.0).build());
-      apMap.put(
-          "AP2", WifiAccessPoint.builder().macAddress("AP2").latitude(2.0).longitude(2.0).build());
-      apMap.put(
-          "AP3", WifiAccessPoint.builder().macAddress("AP3").latitude(1.5).longitude(2.5).build());
-      apMap.put(
-          "AP4", WifiAccessPoint.builder().macAddress("AP4").latitude(2.5).longitude(1.5).build());
-
       // Properly initialize selection context
       SelectionContext context =
           SelectionContext.builder()
@@ -562,7 +469,7 @@ class AlgorithmSelectorTest {
 
       // Execute
       AlgorithmSelector.AlgorithmSelectionInfo result =
-          algorithmSelector.selectAlgorithmsWithReasons(scans, apMap, context);
+          algorithmSelector.selectAlgorithmsWithReasons(context);
 
       // Verify
       Map<PositioningAlgorithm, Double> weights = result.algorithmWeights();
@@ -600,24 +507,6 @@ class AlgorithmSelectorTest {
     @DisplayName("Signal Distribution Test - Mixed Signals should favor Maximum Likelihood")
     void mixedSignalDistributionTest() {
       // Setup - widely distributed signal strengths
-      List<WifiScanResult> scans =
-          Arrays.asList(
-              WifiScanResult.of("AP1", -60.0, 2412, "test"), // Strong
-              WifiScanResult.of("AP2", -75.0, 5180, "test"), // Medium
-              WifiScanResult.of("AP3", -88.0, 2437, "test"), // Weak
-              WifiScanResult.of("AP4", -65.0, 5320, "test") // Strong
-              );
-
-      Map<String, WifiAccessPoint> apMap = new HashMap<>();
-      apMap.put(
-          "AP1", WifiAccessPoint.builder().macAddress("AP1").latitude(1.0).longitude(1.0).build());
-      apMap.put(
-          "AP2", WifiAccessPoint.builder().macAddress("AP2").latitude(2.0).longitude(2.0).build());
-      apMap.put(
-          "AP3", WifiAccessPoint.builder().macAddress("AP3").latitude(1.5).longitude(2.5).build());
-      apMap.put(
-          "AP4", WifiAccessPoint.builder().macAddress("AP4").latitude(2.5).longitude(1.5).build());
-
       // Properly initialize selection context
       SelectionContext context =
           SelectionContext.builder()
@@ -629,7 +518,7 @@ class AlgorithmSelectorTest {
 
       // Execute
       AlgorithmSelector.AlgorithmSelectionInfo result =
-          algorithmSelector.selectAlgorithmsWithReasons(scans, apMap, context);
+          algorithmSelector.selectAlgorithmsWithReasons(context);
 
       // Verify
       Map<PositioningAlgorithm, Double> weights = result.algorithmWeights();
@@ -674,22 +563,6 @@ class AlgorithmSelectorTest {
     @DisplayName("Geometric Quality Test - Poor GDOP should reduce Trilateration weight")
     void poorGeometryAdjustmentTest() {
       // Setup
-      List<WifiScanResult> scans =
-          Arrays.asList(
-              WifiScanResult.of("AP1", -70.0, 2412, "test"),
-              WifiScanResult.of("AP2", -72.0, 5180, "test"),
-              WifiScanResult.of("AP3", -75.0, 2437, "test"));
-
-      Map<String, WifiAccessPoint> apMap = new HashMap<>();
-      // Set up APs in a poor geometric arrangement
-      apMap.put(
-          "AP1", WifiAccessPoint.builder().macAddress("AP1").latitude(1.0).longitude(1.0).build());
-      apMap.put(
-          "AP2",
-          WifiAccessPoint.builder().macAddress("AP2").latitude(1.05).longitude(1.05).build());
-      apMap.put(
-          "AP3", WifiAccessPoint.builder().macAddress("AP3").latitude(1.1).longitude(1.1).build());
-
       // Properly initialize selection context with poor geometry
       SelectionContext context =
           SelectionContext.builder()
@@ -701,7 +574,7 @@ class AlgorithmSelectorTest {
 
       // Execute
       AlgorithmSelector.AlgorithmSelectionInfo result =
-          algorithmSelector.selectAlgorithmsWithReasons(scans, apMap, context);
+          algorithmSelector.selectAlgorithmsWithReasons(context);
 
       // Verify
       Map<PositioningAlgorithm, Double> weights = result.algorithmWeights();
@@ -757,7 +630,7 @@ class AlgorithmSelectorTest {
 
       // Act
       AlgorithmSelector.AlgorithmSelectionInfo result =
-          algorithmSelector.selectAlgorithmsWithReasons(scans, apMap, context);
+          algorithmSelector.selectAlgorithmsWithReasons(context);
 
       // Assert
       Map<PositioningAlgorithm, Double> weights = result.algorithmWeights();
@@ -811,23 +684,6 @@ class AlgorithmSelectorTest {
     @DisplayName("High weight - Should select only top algorithm(s)")
     void highWeightSelection() {
       // Setup
-      List<WifiScanResult> scans =
-          Arrays.asList(
-              WifiScanResult.of("AP1", -55.0, 2412, "test"),
-              WifiScanResult.of("AP2", -60.0, 5180, "test"),
-              WifiScanResult.of("AP3", -58.0, 2437, "test"),
-              WifiScanResult.of("AP4", -62.0, 5320, "test"));
-
-      Map<String, WifiAccessPoint> apMap = new HashMap<>();
-      apMap.put(
-          "AP1", WifiAccessPoint.builder().macAddress("AP1").latitude(1.0).longitude(1.0).build());
-      apMap.put(
-          "AP2", WifiAccessPoint.builder().macAddress("AP2").latitude(3.0).longitude(1.0).build());
-      apMap.put(
-          "AP3", WifiAccessPoint.builder().macAddress("AP3").latitude(2.0).longitude(3.0).build());
-      apMap.put(
-          "AP4", WifiAccessPoint.builder().macAddress("AP4").latitude(1.0).longitude(2.0).build());
-
       // Excellent conditions should favor maximum likelihood with a very high weight
       SelectionContext context =
           SelectionContext.builder()
@@ -839,7 +695,7 @@ class AlgorithmSelectorTest {
 
       // Execute
       AlgorithmSelector.AlgorithmSelectionInfo result =
-          algorithmSelector.selectAlgorithmsWithReasons(scans, apMap, context);
+          algorithmSelector.selectAlgorithmsWithReasons(context);
 
       // Verify
       Map<PositioningAlgorithm, Double> weights = result.algorithmWeights();
@@ -874,20 +730,6 @@ class AlgorithmSelectorTest {
     @DisplayName("Weight below threshold - Should be removed")
     void weightThresholdTest() {
       // Setup
-      List<WifiScanResult> scans =
-          Arrays.asList(
-              WifiScanResult.of("AP1", -87.0, 2412, "test"),
-              WifiScanResult.of("AP2", -88.0, 5180, "test"),
-              WifiScanResult.of("AP3", -90.0, 2437, "test"));
-
-      Map<String, WifiAccessPoint> apMap = new HashMap<>();
-      apMap.put(
-          "AP1", WifiAccessPoint.builder().macAddress("AP1").latitude(1.0).longitude(1.0).build());
-      apMap.put(
-          "AP2", WifiAccessPoint.builder().macAddress("AP2").latitude(2.0).longitude(2.0).build());
-      apMap.put(
-          "AP3", WifiAccessPoint.builder().macAddress("AP3").latitude(1.5).longitude(2.5).build());
-
       // Poor conditions that will reduce many algorithm weights
       SelectionContext context =
           SelectionContext.builder()
@@ -899,7 +741,7 @@ class AlgorithmSelectorTest {
 
       // Execute
       AlgorithmSelector.AlgorithmSelectionInfo result =
-          algorithmSelector.selectAlgorithmsWithReasons(scans, apMap, context);
+          algorithmSelector.selectAlgorithmsWithReasons(context);
 
       // Verify
       Map<PositioningAlgorithm, Double> weights = result.algorithmWeights();

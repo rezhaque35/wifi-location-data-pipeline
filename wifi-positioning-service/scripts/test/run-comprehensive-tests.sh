@@ -531,7 +531,7 @@ run_test() {
     response=$(curl -s -X POST \
         -H "Content-Type: application/json" \
         -d "$payload" \
-        http://localhost:8080/wifi-positioning-service/api/positioning/calculate)
+        http://localhost:8080/wifi-positioning-service/v1/wifi/position)
     
     # Validate the response against all criteria, including expected APs
     validation_errors=()
@@ -563,7 +563,8 @@ run_test '{
     }],
     "client": "test-client",
     "requestId": "test-request-1",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "SUCCESS" 45 55 0.35 0.55 "proximity" false false
 
 # Test Case 2: Two APs - RSSI Ratio Method
@@ -592,7 +593,8 @@ run_test '{
     ],
     "client": "test-client",
     "requestId": "test-request-2",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "SUCCESS" 55 70 0.40 0.60 "weighted_centroid rssiratio" false false
 
 # Test Case 3: Three APs - Trilateration
@@ -626,7 +628,8 @@ run_test '{
     ],
     "client": "test-client",
     "requestId": "test-request-3",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "SUCCESS" 90 105 0.35 0.55 "weighted_centroid rssiratio" false false
 
 # Test Case 4: Multiple APs - Maximum Likelihood
@@ -667,7 +670,8 @@ run_test '{
     ],
     "client": "test-client",
     "requestId": "test-request-4",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "SUCCESS" 65 75 0.35 0.40 "maximum_likelihood weighted_centroid" false false
 
 # Test Case 5: Weak Signals
@@ -687,7 +691,8 @@ run_test '{
     ],
     "client": "test-client",
     "requestId": "test-request-5",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "SUCCESS" 30 80 0.05 0.15 "proximity" false false
 
 echo -e "\n${BLUE}SECTION 2: ADVANCED SCENARIO TEST CASES${NC}"
@@ -724,7 +729,8 @@ run_test '{
     ],
     "client": "test-client",
     "requestId": "test-request-6-10",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "SUCCESS" 70 85 0.35 0.45 "weighted_centroid rssiratio" false false
 
 # Test Case 11-15: High Density AP Cluster
@@ -764,7 +770,8 @@ run_test '{
     ],
     "client": "test-client",
     "requestId": "test-request-11-15",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "SUCCESS" 50 60 0.35 0.55 "weighted_centroid maximum_likelihood" false false
 
 # Test Case 16-20: Mixed Signal Quality
@@ -798,7 +805,8 @@ run_test '{
     ],
     "client": "test-client",
     "requestId": "test-request-16-20",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "SUCCESS" 60 75 0.35 0.55 "weighted_centroid rssiratio" false false
 
 echo -e "\n${BLUE}SECTION 3: TEMPORAL AND ENVIRONMENTAL TEST CASES${NC}"
@@ -828,7 +836,8 @@ run_test '{
     ],
     "client": "test-client",
     "requestId": "test-request-21-25",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "SUCCESS" 45 60 0.35 0.55 "weighted_centroid rssiratio" false false
 
 # Test Case 26-30: Log-Distance Path Loss
@@ -855,7 +864,8 @@ run_test '{
     ],
     "client": "test-client",
     "requestId": "test-request-26-30",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "SUCCESS" 20 35 0.40 0.60 "weighted_centroid rssiratio" false false
 
 # Test Case 31-35: Stable Signal Quality
@@ -883,7 +893,8 @@ run_test '{
     ],
     "client": "test-client",
     "requestId": "test-request-31-35",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "SUCCESS" 5 15 0.65 0.80 "weighted_centroid rssiratio" false false
 
 echo -e "\n${BLUE}SECTION 4: ERROR AND EDGE CASES${NC}"
@@ -901,7 +912,24 @@ run_test '{
     ],
     "client": "test-client",
     "requestId": "test-request-36",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
+}' "ERROR" false false
+
+# Test Case 37: Completely Unknown AP (No Database Entry)
+run_test '{
+    "wifiScanResults": [
+        {
+            "macAddress": "FF:FF:FF:FF:FF:FF",
+            "signalStrength": -65.0,
+            "frequency": 2412,
+            "ssid": "UnknownAP"
+        }
+    ],
+    "client": "test-client",
+    "requestId": "test-request-37",
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "ERROR" false false
 
 # Test Case 38: Very Weak Signal (Single AP)
@@ -921,35 +949,9 @@ run_test '{
     }],
     "client": "test-client",
     "requestId": "test-request-38",
-    "application": "wifi-positioning-test-suite"
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
 }' "SUCCESS" 5 15 0.0 0.1 "proximity" false false
-
-# Test Case 39: Algorithm Failure
-run_test '{
-    "wifiScanResults": [
-        {
-            "macAddress": "00:11:22:33:44:55",
-            "ssid": "TestAP1",
-            "signalStrength": -40,
-            "frequency": 2412
-        },
-        {
-            "macAddress": "AA:BB:CC:DD:EE:FF",
-            "ssid": "TestAP2",
-            "signalStrength": -90,
-            "frequency": 2412
-        },
-        {
-            "macAddress": "11:22:33:44:55:66",
-            "ssid": "TestAP3",
-            "signalStrength": -95,
-            "frequency": 2412
-        }
-    ],
-    "client": "test-client",
-    "requestId": "test-request-39",
-    "application": "wifi-positioning-test-suite"
-}' "ERROR" false false
 
 echo -e "\n${BLUE}SECTION 5: STATUS FILTERING TESTS${NC}"
 echo -e "${BLUE}====================================================${NC}"
@@ -995,7 +997,42 @@ run_test '{
     "calculationDetail": true
 }' "SUCCESS" 15 25 0.65 0.75 "weighted_centroid rssiratio" false false
 
-echo -e "\n${BLUE}SECTION 6: 2D POSITIONING TESTS (NULL ALTITUDE DATA)${NC}"
+echo -e "\n${BLUE}SECTION 6: OPTIONAL FREQUENCY TESTS${NC}"
+echo -e "${BLUE}====================================================${NC}"
+
+# Test Case: Missing Frequency Field (Should Default to 2.4 GHz)
+# This test verifies that when frequency is omitted, the service defaults to 2.4 GHz (2412 MHz)
+# Expected: Same result as if all APs had frequency: 2412
+run_test '{
+    "wifiScanResults": [
+        {
+            "macAddress": "00:11:22:33:44:04",
+            "signalStrength": -71.2,
+            "ssid": "MultiAP_Test"
+        },
+        {
+            "macAddress": "00:11:22:33:44:05",
+            "signalStrength": -85.5,
+            "ssid": "WeakSignal_Test"
+        },
+        {
+            "macAddress": "00:11:22:33:44:06",
+            "signalStrength": -70.0,
+            "ssid": "Collinear_Test_06"
+        },
+        {
+            "macAddress": "00:11:22:33:44:07",
+            "signalStrength": -68.0,
+            "ssid": "Collinear_Test_07"
+        }
+    ],
+    "client": "test-client",
+    "requestId": "test-request-missing-frequency",
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
+}' "SUCCESS" 65 75 0.35 0.40 "maximum_likelihood weighted_centroid" false false
+
+echo -e "\n${BLUE}SECTION 7: 2D POSITIONING TESTS (NULL ALTITUDE DATA)${NC}"
 echo -e "${BLUE}====================================================${NC}"
 echo -e "${YELLOW}Note: Using existing access points with altitude data, but our modified algorithm should handle 2D positioning correctly${NC}"
 

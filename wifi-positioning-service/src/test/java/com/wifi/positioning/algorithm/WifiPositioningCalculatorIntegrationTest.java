@@ -11,6 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.wifi.positioning.dto.WifiAccessPoint;
+import com.wifi.positioning.dto.WifiAPData;
 import com.wifi.positioning.dto.WifiScanResult;
 
 /**
@@ -22,6 +23,13 @@ import com.wifi.positioning.dto.WifiScanResult;
 class WifiPositioningCalculatorIntegrationTest {
 
   @Autowired private WifiPositioningCalculator calculator;
+
+  /**
+   * Helper method to create WifiAPData from scan results and access points.
+   */
+  private WifiAPData createWifiAPData(List<WifiScanResult> scans, List<WifiAccessPoint> aps) {
+    return WifiAPData.viable(scans, aps, aps);
+  }
 
   @Test
   void should_CalculatePosition_When_GivenValidInput() {
@@ -60,7 +68,7 @@ class WifiPositioningCalculatorIntegrationTest {
 
     // Calculate position
     WifiPositioningCalculator.PositioningResult result =
-        calculator.calculatePosition(scanResults, accessPoints);
+        calculator.calculatePosition(createWifiAPData(scanResults, accessPoints));
 
     // Check results
     assertNotNull(result);
@@ -86,9 +94,10 @@ class WifiPositioningCalculatorIntegrationTest {
         Arrays.asList(WifiScanResult.of("00:11:22:33:44:55", -65.0, 2437, "Test"));
 
     WifiPositioningCalculator.PositioningResult result =
-        calculator.calculatePosition(scanResults, List.of());
+        calculator.calculatePosition(createWifiAPData(scanResults, List.of()));
 
-    assertNull(result);
+    assertNotNull(result, "Result should contain partial info even without access points");
+    assertNull(result.position(), "Position should be null when no access points provided");
   }
 
   @Test
@@ -102,8 +111,9 @@ class WifiPositioningCalculatorIntegrationTest {
             .build();
 
     WifiPositioningCalculator.PositioningResult result =
-        calculator.calculatePosition(List.of(), List.of(ap));
+        calculator.calculatePosition(createWifiAPData(List.of(), List.of(ap)));
 
-    assertNull(result);
+    assertNotNull(result, "Result should contain partial info even without scan results");
+    assertNull(result.position(), "Position should be null when no scan results provided");
   }
 }

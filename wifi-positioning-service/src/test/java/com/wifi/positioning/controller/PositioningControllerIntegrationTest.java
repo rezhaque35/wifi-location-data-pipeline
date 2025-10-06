@@ -35,7 +35,7 @@ import com.wifi.positioning.repository.WifiAccessPointRepository;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "stub-service"})
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class PositioningControllerIntegrationTest {
@@ -119,7 +119,7 @@ public class PositioningControllerIntegrationTest {
     MvcResult result =
         mockMvc
             .perform(
-                post("/api/positioning/calculate")
+                post("/v1/wifi/position")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(requestBody))
             .andExpect(status().isOk())
@@ -181,7 +181,7 @@ public class PositioningControllerIntegrationTest {
     MvcResult result =
         mockMvc
             .perform(
-                post("/api/positioning/calculate")
+                post("/v1/wifi/position")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(requestBody))
             .andExpect(status().isOk())

@@ -32,8 +32,8 @@ import com.wifi.positioning.algorithm.selection.factor.SignalDistributionFactor;
 import com.wifi.positioning.algorithm.selection.factor.SignalQualityFactor;
 import com.wifi.positioning.dto.Position;
 import com.wifi.positioning.dto.WifiAccessPoint;
+import com.wifi.positioning.dto.WifiAPData;
 import com.wifi.positioning.dto.WifiScanResult;
-import com.wifi.positioning.service.SignalPhysicsValidator;
 
 /**
  * Comprehensive test suite for WifiPositioningCalculator covering all scenarios from test data.
@@ -62,8 +62,6 @@ class WifiPositioningCalculatorTest {
 
   @Mock private PositionCombiner positionCombiner;
 
-  @Mock private SignalPhysicsValidator signalPhysicsValidator;
-
   @InjectMocks private WifiPositioningCalculator wifiPositioningCalculator;
 
   private TestDataLoader testData;
@@ -71,9 +69,6 @@ class WifiPositioningCalculatorTest {
   @BeforeEach
   void setUp() {
     testData = new TestDataLoader();
-
-    // Mock the signal physics validator to always return true for test cases
-    lenient().when(signalPhysicsValidator.isPhysicallyPossible(any())).thenReturn(true);
 
     // Set up algorithm names with lenient mode to avoid unused stubbing errors
     lenient().when(proximityAlgorithm.getName()).thenReturn("proximity");
@@ -129,13 +124,9 @@ class WifiPositioningCalculatorTest {
 
     // Mock the AlgorithmSelector.selectAlgorithmsWithReasons method
     lenient()
-        .when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+        .when(algorithmSelector.selectAlgorithmsWithReasons(any()))
         .thenAnswer(
             invocation -> {
-              // The first parameter (algorithms) has been removed, so we don't need to extract it
-              // Get scan results and apMap from the remaining parameters
-              List<WifiScanResult> scanResults = invocation.getArgument(0);
-
               // Create default selection that includes all algorithms
               Map<PositioningAlgorithm, Double> algorithmWeights = new HashMap<>();
               Map<PositioningAlgorithm, List<String>> selectionReasons = new HashMap<>();
@@ -164,6 +155,14 @@ class WifiPositioningCalculatorTest {
             });
   }
 
+  /**
+   * Helper method to create WifiAPData from scan results and access points.
+   * This wraps the data in the format expected by the new calculatePosition signature.
+   */
+  private WifiAPData createWifiAPData(List<WifiScanResult> scans, List<WifiAccessPoint> aps) {
+    return WifiAPData.viable(scans, aps, aps);
+  }
+
   @Nested
   @DisplayName("Basic Scenarios (Cases 1-5)")
   class BasicScenarios {
@@ -185,7 +184,7 @@ class WifiPositioningCalculatorTest {
           proximityAlgorithm, List.of("Single AP scenario requires proximity detection"));
 
       // Override the default mock for this specific test
-      when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+      when(algorithmSelector.selectAlgorithmsWithReasons(any()))
           .thenReturn(
               new AlgorithmSelector.AlgorithmSelectionInfo(selectedAlgorithms, selectionReasons));
 
@@ -193,7 +192,7 @@ class WifiPositioningCalculatorTest {
 
       // Act
       WifiPositioningCalculator.PositioningResult result =
-          wifiPositioningCalculator.calculatePosition(scans, aps);
+          wifiPositioningCalculator.calculatePosition(createWifiAPData(scans, aps));
 
       // Assert
       assertNotNull(result);
@@ -218,7 +217,7 @@ class WifiPositioningCalculatorTest {
       selectionReasons.put(rssiRatioAlgorithm, List.of("Dual AP scenario is best for RSSI ratio"));
 
       // Override the default mock for this specific test
-      when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+      when(algorithmSelector.selectAlgorithmsWithReasons(any()))
           .thenReturn(
               new AlgorithmSelector.AlgorithmSelectionInfo(selectedAlgorithms, selectionReasons));
 
@@ -226,7 +225,7 @@ class WifiPositioningCalculatorTest {
 
       // Act
       WifiPositioningCalculator.PositioningResult result =
-          wifiPositioningCalculator.calculatePosition(scans, aps);
+          wifiPositioningCalculator.calculatePosition(createWifiAPData(scans, aps));
 
       // Assert
       assertNotNull(result);
@@ -252,7 +251,7 @@ class WifiPositioningCalculatorTest {
           weightedCentroidAlgorithm, List.of("Three APs work well with weighted centroid"));
 
       // Override the default mock for this specific test
-      when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+      when(algorithmSelector.selectAlgorithmsWithReasons(any()))
           .thenReturn(
               new AlgorithmSelector.AlgorithmSelectionInfo(selectedAlgorithms, selectionReasons));
 
@@ -260,7 +259,7 @@ class WifiPositioningCalculatorTest {
 
       // Act
       WifiPositioningCalculator.PositioningResult result =
-          wifiPositioningCalculator.calculatePosition(scans, aps);
+          wifiPositioningCalculator.calculatePosition(createWifiAPData(scans, aps));
 
       // Assert
       assertNotNull(result);
@@ -288,7 +287,7 @@ class WifiPositioningCalculatorTest {
           maximumLikelihoodAlgorithm, List.of("Multiple APs work best with maximum likelihood"));
 
       // Override the default mock for this specific test
-      when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+      when(algorithmSelector.selectAlgorithmsWithReasons(any()))
           .thenReturn(
               new AlgorithmSelector.AlgorithmSelectionInfo(selectedAlgorithms, selectionReasons));
 
@@ -296,7 +295,7 @@ class WifiPositioningCalculatorTest {
 
       // Act
       WifiPositioningCalculator.PositioningResult result =
-          wifiPositioningCalculator.calculatePosition(scans, aps);
+          wifiPositioningCalculator.calculatePosition(createWifiAPData(scans, aps));
 
       // Assert
       assertNotNull(result);
@@ -320,7 +319,7 @@ class WifiPositioningCalculatorTest {
       selectionReasons.put(proximityAlgorithm, List.of("Weak signals favor proximity algorithm"));
 
       // Override the default mock for this specific test
-      when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+      when(algorithmSelector.selectAlgorithmsWithReasons(any()))
           .thenReturn(
               new AlgorithmSelector.AlgorithmSelectionInfo(selectedAlgorithms, selectionReasons));
 
@@ -328,7 +327,7 @@ class WifiPositioningCalculatorTest {
 
       // Act
       WifiPositioningCalculator.PositioningResult result =
-          wifiPositioningCalculator.calculatePosition(scans, aps);
+          wifiPositioningCalculator.calculatePosition(createWifiAPData(scans, aps));
 
       // Assert
       assertNotNull(result);
@@ -362,7 +361,7 @@ class WifiPositioningCalculatorTest {
           logDistanceAlgorithm, List.of("Secondary algorithm for collinear points"));
 
       // Override the default mock for this specific test
-      when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+      when(algorithmSelector.selectAlgorithmsWithReasons(any()))
           .thenReturn(
               new AlgorithmSelector.AlgorithmSelectionInfo(selectedAlgorithms, selectionReasons));
 
@@ -370,7 +369,7 @@ class WifiPositioningCalculatorTest {
 
       // Act
       WifiPositioningCalculator.PositioningResult result =
-          wifiPositioningCalculator.calculatePosition(scans, aps);
+          wifiPositioningCalculator.calculatePosition(createWifiAPData(scans, aps));
 
       // Assert
       assertNotNull(result);
@@ -401,7 +400,7 @@ class WifiPositioningCalculatorTest {
           List.of("High density clusters work best with maximum likelihood"));
 
       // Override the default mock for this specific test
-      when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+      when(algorithmSelector.selectAlgorithmsWithReasons(any()))
           .thenReturn(
               new AlgorithmSelector.AlgorithmSelectionInfo(selectedAlgorithms, selectionReasons));
 
@@ -409,7 +408,7 @@ class WifiPositioningCalculatorTest {
 
       // Act
       WifiPositioningCalculator.PositioningResult result =
-          wifiPositioningCalculator.calculatePosition(scans, aps);
+          wifiPositioningCalculator.calculatePosition(createWifiAPData(scans, aps));
 
       // Assert
       assertNotNull(result);
@@ -444,7 +443,7 @@ class WifiPositioningCalculatorTest {
       selectionReasons.put(logDistanceAlgorithm, List.of("Mixed signals - good distance modeling"));
 
       // Override the default mock for this specific test
-      when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+      when(algorithmSelector.selectAlgorithmsWithReasons(any()))
           .thenReturn(
               new AlgorithmSelector.AlgorithmSelectionInfo(selectedAlgorithms, selectionReasons));
 
@@ -453,7 +452,7 @@ class WifiPositioningCalculatorTest {
 
       // Act
       WifiPositioningCalculator.PositioningResult result =
-          wifiPositioningCalculator.calculatePosition(scans, aps);
+          wifiPositioningCalculator.calculatePosition(createWifiAPData(scans, aps));
 
       // Assert
       assertNotNull(result);
@@ -512,7 +511,7 @@ class WifiPositioningCalculatorTest {
 
       // Use lenient() to avoid UnnecessaryStubbingException
       lenient()
-          .when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+          .when(algorithmSelector.selectAlgorithmsWithReasons(any()))
           .thenReturn(
               new AlgorithmSelector.AlgorithmSelectionInfo(selectedAlgorithms, selectionReasons));
 
@@ -524,9 +523,9 @@ class WifiPositioningCalculatorTest {
       lenient().when(trilaterationAlgorithm.calculatePosition(any(), any())).thenReturn(position1);
 
       // Act - get positions at 3 different time points
-      positioningResults.add(wifiPositioningCalculator.calculatePosition(scans1, aps));
-      positioningResults.add(wifiPositioningCalculator.calculatePosition(scans2, aps));
-      positioningResults.add(wifiPositioningCalculator.calculatePosition(scans3, aps));
+      positioningResults.add(wifiPositioningCalculator.calculatePosition(createWifiAPData(scans1, aps)));
+      positioningResults.add(wifiPositioningCalculator.calculatePosition(createWifiAPData(scans2, aps)));
+      positioningResults.add(wifiPositioningCalculator.calculatePosition(createWifiAPData(scans3, aps)));
 
       // Extract positions from positioning results
       for (WifiPositioningCalculator.PositioningResult result : positioningResults) {
@@ -642,12 +641,12 @@ class WifiPositioningCalculatorTest {
       selectedAlgorithms.put(proximityAlgorithm, 1.0);
       selectedAlgorithms.put(rssiRatioAlgorithm, 0.8);
 
-      when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+      when(algorithmSelector.selectAlgorithmsWithReasons(any()))
           .thenReturn(new AlgorithmSelector.AlgorithmSelectionInfo(selectedAlgorithms, Map.of()));
 
       // Act
       WifiPositioningCalculator.PositioningResult result =
-          wifiPositioningCalculator.calculatePosition(scans, aps);
+          wifiPositioningCalculator.calculatePosition(createWifiAPData(scans, aps));
 
       // Assert
       // Should still return a result based on the algorithm that completed successfully
@@ -674,15 +673,16 @@ class WifiPositioningCalculatorTest {
       selectedAlgorithms.put(proximityAlgorithm, 1.0);
       selectedAlgorithms.put(rssiRatioAlgorithm, 0.8);
 
-      when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+      when(algorithmSelector.selectAlgorithmsWithReasons(any()))
           .thenReturn(new AlgorithmSelector.AlgorithmSelectionInfo(selectedAlgorithms, Map.of()));
 
       // Act
       WifiPositioningCalculator.PositioningResult result =
-          wifiPositioningCalculator.calculatePosition(scans, aps);
+          wifiPositioningCalculator.calculatePosition(createWifiAPData(scans, aps));
 
       // Assert
-      assertNull(result, "Result should be null when all algorithms fail");
+      assertNotNull(result, "Result should contain partial info even when all algorithms fail");
+      assertNull(result.position(), "Position should be null when all algorithms fail");
     }
 
     @Test
@@ -707,12 +707,12 @@ class WifiPositioningCalculatorTest {
       selectedAlgorithms.put(rssiRatioAlgorithm, 0.8);
       selectedAlgorithms.put(weightedCentroidAlgorithm, 0.6);
 
-      when(algorithmSelector.selectAlgorithmsWithReasons(any(), any(), any()))
+      when(algorithmSelector.selectAlgorithmsWithReasons(any()))
           .thenReturn(new AlgorithmSelector.AlgorithmSelectionInfo(selectedAlgorithms, Map.of()));
 
       // Act
       WifiPositioningCalculator.PositioningResult result =
-          wifiPositioningCalculator.calculatePosition(scans, aps);
+          wifiPositioningCalculator.calculatePosition(createWifiAPData(scans, aps));
 
       // Assert
       assertNotNull(result, "Result should not be null when some algorithms succeed");

@@ -120,7 +120,7 @@ class PositioningControllerTest {
       // Act & Assert
       mockMvc
           .perform(
-              post("/api/positioning/calculate")
+              post("/v1/wifi/position")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(objectMapper.writeValueAsString(testRequest)))
           .andExpect(status().isOk())
@@ -147,7 +147,7 @@ class PositioningControllerTest {
       // Act & Assert
       mockMvc
           .perform(
-              post("/api/positioning/calculate")
+              post("/v1/wifi/position")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(objectMapper.writeValueAsString(testRequest)))
           .andExpect(status().isOk())
@@ -169,7 +169,7 @@ class PositioningControllerTest {
       // Act & Assert
       mockMvc
           .perform(
-              post("/api/positioning/calculate")
+              post("/v1/wifi/position")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(objectMapper.writeValueAsString(testRequest)))
           .andExpect(status().isInternalServerError())
@@ -193,7 +193,7 @@ class PositioningControllerTest {
       // Act & Assert
       mockMvc
           .perform(
-              post("/api/positioning/calculate")
+              post("/v1/wifi/position")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(objectMapper.writeValueAsString(testRequest)))
           .andExpect(status().isInternalServerError())

@@ -45,7 +45,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Construct the API URL
-API_URL="http://${HOST}:${PORT}/wifi-positioning-service/api/positioning/calculate"
+API_URL="http://${HOST}:${PORT}/wifi-positioning-service/v1/wifi/position"
 
 echo -e "${CYAN}Using API endpoint: ${API_URL}${NC}"
 

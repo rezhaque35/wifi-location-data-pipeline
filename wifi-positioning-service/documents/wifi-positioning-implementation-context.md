@@ -66,7 +66,7 @@ Create a hybrid WiFi positioning system that combines multiple algorithms to pro
 
 ### Request Format
 
-The WiFi Positioning Service exposes a REST API endpoint that accepts positioning requests at `/api/positioning/calculate`. The API uses HTTP POST method with JSON request and response bodies.
+The WiFi Positioning Service exposes a REST API endpoint that accepts positioning requests at `/v1/wifi/position`. The API uses HTTP POST method with JSON request and response bodies.
 
 #### Core Request Parameters
 
