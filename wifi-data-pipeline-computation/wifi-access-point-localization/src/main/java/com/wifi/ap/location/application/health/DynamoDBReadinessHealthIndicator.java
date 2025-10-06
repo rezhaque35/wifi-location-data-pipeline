@@ -1,17 +1,15 @@
-package com.wifi.positioning.health;
+package com.wifi.ap.location.health;
 
-import java.time.Instant;
-
+import com.wifi.ap.location.estimate.repository.WifiAccessPointLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Component;
-
-import com.wifi.positioning.repository.WifiAccessPointRepository;
-
 import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
+
+import java.time.Instant;
 
 /**
  * Health indicator for DynamoDB readiness using repository abstraction.
@@ -121,14 +119,14 @@ public class DynamoDBReadinessHealthIndicator implements HealthIndicator {
    * Repository for accessing WiFi access point data and performing health checks. This repository
    * abstracts the DynamoDB access and provides health validation methods.
    */
-  private final WifiAccessPointRepository repository;
+  private final WifiAccessPointLocationRepository repository;
 
   /**
    * Constructor for DynamoDB readiness health indicator.
    *
    * @param repository The WiFi access point repository for health validation
    */
-  public DynamoDBReadinessHealthIndicator(WifiAccessPointRepository repository) {
+  public DynamoDBReadinessHealthIndicator(WifiAccessPointLocationRepository repository) {
     this.repository = repository;
     logger.info("Initialized DynamoDB readiness health indicator with repository-based approach");
   }
@@ -176,7 +174,7 @@ public class DynamoDBReadinessHealthIndicator implements HealthIndicator {
 
     try {
       // Delegate health checking to repository layer
-      WifiAccessPointRepository.HealthCheckResult result = repository.validateTableHealth();
+      WifiAccessPointLocationRepository.HealthCheckResult result = repository.validateTableHealth();
 
       // Calculate total response time (repository time + overhead)
       long endTime = System.nanoTime();

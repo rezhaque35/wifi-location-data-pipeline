@@ -1,7 +1,7 @@
-package com.wifi.ap.location.estimate.repository;
+package com.wifi.ap.location.estimation.repository;
 
-import com.wifi.ap.location.estimate.dto.MacAddress;
-import com.wifi.ap.location.estimate.dto.WifiAccessPointLocation;
+import com.wifi.ap.location.estimation.MessageMacAddress;
+import com.wifi.ap.location.estimation.WifiAccessPointLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,9 +16,7 @@ import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 
 import java.util.*;
-import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
@@ -138,34 +136,34 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
     // === PUBLIC API LAYER ===
 
     @Override
-    public Optional<WifiAccessPointLocation> findByMacAddress(MacAddress macAddress) {
-        validateMacAddress(macAddress);
+    public Optional<WifiAccessPointLocation> findByMacAddress(MessageMacAddress messageMacAddress) {
+        validateMacAddress(messageMacAddress);
 
-        logger.debug("Querying access point by partition key (MAC address): {}", macAddress);
+        logger.debug("Querying access point by partition key (MAC address): {}", messageMacAddress);
         try {
-            return retrieveSingleAccessPoint(macAddress);
+            return retrieveSingleAccessPoint(messageMacAddress);
         } catch (Exception e) {
-            logger.error("Error retrieving access point by MAC address: {}", macAddress, e);
+            logger.error("Error retrieving access point by MAC address: {}", messageMacAddress, e);
             throw new RuntimeException("Failed to retrieve access point", e);
         }
     }
 
     @Override
-    public Map<MacAddress, Optional<WifiAccessPointLocation>> findByMacAddresses(Set<MacAddress> macAddresses) {
+    public Map<MessageMacAddress, Optional<WifiAccessPointLocation>> findByMacAddresses(Set<MessageMacAddress> messageMacAddresses) {
 
         try {
             Map<String, WifiAccessPointLocation> consolidatedResults = new HashMap<>();
-            List<List<MacAddress>> batches = partitionIntoBatches(macAddresses);
+            List<List<MessageMacAddress>> batches = partitionIntoBatches(messageMacAddresses);
 
 
-            for (List<MacAddress> batch : batches) {
+            for (List<MessageMacAddress> batch : batches) {
                 Map<String, WifiAccessPointLocation> batchResults = processSingleBatch(batch);
                 consolidatedResults.putAll(batchResults);
             }
 
             logger.info(
                     "Successfully retrieved {} access points in batch operation", consolidatedResults.size());
-            return mapAccessPointsTo(consolidatedResults, macAddresses);
+            return mapAccessPointsTo(consolidatedResults, messageMacAddresses);
         } catch (Exception e) {
             logger.error("Error in batch retrieval of access points", e);
             throw new RuntimeException("Failed to retrieve access points in batch", e);
@@ -173,15 +171,16 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
     }
 
     @Override
-    public void save(Set<WifiAccessPointLocation> apLocations) {
+    public void save(List<WifiAccessPointLocation> apLocations) {
+        //TODO
 
     }
 
-    private Map<MacAddress, Optional<WifiAccessPointLocation>> mapAccessPointsTo(Map<String, WifiAccessPointLocation> consolidatedResults, Set<MacAddress> macAddresses) {
+    private Map<MessageMacAddress, Optional<WifiAccessPointLocation>> mapAccessPointsTo(Map<String, WifiAccessPointLocation> consolidatedResults, Set<MessageMacAddress> messageMacAddresses) {
 
-        return macAddresses.stream().
-                           collect(toMap(identity(), macAddress -> macAddress.macAddress()
-                                                                             .map(consolidatedResults::get)));
+        return messageMacAddresses.stream().
+                                  collect(toMap(identity(), messageMacAddress -> messageMacAddress.macAddress()
+                                                                                                  .map(consolidatedResults::get)));
     }
 
     // === ORCHESTRATION LAYER ===
@@ -194,12 +193,12 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
      * <p>Retry Strategy: 1. Execute initial batch request 2. Check for unprocessed keys 3. Retry with
      * exponential backoff (handled by AWS SDK) 4. Continue until success or max retries reached
      *
-     * @param macAddressBatch List of MAC addresses to process
+     * @param messageMacAddressBatches List of MAC addresses to process
      * @return Map of MAC addresses to matching access points
      */
-    private Map<String, WifiAccessPointLocation> processSingleBatch(List<MacAddress> macAddressBatch) {
+    private Map<String, WifiAccessPointLocation> processSingleBatch(List<MessageMacAddress> messageMacAddressBatches) {
         Map<String, WifiAccessPointLocation> batchResults = new HashMap<>();
-        BatchGetItemEnhancedRequest batchRequest = buildBatchRequest(macAddressBatch);
+        BatchGetItemEnhancedRequest batchRequest = buildBatchRequest(messageMacAddressBatches);
 
         int retryCount = 0;
         boolean hasUnprocessedKeys;
@@ -227,14 +226,14 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
      *
      * <p>Validation Rules: - Must not be null - Must not be empty or whitespace-only
      *
-     * @param macAddress MAC address to validate
+     * @param messageMacAddress MAC address to validate
      * @throws IllegalArgumentException if validation fails
      */
-    private void validateMacAddress(MacAddress macAddress) {
-        macAddress.macAddress()
-                  .map(String::trim)
-                  .filter(Predicate.not(String::isEmpty))
-                  .orElseThrow(() -> {
+    private void validateMacAddress(MessageMacAddress messageMacAddress) {
+        messageMacAddress.macAddress()
+                         .map(String::trim)
+                         .filter(Predicate.not(String::isEmpty))
+                         .orElseThrow(() -> {
                       logger.error("MAC address cannot be null or empty");
                       throw new IllegalArgumentException("MAC address cannot be null or empty");
                   });
@@ -247,17 +246,17 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
      *
      * <p>DynamoDB Operation: GetItem Key Structure: Partition key only (mac_addr)
      *
-     * @param macAddress MAC address serving as partition key
+     * @param messageMacAddress MAC address serving as partition key
      * @return WifiAccessPointLocation or null if not found
      */
-    private Optional<WifiAccessPointLocation> retrieveSingleAccessPoint(MacAddress macAddress) {
+    private Optional<WifiAccessPointLocation> retrieveSingleAccessPoint(MessageMacAddress messageMacAddress) {
 
-        return macAddress.macAddress()
-                         .map(String::trim)
-                         .filter(Predicate.not(String::isEmpty))
-                         .map(this::buildKey)
-                         .map(this::buildRequest)
-                         .map(accessPointTable::getItem);
+        return messageMacAddress.macAddress()
+                                .map(String::trim)
+                                .filter(Predicate.not(String::isEmpty))
+                                .map(this::buildKey)
+                                .map(this::buildRequest)
+                                .map(accessPointTable::getItem);
     }
 
     private GetItemEnhancedRequest buildRequest(Key K) {
@@ -279,21 +278,21 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
      * <p>Request Structure: - ReadBatch for WifiAccessPointLocation table - GetItem requests for each MAC
      * address - Partition key only (no sort key)
      *
-     * @param macAddresses List of MAC addresses to include in batch
+     * @param messageMacAddresses List of MAC addresses to include in batch
      * @return Configured BatchGetItemEnhancedRequest
      */
-    private BatchGetItemEnhancedRequest buildBatchRequest(List<MacAddress> macAddresses) {
+    private BatchGetItemEnhancedRequest buildBatchRequest(List<MessageMacAddress> messageMacAddresses) {
         ReadBatch.Builder<WifiAccessPointLocation> readBatchBuilder =
                 ReadBatch.builder(WifiAccessPointLocation.class)
                          .mappedTableResource(accessPointTable);
 
-        macAddresses.stream()
-                    .map(MacAddress::macAddress)
-                    .flatMap(Optional::stream)
-                    .map(String::trim)
-                    .filter(String::isEmpty)
-                    .map(this::buildKey)
-                    .forEach(readBatchBuilder::addGetItem);
+        messageMacAddresses.stream()
+                           .map(MessageMacAddress::macAddress)
+                           .flatMap(Optional::stream)
+                           .map(String::trim)
+                           .filter(String::isEmpty)
+                           .map(this::buildKey)
+                           .forEach(readBatchBuilder::addGetItem);
 
         return BatchGetItemEnhancedRequest.builder()
                                           .readBatches(readBatchBuilder.build())
@@ -378,11 +377,11 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
      *
      * <p>Where ⌈⌉ represents the ceiling function.
      *
-     * @param macAddresses Set of MAC addresses to partition
+     * @param messageMacAddresses Set of MAC addresses to partition
      * @return List of batches, each containing at most MAX_BATCH_SIZE items
      */
-    private List<List<MacAddress>> partitionIntoBatches(Set<MacAddress> macAddresses) {
-        return batchItems(new ArrayList<>(macAddresses), MAX_BATCH_SIZE);
+    private List<List<MessageMacAddress>> partitionIntoBatches(Set<MessageMacAddress> messageMacAddresses) {
+        return batchItems(new ArrayList<>(messageMacAddresses), MAX_BATCH_SIZE);
     }
 
     /**

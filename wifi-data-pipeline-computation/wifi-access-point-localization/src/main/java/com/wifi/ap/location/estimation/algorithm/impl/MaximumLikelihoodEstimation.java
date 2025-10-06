@@ -1,8 +1,8 @@
 // wifi-measurements-transformer-service/src/main/java/com/wifi/measurements/transformer/service/impl/DefaultFeedProcessor.java
-package com.wifi.ap.location.estimate.processor.impl;
+package com.wifi.ap.location.estimate.algorithm.impl;
 
-import com.wifi.ap.location.estimate.dto.WifiAccessPointLocation;
-import com.wifi.ap.location.estimate.dto.WifiMeasurement;
+import com.wifi.ap.location.estimate.WifiAccessPointLocation;
+import com.wifi.ap.location.measurements.WifiMeasurement;
 import com.wifi.ap.location.estimate.algorithm.LocalizationAlgorithm;
 import org.springframework.stereotype.Service;
 
@@ -22,7 +22,7 @@ public class MaximumLikelihoodEstimation implements LocalizationAlgorithm {
     }
 
     @Override
-    public boolean isApplicable(List<WifiMeasurement> locationMeasurements) {
-        return false;
+    public WifiAccessPointLocation estimateLocation(List<WifiMeasurement> locationMeasurements, WifiAccessPointLocation currentEstimation) {
+        throw new UnsupportedOperationException("Not supported with current estimation.");
     }
 }

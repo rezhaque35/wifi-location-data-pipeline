@@ -1,4 +1,4 @@
-package com.wifi.ap.location.estimate.dto;
+package com.wifi.ap.location.estimation;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,7 +18,7 @@ import java.util.Set;
 @AllArgsConstructor
 @Builder
 @DynamoDbBean
-public class WifiAccessPoint {
+public class WifiAccessPointLocation {
   /** Status constants for access point operational states */
   public static final String STATUS_ACTIVE = "active";
 

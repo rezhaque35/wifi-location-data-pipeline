@@ -2,7 +2,9 @@ package com.wifi.positioning.dto;
 
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Combined response object for WiFi positioning calculations. This record encapsulates both the API
@@ -36,8 +38,9 @@ public record WifiPositioningResponse(
         calculationInfo);
   }
 
-  /** Creates an error response with a specific error message. */
-  public static WifiPositioningResponse error(String message, WifiPositioningRequest request) {
+  /** Creates an error response with a specific error message and optional calculation info. */
+  public static WifiPositioningResponse error(
+      String message, WifiPositioningRequest request, CalculationInfo calculationInfo) {
     return new WifiPositioningResponse(
         "ERROR",
         message,
@@ -46,7 +49,12 @@ public record WifiPositioningResponse(
         request.application(),
         Instant.now().toEpochMilli(),
         null,
-        null);
+        calculationInfo);
+  }
+
+  /** Creates an error response with a specific error message (without calculation info). */
+  public static WifiPositioningResponse error(String message, WifiPositioningRequest request) {
+    return error(message, request, null);
   }
 
   /**
@@ -90,23 +98,42 @@ public record WifiPositioningResponse(
       }
     }
 
-    /** Creates a WifiPosition from a Position object. */
-    public static WifiPosition fromPosition(
-        Position position, List<String> methodsUsed, int apCount, long calculationTimeMs) {
-      if (position == null) {
-        return null;
-      }
-
-      return new WifiPosition(
-          position.latitude(),
-          position.longitude(),
-          position.altitude(),
-          position.accuracy(), // horizontalAccuracy
-          0.0, // Default verticalAccuracy
-          position.confidence(),
-          methodsUsed,
-          apCount,
-          calculationTimeMs);
+    /**
+     * Converts WifiPosition to a Map for structured logging.
+     * 
+     * @return Map representation of the WifiPosition
+     */
+    public Map<String, Object> toMap() {
+      Map<String, Object> map = new HashMap<>();
+      map.put("latitude", latitude);
+      map.put("longitude", longitude);
+      map.put("altitude", altitude);
+      map.put("horizontalAccuracy", horizontalAccuracy);
+      map.put("verticalAccuracy", verticalAccuracy);
+      map.put("confidence", confidence);
+      map.put("methodsUsed", methodsUsed != null ? methodsUsed : Collections.emptyList());
+      map.put("apCount", apCount);
+      map.put("calculationTimeMs", calculationTimeMs);
+      return map;
     }
+  }
+
+  /**
+   * Converts WifiPositioningResponse to a Map for structured logging.
+   * Includes all response fields and nested objects.
+   * 
+   * @return Map representation of the WifiPositioningResponse
+   */
+  public Map<String, Object> toMap() {
+    Map<String, Object> map = new HashMap<>();
+    map.put("result", result);
+    map.put("message", message);
+    map.put("requestId", requestId);
+    map.put("client", client);
+    map.put("application", application);
+    map.put("timestamp", timestamp);
+    map.put("wifiPosition", wifiPosition != null ? wifiPosition.toMap() : Collections.emptyMap());
+    map.put("calculationInfo", calculationInfo != null ? calculationInfo.toMap() : Collections.emptyMap());
+    return map;
   }
 }
