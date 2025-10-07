@@ -1,6 +1,8 @@
 package com.wifi.positioning.dto;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -35,6 +37,38 @@ public record WifiPositioningRequest(
      */
     public WifiPositioningRequest {
         // Set default value for calculationDetail if null
-        calculationDetail = calculationDetail != null ? calculationDetail : false;
+        if (calculationDetail == null) {
+            calculationDetail = false;
+        }
+    }
+
+    /**
+     * Converts WifiPositioningRequest to a Map for structured logging.
+     * Includes all request fields with summarized WiFi scan results.
+     * 
+     * @return Map representation of the WifiPositioningRequest
+     */
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("client", client);
+        map.put("requestId", requestId);
+        map.put("application", application);
+        map.put("calculationDetail", calculationDetail);
+        map.put("wifiScanResultsCount", wifiScanResults != null ? wifiScanResults.size() : 0);
+        
+        // Include summarized scan results (MAC addresses and signal strengths)
+        if (wifiScanResults != null && !wifiScanResults.isEmpty()) {
+            List<Map<String, Object>> scanResultsSummary = wifiScanResults.stream()
+                .map(scanResult -> {
+                    Map<String, Object> srMap = new HashMap<>();
+                    srMap.put("macAddress", scanResult.macAddress());
+                    srMap.put("signalStrength", scanResult.signalStrength());
+                    return srMap;
+                })
+                .toList();
+            map.put("wifiScanResults", scanResultsSummary);
+        }
+        
+        return map;
     }
 }
