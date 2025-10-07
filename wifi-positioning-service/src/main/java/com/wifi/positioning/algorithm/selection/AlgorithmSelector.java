@@ -63,7 +63,9 @@ public class AlgorithmSelector {
 
   /** Initialize algorithms for very weak signal scenario (only proximity) */
   private static SelectedAlgorithms initializeVeryWeakSignalAlgorithms() {
+
     Set<PositioningAlgorithmType> eligibleTypes = Set.of(PositioningAlgorithmType.PROXIMITY);
+
     Map<PositioningAlgorithmType, SelectionReasoning> reasons = createReasonMap(eligibleTypes);
 
     for (PositioningAlgorithmType type : PositioningAlgorithmType.values()) {
@@ -73,7 +75,7 @@ public class AlgorithmSelector {
       } else {
         sr.reasonings().add(DISQUALIFIED_SIGNAL_TOO_WEAK);
       }
-    }
+    } 
 
     return new SelectedAlgorithms(eligibleTypes, reasons);
   }
@@ -161,11 +163,14 @@ public class AlgorithmSelector {
   /** Helper to create structured reason map initialized with selected flag by eligibility */
   private static Map<PositioningAlgorithmType, SelectionReasoning> createReasonMap(
       Set<PositioningAlgorithmType> eligibleTypes) {
+
     Map<PositioningAlgorithmType, SelectionReasoning> reasons = new HashMap<>();
+
     for (PositioningAlgorithmType type : PositioningAlgorithmType.values()) {
       boolean selected = eligibleTypes != null && eligibleTypes.contains(type);
       reasons.put(type, new SelectionReasoning(type, selected, new ArrayList<>()));
     }
+    
     return reasons;
   }
 
@@ -200,6 +205,30 @@ public class AlgorithmSelector {
   record SelectedAlgorithms(
       Set<PositioningAlgorithmType> eligibleAlgorithmTypes,
       Map<PositioningAlgorithmType, SelectionReasoning> reasons) {
+    
+    /**
+     * Creates a deep copy of this SelectedAlgorithms to prevent mutation of static instances.
+     * This is essential because the static pre-initialized algorithm selections must remain immutable.
+     *
+     * @return A new SelectedAlgorithms instance with deep copies of all data
+     */
+    public SelectedAlgorithms deepCopy() {
+      // Copy the eligible algorithm types set
+      Set<PositioningAlgorithmType> copiedTypes = new HashSet<>(eligibleAlgorithmTypes);
+      
+      // Deep copy the reasons map with new SelectionReasoning instances
+      Map<PositioningAlgorithmType, SelectionReasoning> copiedReasons = new HashMap<>();
+      for (Map.Entry<PositioningAlgorithmType, SelectionReasoning> entry : reasons.entrySet()) {
+        PositioningAlgorithmType type = entry.getKey();
+        SelectionReasoning existing = entry.getValue();
+        // Create new list to avoid sharing references
+        List<String> copiedReasonings = new ArrayList<>(existing.reasonings());
+        copiedReasons.put(type, new SelectionReasoning(type, existing.selected(), copiedReasonings));
+      }
+      
+      return new SelectedAlgorithms(copiedTypes, copiedReasons);
+    }
+    
     /**
      * Creates a copy of this SelectedAlgorithms but applies a filter to the eligible algorithms.
      * Algorithms that don't pass the filter will be removed and given the specified reason.
@@ -573,12 +602,13 @@ public class AlgorithmSelector {
   private SelectedAlgorithms selectWithConstraints(SelectionContext context) {
 
     // Handle extremely weak signals - ONLY proximity algorithm is usable
+    // Return deep copy to prevent mutation of static instance
     if (context.getSignalQuality() == SignalQualityFactor.VERY_WEAK_SIGNAL) {
       logger.debug("Extremely weak signals detected, using pre-computed algorithm selection");
-      return VERY_WEAK_SIGNAL_ALGORITHMS;
+      return VERY_WEAK_SIGNAL_ALGORITHMS.deepCopy();
     }
 
-    // Get base algorithm selection based on AP count
+    // Get base algorithm selection based on AP count (already returns deep copy)
     SelectedAlgorithms baseSelection = getAlgorithmsForApCount(context.getApCountFactor());
     logger.debug("Applied AP count constraints for {}", context.getApCountFactor());
 
@@ -618,13 +648,16 @@ public class AlgorithmSelector {
     return filteredSelection;
   }
 
-  /** Get pre-computed algorithm selection based on AP count */
+  /** 
+   * Get pre-computed algorithm selection based on AP count.
+   * Returns a deep copy to prevent mutation of static instances.
+   */
   private SelectedAlgorithms getAlgorithmsForApCount(APCountFactor apCountFactor) {
     return switch (apCountFactor) {
-      case SINGLE_AP -> SINGLE_AP_ALGORITHMS;
-      case TWO_APS -> TWO_APS_ALGORITHMS;
-      case THREE_APS -> THREE_APS_ALGORITHMS;
-      default -> FOUR_PLUS_APS_ALGORITHMS;
+      case SINGLE_AP -> SINGLE_AP_ALGORITHMS.deepCopy();
+      case TWO_APS -> TWO_APS_ALGORITHMS.deepCopy();
+      case THREE_APS -> THREE_APS_ALGORITHMS.deepCopy();
+      default -> FOUR_PLUS_APS_ALGORITHMS.deepCopy();
     };
   }
 
