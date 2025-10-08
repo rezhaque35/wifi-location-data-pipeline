@@ -179,8 +179,6 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
     Map<String, WifiAccessPoint> consolidatedResults = new HashMap<>();
     List<List<String>> batches = partitionIntoBatches(macAddresses);
 
-    logger.debug(
-        "Split {} MAC addresses into {} batch requests", macAddresses.size(), batches.size());
 
     for (List<String> batch : batches) {
       Map<String, WifiAccessPoint> batchResults = processSingleBatch(batch);
