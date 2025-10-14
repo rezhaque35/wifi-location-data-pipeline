@@ -42,10 +42,13 @@
 package com.wifi.measurements.transformer.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -63,6 +66,8 @@ import com.wifi.measurements.transformer.dto.*;
 class WifiDataTransformationServiceTest {
 
   @Mock private DataValidationService validationService;
+
+  @Mock private MobileHotspotDetectionService mobileHotspotDetectionService;
 
   @Mock private DataFilteringConfigurationProperties filteringConfig;
 
@@ -106,9 +111,6 @@ class WifiDataTransformationServiceTest {
     lenient().when(filteringConfig.lowLinkSpeedQualityWeight()).thenReturn(1.5);
     lenient().when(filteringConfig.mobileHotspot()).thenReturn(mobileHotspot);
     lenient().when(mobileHotspot.enabled()).thenReturn(true);
-    lenient()
-        .when(mobileHotspot.action())
-        .thenReturn(DataFilteringConfigurationProperties.MobileHotspotAction.EXCLUDE);
 
     // Configure validation service to return success by default
     // Individual tests can override these behaviors as needed
@@ -121,12 +123,16 @@ class WifiDataTransformationServiceTest {
     lenient()
         .when(validationService.validateLocation(any()))
         .thenReturn(DataValidationService.ValidationResult.success());
+
+    // Configure mobile hotspot detection service to not detect hotspots by default
+    // Individual tests can override this behavior as needed
     lenient()
-        .when(validationService.detectMobileHotspot(anyString()))
-        .thenReturn(DataValidationService.MobileHotspotResult.notDetected());
+        .when(mobileHotspotDetectionService.isMobileHotspot(any(NetworkIdentifier.class)))
+        .thenReturn(false);
 
     // Create fresh service instance with mocked dependencies for each test
-    transformationService = new WifiDataTransformationService(validationService, filteringConfig);
+    transformationService = new WifiDataTransformationService(
+        validationService, mobileHotspotDetectionService, filteringConfig);
   }
 
 
@@ -292,42 +298,112 @@ class WifiDataTransformationServiceTest {
   }
 
   @Test
-  void transformToMeasurements_MobileHotspotDetected_ExcludesMeasurement() {
-    // Given
+  void transformToMeasurements_MobileHotspotDetected_ConnectedEvent_ExcludesMeasurement() {
+    // Given: WiFi scan data with a connected event to a mobile hotspot
     WifiScanData scanData = createValidWifiScanData();
-    when(validationService.detectMobileHotspot("b8:f8:53:c0:1e:ff"))
-        .thenReturn(
-            DataValidationService.MobileHotspotResult.detected(
-                "00:11:22", DataFilteringConfigurationProperties.MobileHotspotAction.EXCLUDE));
+    
+    // Mock hotspot detection for the connected event's BSSID and SSID
+    when(mobileHotspotDetectionService.isMobileHotspot(any(NetworkIdentifier.class)))
+        .thenAnswer(invocation -> {
+          NetworkIdentifier networkId = invocation.getArgument(0);
+          // Detect the connected event as hotspot
+          return "b8:f8:53:c0:1e:ff".equals(networkId.bssid()) && 
+                 "Sweethome".equals(networkId.ssid());
+        });
 
-    // When
+    // When: Transform the scan data
     List<WifiMeasurement> measurements =
         transformationService.transformToMeasurements(scanData, "batch-123").toList();
 
-    // Then
+    // Then: Connected event should be filtered out, leaving no measurements
     assertThat(measurements).isEmpty();
+    
+    // Verify hotspot detection was called with correct network identifier
+    verify(mobileHotspotDetectionService, atLeastOnce())
+        .isMobileHotspot(any(NetworkIdentifier.class));
   }
 
   @Test
-  void transformToMeasurements_MobileHotspotFlagged_IncludesMeasurement() {
-    // Given
-    WifiScanData scanData = createValidWifiScanData();
-    lenient()
-        .when(mobileHotspot.action())
-        .thenReturn(DataFilteringConfigurationProperties.MobileHotspotAction.FLAG);
-    lenient()
-        .when(validationService.detectMobileHotspot("b8:f8:53:c0:1e:ff"))
-        .thenReturn(
-            DataValidationService.MobileHotspotResult.detected(
-                "00:11:22", DataFilteringConfigurationProperties.MobileHotspotAction.FLAG));
+  void transformToMeasurements_MobileHotspotDetected_ScanResult_ExcludesMeasurement() {
+    // Given: WiFi scan data with scan results containing a mobile hotspot
+    WifiScanData scanData = createWifiScanDataWithScanResults();
+    
+    // Mock hotspot detection for the scan result's BSSID and SSID
+    when(mobileHotspotDetectionService.isMobileHotspot(any(NetworkIdentifier.class)))
+        .thenAnswer(invocation -> {
+          NetworkIdentifier networkId = invocation.getArgument(0);
+          // Detect the scan result as hotspot
+          return "aa:bb:cc:dd:ee:ff".equals(networkId.bssid()) && 
+                 "TestNetwork".equals(networkId.ssid());
+        });
 
-    // When
+    // When: Transform the scan data
     List<WifiMeasurement> measurements =
         transformationService.transformToMeasurements(scanData, "batch-123").toList();
 
-    // Then
-    assertThat(measurements).hasSize(1);
+    // Then: Scan result should be filtered out, leaving no measurements
+    assertThat(measurements).isEmpty();
+    
+    // Verify hotspot detection was called
+    verify(mobileHotspotDetectionService, atLeastOnce())
+        .isMobileHotspot(any(NetworkIdentifier.class));
   }
+
+  @Test
+  void transformToMeasurements_NonMobileHotspot_IncludesMeasurement() {
+    // Given: WiFi scan data with legitimate network (not a hotspot)
+    WifiScanData scanData = createValidWifiScanData();
+    
+    // Mock hotspot detection to return false for all networks
+    when(mobileHotspotDetectionService.isMobileHotspot(any(NetworkIdentifier.class)))
+        .thenReturn(false);
+
+    // When: Transform the scan data
+    List<WifiMeasurement> measurements =
+        transformationService.transformToMeasurements(scanData, "batch-123").toList();
+
+    // Then: Legitimate network should be included
+    assertThat(measurements).hasSize(1);
+    assertThat(measurements.get(0).bssid()).isEqualTo("b8:f8:53:c0:1e:ff");
+    assertThat(measurements.get(0).ssid()).isEqualTo("Sweethome");
+    
+    // Verify hotspot detection was called with correct network identifier
+    verify(mobileHotspotDetectionService, atLeastOnce())
+        .isMobileHotspot(argThat(networkId -> 
+            "b8:f8:53:c0:1e:ff".equals(networkId.bssid()) && 
+            "Sweethome".equals(networkId.ssid())
+        ));
+  }
+
+  @Test
+  void transformToMeasurements_MixedNetworks_FiltersOnlyHotspots() {
+    // Given: WiFi scan data with both hotspot and legitimate networks
+    WifiScanData scanData = createWifiScanDataWithMultipleNetworks();
+    
+    // Mock hotspot detection: detect only iPhone hotspot by SSID pattern
+    when(mobileHotspotDetectionService.isMobileHotspot(any(NetworkIdentifier.class)))
+        .thenAnswer(invocation -> {
+          NetworkIdentifier networkId = invocation.getArgument(0);
+          // Detect iPhone hotspot
+          return networkId.ssid() != null && networkId.ssid().contains("iPhone");
+        });
+
+    // When: Transform the scan data
+    List<WifiMeasurement> measurements =
+        transformationService.transformToMeasurements(scanData, "batch-123").toList();
+
+    // Then: Only legitimate networks should be included (hotspots filtered)
+    assertThat(measurements).hasSize(2);
+    assertThat(measurements)
+        .extracting(WifiMeasurement::ssid)
+        .containsExactlyInAnyOrder("LegitimateAP-1", "LegitimateAP-2")
+        .doesNotContain("John's iPhone");
+    
+    // Verify hotspot detection was called for all networks
+    verify(mobileHotspotDetectionService, times(3))
+        .isMobileHotspot(any(NetworkIdentifier.class));
+  }
+
 
   @Test
   void transformToMeasurements_LowLinkSpeed_AdjustsQualityWeight() {
@@ -532,5 +608,44 @@ class WifiDataTransformationServiceTest {
         List.of(),
         List.of(),
         List.of());
+  }
+
+  /**
+   * Creates WiFi scan data with multiple networks including both legitimate APs and a mobile hotspot.
+   * Used for testing mixed network scenarios where only hotspots should be filtered.
+   */
+  private WifiScanData createWifiScanDataWithMultipleNetworks() {
+    LocationData location =
+        new LocationData(
+            "fused", 40.6768816, -74.416391, 110.9, 100.0, 1731091614415L, "fused", 0.0, 0.0);
+
+    // Create scan result entries: 2 legitimate APs + 1 iPhone hotspot
+    ScanResultEntry legitimateAp1 =
+        new ScanResultEntry("LegitimateAP-1", "aa:bb:cc:dd:ee:11", 1731091616000L, -65, null);
+    
+    ScanResultEntry legitimateAp2 =
+        new ScanResultEntry("LegitimateAP-2", "aa:bb:cc:dd:ee:22", 1731091616000L, -70, null);
+    
+    ScanResultEntry iphoneHotspot =
+        new ScanResultEntry("John's iPhone", "aa:bb:cc:dd:ee:33", 1731091616000L, -60, null);
+
+    ScanResult scanResult = new ScanResult(
+        1731091616000L,
+        "wifi",
+        location,
+        List.of(legitimateAp1, legitimateAp2, iphoneHotspot));
+
+    return new WifiScanData(
+        "14:samsung/a53xsqw/a53x:14/UP1A.231005.007/A536VSQSADXC1:user/release-keys",
+        "SM-A536V",
+        "a53x",
+        "samsung",
+        "Android",
+        "34",
+        "com.verizon.wifiloc.app/0.1.0.10000",
+        "15",
+        List.of(),
+        List.of(),
+        List.of(scanResult));
   }
 }

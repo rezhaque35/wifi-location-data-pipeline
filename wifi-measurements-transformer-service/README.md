@@ -190,14 +190,41 @@ The scripts are designed for offline development:
 Run the comprehensive end-to-end test to verify the complete data pipeline:
 
 ```bash
+# Run test with default test data (embedded in script)
 ./scripts/test-end-to-end-flow.sh
+
+# Run test with specific test data file
+./scripts/test-with-data-file.sh sample-wifi-scan.json
+
+# Run mobile hotspot filtering test
+./scripts/test-with-data-file.sh hotspot-filtering-test-data.json
 ```
 
-This test validates:
+#### Available Test Data Files
+
+1. **`sample-wifi-scan.json`** - Basic functionality test
+   - 2 CONNECTED events, 4 SCAN results
+   - Tests core transformation and data flow
+
+2. **`hotspot-filtering-test-data.json`** - Mobile hotspot filtering test
+   - 18 total WiFi records (2 CONNECTED, 16 SCAN)
+   - 12 mobile hotspots (iPhone, Android, Galaxy, Pixel, OnePlus, Xiaomi, Redmi, MiFi, Jetpack, generic Hotspot)
+   - 6 legitimate APs (CorporateNetwork, HomeWiFi, CoffeeShop WiFi, etc.)
+   - **Expected Result**: 12 hotspots filtered (66.7%), 6 legitimate APs preserved (33.3%)
+   - **Validates**: SSID-based mobile hotspot detection and filtering
+
+3. **`multi-location-scan.json`** - Multi-location test
+   - Multiple locations with movement
+   - Tests location tracking and movement scenarios
+
+#### Test Validation
+
+These tests validate:
 - S3 file upload → SQS event → Service processing → Firehose → Destination S3
 - Data transformation and filtering logic
 - BSSID-by-BSSID comparison
 - Schema validation and quality metrics
+- Mobile hotspot filtering (when using hotspot-filtering-test-data.json)
 
 ### Troubleshooting
 
@@ -542,6 +569,161 @@ mvn test -Dtest=*IntegrationTest
 2. Register in `FeedProcessorFactory`  
 3. Add comprehensive unit tests
 4. Update configuration documentation
+
+## Testing
+
+### Automated Test Suite
+
+The service includes a comprehensive automated test framework with 12+ end-to-end test cases covering all functionality.
+
+#### Test Runner
+
+**Quick Start:**
+```bash
+cd scripts
+./test-runner.sh                    # Run all tests
+./test-runner.sh sample-wifi-scan.json  # Run specific test
+./test-runner.sh --skip-cleanup     # Skip cleanup for debugging
+```
+
+**Features:**
+- ✅ Auto-discovers all test files in `scripts/test/data/`
+- ✅ Automated pass/fail detection
+- ✅ Detailed validation of expected vs actual results
+- ✅ Color-coded summary reports
+- ✅ Easy to extend - just add JSON files
+
+#### Test Coverage (12 Test Cases)
+
+**Core Functionality (5 tests):**
+- `sample-wifi-scan.json` - Basic WiFi scan with CONNECTED + SCAN events
+- `02-connected-only.json` - CONNECTED events only
+- `03-scan-only.json` - SCAN results only
+- `04-location-accuracy-test.json` - Location accuracy filtering (>150m threshold)
+- `05-rssi-validation-test.json` - RSSI range validation (-100 to 0 dBm)
+
+**Mobile Hotspot Detection (3 tests):**
+- `08-oui-hotspot-detection.json` - OUI/MAC-based filtering
+- `09-ssid-hotspot-detection.json` - SSID pattern matching (iPhone, Android, Galaxy, etc.)
+- `hotspot-filtering-test-data.json` - Combined OUI + SSID detection (12 filtered, 6 preserved)
+
+**Quality & Edge Cases (3 tests):**
+- `12-low-linkspeed-test.json` - Quality weight adjustment for low link speed
+- `19-duplicate-bssids-test.json` - Same BSSID in CONNECTED and SCAN
+- `20-null-ssid-test.json` - Hidden networks with null/empty SSID
+
+**Advanced Scenarios (1 test):**
+- `multi-location-scan.json` - Multi-location iPhone test with movement
+
+#### Alternative Test Scripts
+
+**Interactive Test Runner:**
+```bash
+cd scripts
+./run-tests.sh  # Menu-driven interface for all test options
+```
+
+**Individual Test Scripts:**
+```bash
+# Flexible test with JSON files
+./test-with-data-file.sh sample-wifi-scan.json
+./test-with-data-file.sh --list-files  # Show available test files
+
+# Original test with hardcoded data
+./test-end-to-end-flow.sh
+```
+
+#### Test Data Format
+
+Each test file includes metadata with expected results:
+
+```json
+{
+  "_test_metadata": {
+    "test_case_id": "01-basic-wifi-scan",
+    "description": "Basic WiFi scan processing",
+    "category": "basic",
+    "filtering_config": {
+      "mobile_hotspot_filtering_enabled": false
+    },
+    "expected_results": {
+      "total_output_records": 6,
+      "connected_records": 2,
+      "scan_records": 4,
+      "filtered_count": 0,
+      "expected_aps": [
+        {
+          "bssid": "b8:f8:53:c0:1e:ff",
+          "connection_status": "CONNECTED",
+          "expected_fields": {
+            "ssid": "TestNetwork",
+            "rssi": -58,
+            "quality_weight": 2.0
+          }
+        }
+      ]
+    }
+  },
+  "wifiConnectedEvents": [...],
+  "scanResults": [...]
+}
+```
+
+#### Adding New Test Cases
+
+1. **Create test file** in `scripts/test/data/`:
+   ```bash
+   cp scripts/test/data/sample-wifi-scan.json scripts/test/data/my-test.json
+   ```
+
+2. **Update metadata** with your expected results
+
+3. **Add WiFi scan data** to match your test scenario
+
+4. **Run the test**:
+   ```bash
+   ./scripts/test-runner.sh my-test.json
+   ```
+
+#### Test Prerequisites
+
+- LocalStack running on port 4566
+- WiFi Measurements Transformer Service running
+- AWS CLI configured for LocalStack
+
+#### Test Modes
+
+**Standard Mode** (default):
+- Compresses and base64-encodes files before upload
+- Simulates production environment
+- `./test-with-data-file.sh sample-wifi-scan.json`
+
+**Raw File Mode**:
+- Uploads files directly without compression
+- Useful for debugging and pre-encoded files
+- `./test-with-data-file.sh --raw-file sample-raw-wifi-scan.txt`
+
+**Summary Only Mode**:
+- Shows only final results without verbose output
+- `./test-with-data-file.sh --summary-only sample-wifi-scan.json`
+
+#### Troubleshooting Tests
+
+**LocalStack not running:**
+```bash
+docker run --rm -it -p 4566:4566 localstack/localstack
+```
+
+**View test logs:**
+```bash
+cat /tmp/test-output-<test-name>.log
+```
+
+**Debug mode:**
+```bash
+./test-runner.sh --skip-cleanup sample-wifi-scan.json
+ls -la /tmp/test-*  # Check preserved files
+```
 
 ## Deployment
 

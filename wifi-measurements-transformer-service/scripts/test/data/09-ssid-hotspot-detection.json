@@ -1,0 +1,191 @@
+{
+  "_test_metadata": {
+    "test_case_id": "09-ssid-hotspot-detection",
+    "description": "Test SSID-based mobile hotspot detection using network name pattern matching",
+    "category": "hotspot-detection",
+    "filtering_config": {
+      "mobile_hotspot_filtering_enabled": true,
+      "oui_detection_enabled": false,
+      "ssid_detection_enabled": true
+    },
+    "expected_results": {
+      "total_output_records": 4,
+      "connected_records": 1,
+      "scan_records": 3,
+      "filtered_count": 8,
+      "expected_aps": [
+        {
+          "bssid": "b8:f8:53:c0:1e:ff",
+          "connection_status": "CONNECTED",
+          "expected_fields": {
+            "ssid": "Enterprise_WiFi",
+            "quality_weight": 2.0
+          }
+        },
+        {
+          "bssid": "aa:bb:cc:dd:ee:11",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "ssid": "Starbucks WiFi"
+          }
+        },
+        {
+          "bssid": "aa:bb:cc:dd:ee:22",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "ssid": "Airport_Public"
+          }
+        },
+        {
+          "bssid": "aa:bb:cc:dd:ee:33",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "ssid": "Hotel_Guest_Network"
+          }
+        }
+      ]
+    }
+  },
+  "osVersion": "15:apple/iPhone16,2/iPhone16,2:15.0/21A329:user/release-keys",
+  "model": "iPhone 15 Pro",
+  "device": "iPhone16,2",
+  "manufacturer": "Apple",
+  "osName": "iOS",
+  "sdkInt": "15",
+  "appNameVersion": "com.verizon.wifiloc.app/0.1.0.10000",
+  "dataVersion": "15",
+  "wifiConnectedEvents": [
+    {
+      "timestamp": 1731091615562,
+      "eventId": "enterprise-wifi",
+      "eventType": "CONNECTED",
+      "wifiConnectedInfo": {
+        "bssid": "b8:f8:53:c0:1e:ff",
+        "ssid": "Enterprise_WiFi",
+        "linkSpeed": 866,
+        "frequency": 5180,
+        "rssi": -45,
+        "channelWidth": 160,
+        "centerFreq0": 5210,
+        "capabilities": "WPA2-Enterprise",
+        "is80211mcResponder": true,
+        "isPasspointNetwork": false
+      },
+      "location": {
+        "latitude": 40.7589,
+        "longitude": -73.9851,
+        "altitude": 15.0,
+        "accuracy": 8.0,
+        "time": 1731091614415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      }
+    }
+  ],
+  "scanResults": [
+    {
+      "timestamp": 1731091615562,
+      "location": {
+        "latitude": 40.7589,
+        "longitude": -73.9851,
+        "altitude": 15.0,
+        "accuracy": 8.0,
+        "time": 1731091614415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      },
+      "results": [
+        {
+          "ssid": "Starbucks WiFi",
+          "bssid": "aa:bb:cc:dd:ee:11",
+          "scantime": 1731091613712,
+          "rssi": -60,
+          "frequency": 2437
+        },
+        {
+          "ssid": "Airport_Public",
+          "bssid": "aa:bb:cc:dd:ee:22",
+          "scantime": 1731091613713,
+          "rssi": -65,
+          "frequency": 2462
+        },
+        {
+          "ssid": "Hotel_Guest_Network",
+          "bssid": "aa:bb:cc:dd:ee:33",
+          "scantime": 1731091613714,
+          "rssi": -70,
+          "frequency": 5180
+        },
+        {
+          "ssid": "Johns iPhone",
+          "bssid": "11:22:33:44:55:01",
+          "scantime": 1731091613715,
+          "rssi": -55,
+          "frequency": 2412,
+          "comment": "iPhone hotspot - should be filtered"
+        },
+        {
+          "ssid": "Sarahs iPad",
+          "bssid": "11:22:33:44:55:02",
+          "scantime": 1731091613716,
+          "rssi": -58,
+          "frequency": 2437,
+          "comment": "iPad hotspot - should be filtered"
+        },
+        {
+          "ssid": "AndroidAP5678",
+          "bssid": "11:22:33:44:55:03",
+          "scantime": 1731091613717,
+          "rssi": -62,
+          "frequency": 2462,
+          "comment": "Android hotspot - should be filtered"
+        },
+        {
+          "ssid": "Mikes Galaxy",
+          "bssid": "11:22:33:44:55:04",
+          "scantime": 1731091613718,
+          "rssi": -60,
+          "frequency": 5200,
+          "comment": "Galaxy hotspot - should be filtered"
+        },
+        {
+          "ssid": "Google Pixel 7",
+          "bssid": "11:22:33:44:55:05",
+          "scantime": 1731091613719,
+          "rssi": -65,
+          "frequency": 5220,
+          "comment": "Pixel hotspot - should be filtered"
+        },
+        {
+          "ssid": "OnePlus 10 Pro",
+          "bssid": "11:22:33:44:55:06",
+          "scantime": 1731091613720,
+          "rssi": -68,
+          "frequency": 2412,
+          "comment": "OnePlus hotspot - should be filtered"
+        },
+        {
+          "ssid": "Xiaomi_12T",
+          "bssid": "11:22:33:44:55:07",
+          "scantime": 1731091613721,
+          "rssi": -70,
+          "frequency": 2437,
+          "comment": "Xiaomi hotspot - should be filtered"
+        },
+        {
+          "ssid": "Personal Hotspot",
+          "bssid": "11:22:33:44:55:08",
+          "scantime": 1731091613722,
+          "rssi": -52,
+          "frequency": 2462,
+          "comment": "Generic hotspot - should be filtered"
+        }
+      ]
+    }
+  ]
+}
+

@@ -1,0 +1,154 @@
+{
+  "_test_metadata": {
+    "test_case_id": "19-duplicate-bssids-test",
+    "description": "Test handling of same BSSID appearing in both CONNECTED and SCAN results",
+    "category": "edge-cases",
+    "filtering_config": {
+      "mobile_hotspot_filtering_enabled": false
+    },
+    "expected_results": {
+      "total_output_records": 4,
+      "connected_records": 2,
+      "scan_records": 2,
+      "filtered_count": 0,
+      "expected_aps": [
+        {
+          "bssid": "b8:f8:53:c0:1e:ff",
+          "connection_status": "CONNECTED",
+          "expected_fields": {
+            "ssid": "NetworkA",
+            "quality_weight": 2.0,
+            "comment": "Primary CONNECTED record for this BSSID"
+          }
+        },
+        {
+          "bssid": "b8:f8:53:c0:1e:ff",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "ssid": "NetworkA",
+            "quality_weight": 1.0,
+            "comment": "Same BSSID also appears in SCAN - should have separate record"
+          }
+        },
+        {
+          "bssid": "aa:bb:cc:dd:ee:11",
+          "connection_status": "CONNECTED",
+          "expected_fields": {
+            "ssid": "NetworkB",
+            "quality_weight": 2.0
+          }
+        },
+        {
+          "bssid": "aa:bb:cc:dd:ee:22",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "ssid": "NetworkC",
+            "quality_weight": 1.0,
+            "comment": "Unique SCAN-only BSSID"
+          }
+        }
+      ]
+    }
+  },
+  "osVersion": "15:apple/iPhone16,2/iPhone16,2:15.0/21A329:user/release-keys",
+  "model": "iPhone 15 Pro",
+  "device": "iPhone16,2",
+  "manufacturer": "Apple",
+  "osName": "iOS",
+  "sdkInt": "15",
+  "appNameVersion": "com.verizon.wifiloc.app/0.1.0.10000",
+  "dataVersion": "15",
+  "wifiConnectedEvents": [
+    {
+      "timestamp": 1731091615562,
+      "eventId": "connected-network-a",
+      "eventType": "CONNECTED",
+      "wifiConnectedInfo": {
+        "bssid": "b8:f8:53:c0:1e:ff",
+        "ssid": "NetworkA",
+        "linkSpeed": 351,
+        "frequency": 5660,
+        "rssi": -48,
+        "channelWidth": 80,
+        "centerFreq0": 5650,
+        "capabilities": "WPA2-PSK",
+        "is80211mcResponder": true,
+        "isPasspointNetwork": false
+      },
+      "location": {
+        "latitude": 40.7589,
+        "longitude": -73.9851,
+        "altitude": 15.0,
+        "accuracy": 10.0,
+        "time": 1731091614415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      }
+    },
+    {
+      "timestamp": 1731091625562,
+      "eventId": "connected-network-b",
+      "eventType": "CONNECTED",
+      "wifiConnectedInfo": {
+        "bssid": "aa:bb:cc:dd:ee:11",
+        "ssid": "NetworkB",
+        "linkSpeed": 200,
+        "frequency": 2437,
+        "rssi": -55,
+        "channelWidth": 40,
+        "centerFreq0": 2447,
+        "capabilities": "WPA2-PSK",
+        "is80211mcResponder": false,
+        "isPasspointNetwork": false
+      },
+      "location": {
+        "latitude": 40.7590,
+        "longitude": -73.9852,
+        "altitude": 15.0,
+        "accuracy": 12.0,
+        "time": 1731091624415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.5,
+        "bearing": 45.0
+      }
+    }
+  ],
+  "scanResults": [
+    {
+      "timestamp": 1731091615562,
+      "location": {
+        "latitude": 40.7589,
+        "longitude": -73.9851,
+        "altitude": 15.0,
+        "accuracy": 10.0,
+        "time": 1731091614415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      },
+      "results": [
+        {
+          "ssid": "NetworkA",
+          "bssid": "b8:f8:53:c0:1e:ff",
+          "scantime": 1731091613712,
+          "rssi": -50,
+          "frequency": 5660,
+          "comment": "Same BSSID as CONNECTED event - duplicate BSSID scenario"
+        },
+        {
+          "ssid": "NetworkC",
+          "bssid": "aa:bb:cc:dd:ee:22",
+          "scantime": 1731091613713,
+          "rssi": -68,
+          "frequency": 2412,
+          "comment": "Unique SCAN-only BSSID"
+        }
+      ]
+    }
+  ]
+}
+

@@ -47,7 +47,6 @@ public class GracefulShutdownService {
 
   private static final Logger logger = LoggerFactory.getLogger(GracefulShutdownService.class);
 
-  private static final Duration MAX_SHUTDOWN_TIMEOUT = Duration.ofSeconds(30);
   private static final Duration FIREHOSE_FLUSH_TIMEOUT = Duration.ofSeconds(15);
   private static final Duration PROCESSING_COMPLETION_TIMEOUT = Duration.ofSeconds(10);
 

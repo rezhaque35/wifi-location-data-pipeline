@@ -54,27 +54,57 @@ public record DataFilteringConfigurationProperties(
     // Optional: Mobile Hotspot Detection
     @NestedConfigurationProperty @Valid MobileHotspotConfiguration mobileHotspot) {
 
-  /** Configuration for optional OUI-based mobile hotspot detection. */
+  /** Configuration for optional mobile hotspot detection (OUI-based + SSID-based). */
   public record MobileHotspotConfiguration(
       @NotNull(message = "Mobile hotspot enabled flag is required") Boolean enabled,
+
+      /** OUI-based detection configuration */
+      @NestedConfigurationProperty @Valid OuiDetectionConfiguration ouiDetection,
+
+      /** SSID-based detection configuration */
+      @NestedConfigurationProperty @Valid SsidDetectionConfiguration ssidDetection) {
+
+    // No default constructor - all properties must be explicitly configured
+  }
+
+  /** Configuration for OUI-based mobile hotspot detection. */
+  public record OuiDetectionConfiguration(
+      @NotNull(message = "OUI detection enabled flag is required") Boolean enabled,
 
       /**
        * Set of OUI prefixes (first 3 octets) for known mobile device manufacturers. Example:
        * "00:23:6C" for Apple devices.
        */
-      Set<String> ouiBlacklist,
-
-      /** Action to take when mobile hotspot is detected. Options: FLAG, EXCLUDE, LOG_ONLY */
-      @NotNull(message = "Mobile hotspot action is required") MobileHotspotAction action) {
+      Set<String> ouiBlacklist) {
 
     // No default constructor - all properties must be explicitly configured
   }
 
-  /** Actions that can be taken when a mobile hotspot is detected. */
-  public enum MobileHotspotAction {
-    FLAG, // Flag the record but include it
-    EXCLUDE, // Exclude the record completely
-    LOG_ONLY // Only log the detection, no other action
+  /** Configuration for SSID-based mobile hotspot detection. */
+  public record SsidDetectionConfiguration(
+      @NotNull(message = "SSID detection enabled flag is required") Boolean enabled,
+
+      /** List of SSID patterns to match (always case-insensitive) */
+      Set<SsidPattern> patterns) {
+
+    // No default constructor - all properties must be explicitly configured
+  }
+
+  /** SSID pattern configuration. */
+  public record SsidPattern(
+      @NotNull(message = "Pattern is required") String pattern,
+
+      @NotNull(message = "Pattern type is required") PatternType type,
+
+      String description) {
+
+    // No default constructor - all properties must be explicitly configured
+  }
+
+  /** Pattern matching type. */
+  public enum PatternType {
+    CONTAINS, // Simple substring matching
+    REGEX // Regular expression matching
   }
 
   // No default constructor - all properties must be explicitly configured

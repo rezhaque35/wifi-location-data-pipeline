@@ -1,0 +1,130 @@
+{
+  "_test_metadata": {
+    "test_case_id": "20-null-ssid-test",
+    "description": "Test handling of hidden networks with null or empty SSID values",
+    "category": "edge-cases",
+    "filtering_config": {
+      "mobile_hotspot_filtering_enabled": false
+    },
+    "expected_results": {
+      "total_output_records": 4,
+      "connected_records": 1,
+      "scan_records": 3,
+      "filtered_count": 0,
+      "expected_aps": [
+        {
+          "bssid": "b8:f8:53:c0:1e:ff",
+          "connection_status": "CONNECTED",
+          "expected_fields": {
+            "ssid": "VisibleNetwork",
+            "quality_weight": 2.0
+          }
+        },
+        {
+          "bssid": "aa:bb:cc:dd:ee:11",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "bssid": "aa:bb:cc:dd:ee:11",
+            "comment": "Null SSID - hidden network"
+          }
+        },
+        {
+          "bssid": "aa:bb:cc:dd:ee:22",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "bssid": "aa:bb:cc:dd:ee:22",
+            "comment": "Empty SSID - hidden network"
+          }
+        },
+        {
+          "bssid": "aa:bb:cc:dd:ee:33",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "ssid": "AnotherVisibleNetwork"
+          }
+        }
+      ]
+    }
+  },
+  "osVersion": "14:samsung/a53xsqw/a53x:14/UP1A.231005.007/A536VSQSADXC1:user/release-keys",
+  "model": "SM-A536V",
+  "device": "a53x",
+  "manufacturer": "samsung",
+  "osName": "Android",
+  "sdkInt": "34",
+  "appNameVersion": "com.verizon.wifiloc.app/0.1.0.10000",
+  "dataVersion": "15",
+  "wifiConnectedEvents": [
+    {
+      "timestamp": 1731091615562,
+      "eventId": "visible-connected",
+      "eventType": "CONNECTED",
+      "wifiConnectedInfo": {
+        "bssid": "b8:f8:53:c0:1e:ff",
+        "ssid": "VisibleNetwork",
+        "linkSpeed": 351,
+        "frequency": 5660,
+        "rssi": -52,
+        "channelWidth": 80,
+        "centerFreq0": 5650,
+        "capabilities": "WPA2-PSK",
+        "is80211mcResponder": true,
+        "isPasspointNetwork": false
+      },
+      "location": {
+        "latitude": 40.6768816,
+        "longitude": -74.416391,
+        "altitude": 15.5,
+        "accuracy": 10.0,
+        "time": 1731091614415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      }
+    }
+  ],
+  "scanResults": [
+    {
+      "timestamp": 1731091615562,
+      "location": {
+        "latitude": 40.6768816,
+        "longitude": -74.416391,
+        "altitude": 15.5,
+        "accuracy": 10.0,
+        "time": 1731091614415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      },
+      "results": [
+        {
+          "ssid": null,
+          "bssid": "aa:bb:cc:dd:ee:11",
+          "scantime": 1731091613712,
+          "rssi": -65,
+          "frequency": 2437,
+          "comment": "Hidden network with null SSID"
+        },
+        {
+          "ssid": "",
+          "bssid": "aa:bb:cc:dd:ee:22",
+          "scantime": 1731091613713,
+          "rssi": -68,
+          "frequency": 2462,
+          "comment": "Hidden network with empty SSID"
+        },
+        {
+          "ssid": "AnotherVisibleNetwork",
+          "bssid": "aa:bb:cc:dd:ee:33",
+          "scantime": 1731091613714,
+          "rssi": -72,
+          "frequency": 5180,
+          "comment": "Normal visible network"
+        }
+      ]
+    }
+  ]
+}
+

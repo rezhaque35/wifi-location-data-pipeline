@@ -1,4 +1,62 @@
 {
+  "_test_metadata": {
+    "test_case_id": "01-basic-wifi-scan",
+    "description": "Basic WiFi scan processing with connected and scan events",
+    "category": "basic",
+    "filtering_config": {
+      "mobile_hotspot_filtering_enabled": false,
+      "oui_detection_enabled": false,
+      "ssid_detection_enabled": false
+    },
+    "expected_results": {
+      "total_output_records": 6,
+      "connected_records": 2,
+      "scan_records": 4,
+      "filtered_count": 0,
+      "expected_aps": [
+        {
+          "bssid": "b8:f8:53:c0:1e:ff",
+          "connection_status": "CONNECTED",
+          "expected_fields": {
+            "ssid": "TestNetwork1",
+            "rssi": -58,
+            "latitude": 40.6768816,
+            "longitude": -74.416391,
+            "quality_weight": 2.0
+          }
+        },
+        {
+          "bssid": "aa:bb:cc:dd:ee:ff",
+          "connection_status": "CONNECTED",
+          "expected_fields": {
+            "ssid": "TestNetwork2",
+            "rssi": -45,
+            "latitude": 40.6768817,
+            "longitude": -74.416392,
+            "quality_weight": 2.0
+          }
+        },
+        {
+          "bssid": "11:22:33:44:55:66",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "ssid": "TestNetwork3",
+            "rssi": -72,
+            "quality_weight": 1.0
+          }
+        },
+        {
+          "bssid": "99:88:77:66:55:44",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "ssid": "TestNetwork4",
+            "rssi": -85,
+            "quality_weight": 1.0
+          }
+        }
+      ]
+    }
+  },
   "osVersion": "14:samsung/a53xsqw/a53x:14/UP1A.231005.007/A536VSQSADXC1:user/release-keys",
   "model": "SM-A536V",
   "device": "a53x",

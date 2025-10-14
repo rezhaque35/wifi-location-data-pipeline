@@ -50,10 +50,27 @@ filtering:
   scan-quality-weight: 1.0
   low-link-speed-quality-weight: 1.5
   mobile-hotspot:
-    enabled: false
-    action: LOG_ONLY
-    oui-blacklist:
-      - "00:00:00"  # Test OUI
+    enabled: true
+    oui-detection:
+      enabled: true
+      oui-blacklist:
+        - "00:23:6C"  # Apple (for testing)
+        - "40:B0:FA"  # Samsung (for testing)
+    ssid-detection:
+      enabled: true
+      patterns:
+        - pattern: "iPhone"
+          type: CONTAINS
+          description: "iPhone hotspot"
+        - pattern: "Hotspot"
+          type: CONTAINS
+          description: "Generic mobile hotspot keyword"
+        - pattern: "Android"
+          type: CONTAINS
+          description: "Android default hotspot"
+        - pattern: "Galaxy|Pixel|MiFi"
+          type: REGEX
+          description: "Mobile device brands and portable routers"
 
 # Kinesis Data Firehose Configuration - disabled for tests
 firehose:

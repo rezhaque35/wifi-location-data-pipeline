@@ -106,14 +106,12 @@ public class DefaultFeedProcessor implements FeedProcessor {
     }
 
     private void flushPublisher() {
-        boolean success;
         // Always flush any remaining measurements in the batch
         try {
             measurementsPublisher.flushCurrentBatch();
             logger.debug("Flushed remaining batch after file processing");
         } catch (Exception e) {
             logger.error("Failed to flush remaining batch: {}", e.getMessage(), e);
-            success = false;
         }
     }
 
@@ -206,4 +204,5 @@ public class DefaultFeedProcessor implements FeedProcessor {
     private Stream<WifiScanData> toWifiScanData(String decodedData) {
         return parseWifiScanData(decodedData).stream();
     }
+
 }

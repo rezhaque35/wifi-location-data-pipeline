@@ -1,4 +1,41 @@
 {
+  "_test_metadata": {
+    "test_case_id": "14-multi-location-scan",
+    "description": "WiFi scan with multiple locations and movement",
+    "category": "multi-location",
+    "filtering_config": {
+      "mobile_hotspot_filtering_enabled": false,
+      "oui_detection_enabled": false,
+      "ssid_detection_enabled": false
+    },
+    "expected_results": {
+      "total_output_records": 6,
+      "connected_records": 1,
+      "scan_records": 5,
+      "filtered_count": 0,
+      "expected_aps": [
+        {
+          "bssid": "00:11:22:33:44:55",
+          "connection_status": "CONNECTED",
+          "expected_fields": {
+            "ssid": "VerizonFiOS-5G",
+            "rssi": -42,
+            "latitude": 40.7589,
+            "longitude": -73.9851,
+            "quality_weight": 2.0
+          }
+        },
+        {
+          "bssid": "aa:bb:cc:dd:ee:ff",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "ssid": "Starbucks_WiFi",
+            "quality_weight": 1.0
+          }
+        }
+      ]
+    }
+  },
   "osVersion": "15:apple/iPhone16,2/iPhone16,2:15.0/21A329:user/release-keys",
   "model": "iPhone 15 Pro",
   "device": "iPhone16,2",

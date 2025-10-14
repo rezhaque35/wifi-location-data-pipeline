@@ -136,15 +136,37 @@ filtering:
   low-link-speed-quality-weight: 1.5
   mobile-hotspot:
     enabled: false
-    action: LOG_ONLY
-    oui-blacklist:
-      - "00:23:6C"  # Apple
-      - "3C:15:C2"  # Apple
-      - "58:55:CA"  # Apple
-      - "40:B0:FA"  # Samsung
-      - "E8:50:8B"  # Samsung
-      - "DA:A1:19"  # Google
-      - "F8:A9:D0"  # Google
+    
+    # OUI-based detection (MAC address)
+    oui-detection:
+      enabled: false
+      oui-blacklist:
+        - "00:23:6C"  # Apple
+        - "3C:15:C2"  # Apple
+        - "58:55:CA"  # Apple
+        - "40:B0:FA"  # Samsung
+        - "E8:50:8B"  # Samsung
+        - "DA:A1:19"  # Google
+        - "F8:A9:D0"  # Google
+    
+    # SSID-based detection (network name patterns - always case-insensitive)
+    ssid-detection:
+      enabled: true
+      patterns:
+        # TIER 1: Fast Path - Most common patterns (ALL using fast string.contains(), ~80% of hotspots)
+        - pattern: "iPhone"
+          type: CONTAINS
+          description: "iPhone hotspot - most common iOS (Priority 1)"
+        - pattern: "Hotspot"
+          type: CONTAINS
+          description: "Generic mobile hotspot keyword - very common (Priority 2)"
+        - pattern: "Android"
+          type: CONTAINS
+          description: "Android default hotspot - common Android (Priority 3)"
+        # TIER 2: Regex Path - Less common device brands and portable routers (~20% of hotspots)
+        - pattern: "Galaxy|Pixel|OnePlus|Honor|Xiaomi|Redmi|iPad|Mi Phone|MiFi|Jetpack"
+          type: REGEX
+          description: "Mobile device brands and portable routers - less common (Priority 4)"
 
 # Kinesis Data Firehose Configuration
 firehose:

@@ -8,7 +8,84 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * DTO representing a WiFi measurement record that matches the wifi_measurements table schema.
  *
- * <p>This represents the final transformed data that will be written to storage.
+ * <h2>Architectural Role</h2>
+ * 
+ * <p>This record serves as the <strong>canonical data model</strong> for WiFi measurements
+ * across the entire data pipeline. It represents the final transformed data that will be
+ * written to storage and consumed by downstream services including:
+ * 
+ * <ul>
+ *   <li><strong>WiFi Access Point Localization:</strong> Used by WifiMeasurements for spatial analysis</li>
+ *   <li><strong>Global Outlier Detection:</strong> Provides measurement data for MAD-based outlier detection</li>
+ *   <li><strong>Hotspot Detection:</strong> Supplies location data for spatial distribution analysis</li>
+ *   <li><strong>Quality Assessment:</strong> Enables CONNECTED vs SCAN measurement analysis</li>
+ * </ul>
+ * 
+ * <h2>Data Quality Features</h2>
+ * 
+ * <p>This record includes comprehensive data quality and processing metadata:
+ * 
+ * <ul>
+ *   <li><strong>Connection Status:</strong> 'CONNECTED' or 'SCAN' for quality-based weighting</li>
+ *   <li><strong>Quality Weight:</strong> 2.0 for CONNECTED, 1.0 for SCAN measurements</li>
+ *   <li><strong>Location Accuracy:</strong> GNSS/GPS accuracy metadata for filtering</li>
+ *   <li><strong>Global Outlier Detection:</strong> Persistent outlier flags and thresholds</li>
+ *   <li><strong>Processing Metadata:</strong> Batch IDs, versions, and quality scores</li>
+ * </ul>
+ * 
+ * <h2>Global Outlier Detection Integration</h2>
+ * 
+ * <p>The record includes fields specifically designed for global outlier detection:
+ * 
+ * <ul>
+ *   <li><strong>is_global_outlier:</strong> Boolean flag indicating outlier status</li>
+ *   <li><strong>global_outlier_distance:</strong> Distance from centroid when flagged as outlier</li>
+ *   <li><strong>global_outlier_threshold:</strong> MAD threshold used for detection</li>
+ *   <li><strong>global_detection_algorithm:</strong> Algorithm identifier (e.g., "MAD_BASED")</li>
+ *   <li><strong>global_detection_timestamp:</strong> When outlier detection was performed</li>
+ *   <li><strong>global_detection_version:</strong> Version of detection algorithm used</li>
+ * </ul>
+ * 
+ * <h2>Builder Pattern</h2>
+ * 
+ * <p>Includes a comprehensive builder pattern for constructing instances:
+ * 
+ * <pre>{@code
+ * WifiMeasurement measurement = WifiMeasurement.builder()
+ *     .id("measurement-123")
+ *     .bssid("aa:bb:cc:dd:ee:ff")
+ *     .latitude(37.7749)
+ *     .longitude(-122.4194)
+ *     .connectionStatus("CONNECTED")
+ *     .qualityWeight(2.0)
+ *     .build();
+ * }</pre>
+ * 
+ * <h2>Performance Characteristics</h2>
+ * 
+ * <ul>
+ *   <li><strong>Immutable Record:</strong> Thread-safe operations without synchronization</li>
+ *   <li><strong>Memory Efficient:</strong> Compact storage with nullable fields</li>
+ *   <li><strong>Serialization Optimized:</strong> Jackson annotations for JSON processing</li>
+ *   <li><strong>Builder Pattern:</strong> Efficient object construction for large datasets</li>
+ * </ul>
+ * 
+ * <h2>Schema Compliance</h2>
+ * 
+ * <p>This record strictly adheres to the wifi_measurements table schema with:
+ * <ul>
+ *   <li><strong>Primary Keys:</strong> bssid, measurement_timestamp, event_id</li>
+ *   <li><strong>Location Data:</strong> latitude, longitude, altitude, accuracy</li>
+ *   <li><strong>WiFi Signal Data:</strong> ssid, rssi, frequency, scan_timestamp</li>
+ *   <li><strong>Device Information:</strong> device_id, model, manufacturer, OS version</li>
+ *   <li><strong>Connected-Only Fields:</strong> link_speed, channel_width, capabilities</li>
+ * </ul>
+ * 
+ * @author WiFi Location Data Pipeline Team
+ * @version 2.0
+ * @see WifiMeasurements for collection-based operations
+ * @see WiFiMeasurementDistances for distance-based statistical analysis
+ * @since 1.0
  */
 public record WifiMeasurement(
     // Unique Identifier

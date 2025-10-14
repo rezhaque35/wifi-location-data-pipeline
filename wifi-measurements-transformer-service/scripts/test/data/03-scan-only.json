@@ -1,0 +1,97 @@
+{
+  "_test_metadata": {
+    "test_case_id": "03-scan-only",
+    "description": "Test with only SCAN results, no CONNECTED events",
+    "category": "basic",
+    "filtering_config": {
+      "mobile_hotspot_filtering_enabled": false
+    },
+    "expected_results": {
+      "total_output_records": 5,
+      "connected_records": 0,
+      "scan_records": 5,
+      "filtered_count": 0,
+      "expected_aps": [
+        {
+          "bssid": "aa:bb:cc:dd:ee:11",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "ssid": "PublicWiFi",
+            "quality_weight": 1.0
+          }
+        },
+        {
+          "bssid": "aa:bb:cc:dd:ee:22",
+          "connection_status": "SCAN",
+          "expected_fields": {
+            "ssid": "CafeNetwork",
+            "quality_weight": 1.0
+          }
+        }
+      ]
+    }
+  },
+  "osVersion": "14:samsung/a53xsqw/a53x:14/UP1A.231005.007/A536VSQSADXC1:user/release-keys",
+  "model": "SM-A536V",
+  "device": "a53x",
+  "manufacturer": "samsung",
+  "osName": "Android",
+  "sdkInt": "34",
+  "appNameVersion": "com.verizon.wifiloc.app/0.1.0.10000",
+  "dataVersion": "15",
+  "wifiConnectedEvents": [],
+  "scanResults": [
+    {
+      "timestamp": 1731091615562,
+      "location": {
+        "latitude": 40.7589,
+        "longitude": -73.9851,
+        "altitude": 15.0,
+        "accuracy": 10.0,
+        "time": 1731091614415,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      },
+      "results": [
+        {
+          "ssid": "PublicWiFi",
+          "bssid": "aa:bb:cc:dd:ee:11",
+          "scantime": 1731091613712,
+          "rssi": -60,
+          "frequency": 2412
+        },
+        {
+          "ssid": "CafeNetwork",
+          "bssid": "aa:bb:cc:dd:ee:22",
+          "scantime": 1731091613713,
+          "rssi": -65,
+          "frequency": 2437
+        },
+        {
+          "ssid": "ShopWiFi",
+          "bssid": "aa:bb:cc:dd:ee:33",
+          "scantime": 1731091613714,
+          "rssi": -70,
+          "frequency": 2462
+        },
+        {
+          "ssid": "GuestAccess",
+          "bssid": "aa:bb:cc:dd:ee:44",
+          "scantime": 1731091613715,
+          "rssi": -75,
+          "frequency": 5180
+        },
+        {
+          "ssid": "FreeWiFi",
+          "bssid": "aa:bb:cc:dd:ee:55",
+          "scantime": 1731091613716,
+          "rssi": -80,
+          "frequency": 5200
+        }
+      ]
+    }
+  ]
+}
+

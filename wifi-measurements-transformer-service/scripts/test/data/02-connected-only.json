@@ -1,0 +1,138 @@
+{
+  "_test_metadata": {
+    "test_case_id": "02-connected-only",
+    "description": "Test with only CONNECTED events, no SCAN results",
+    "category": "basic",
+    "filtering_config": {
+      "mobile_hotspot_filtering_enabled": false
+    },
+    "expected_results": {
+      "total_output_records": 3,
+      "connected_records": 3,
+      "scan_records": 0,
+      "filtered_count": 0,
+      "expected_aps": [
+        {
+          "bssid": "aa:bb:cc:11:22:33",
+          "connection_status": "CONNECTED",
+          "expected_fields": {
+            "ssid": "OfficeNetwork",
+            "quality_weight": 2.0
+          }
+        },
+        {
+          "bssid": "dd:ee:ff:44:55:66",
+          "connection_status": "CONNECTED",
+          "expected_fields": {
+            "ssid": "HomeNetwork",
+            "quality_weight": 2.0
+          }
+        },
+        {
+          "bssid": "11:22:33:77:88:99",
+          "connection_status": "CONNECTED",
+          "expected_fields": {
+            "ssid": "GuestNetwork",
+            "quality_weight": 2.0
+          }
+        }
+      ]
+    }
+  },
+  "osVersion": "14:samsung/a53xsqw/a53x:14/UP1A.231005.007/A536VSQSADXC1:user/release-keys",
+  "model": "SM-A536V",
+  "device": "a53x",
+  "manufacturer": "samsung",
+  "osName": "Android",
+  "sdkInt": "34",
+  "appNameVersion": "com.verizon.wifiloc.app/0.1.0.10000",
+  "dataVersion": "15",
+  "wifiConnectedEvents": [
+    {
+      "timestamp": 1731091615562,
+      "eventId": "connected-1",
+      "eventType": "CONNECTED",
+      "wifiConnectedInfo": {
+        "bssid": "aa:bb:cc:11:22:33",
+        "ssid": "OfficeNetwork",
+        "linkSpeed": 450,
+        "frequency": 5180,
+        "rssi": -50,
+        "channelWidth": 80,
+        "centerFreq0": 5170,
+        "capabilities": "WPA2-PSK",
+        "is80211mcResponder": true,
+        "isPasspointNetwork": false
+      },
+      "location": {
+        "latitude": 40.7128,
+        "longitude": -74.0060,
+        "altitude": 10.0,
+        "accuracy": 5.0,
+        "time": 1731091614000,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      }
+    },
+    {
+      "timestamp": 1731091616562,
+      "eventId": "connected-2",
+      "eventType": "CONNECTED",
+      "wifiConnectedInfo": {
+        "bssid": "dd:ee:ff:44:55:66",
+        "ssid": "HomeNetwork",
+        "linkSpeed": 300,
+        "frequency": 2412,
+        "rssi": -55,
+        "channelWidth": 40,
+        "centerFreq0": 2422,
+        "capabilities": "WPA2-PSK",
+        "is80211mcResponder": false,
+        "isPasspointNetwork": false
+      },
+      "location": {
+        "latitude": 40.7129,
+        "longitude": -74.0061,
+        "altitude": 10.5,
+        "accuracy": 6.0,
+        "time": 1731091615000,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      }
+    },
+    {
+      "timestamp": 1731091617562,
+      "eventId": "connected-3",
+      "eventType": "CONNECTED",
+      "wifiConnectedInfo": {
+        "bssid": "11:22:33:77:88:99",
+        "ssid": "GuestNetwork",
+        "linkSpeed": 200,
+        "frequency": 2437,
+        "rssi": -65,
+        "channelWidth": 20,
+        "centerFreq0": 2437,
+        "capabilities": "WPA2-PSK",
+        "is80211mcResponder": false,
+        "isPasspointNetwork": false
+      },
+      "location": {
+        "latitude": 40.7130,
+        "longitude": -74.0062,
+        "altitude": 11.0,
+        "accuracy": 7.0,
+        "time": 1731091616000,
+        "provider": "gps",
+        "source": "network",
+        "speed": 0.0,
+        "bearing": 0.0
+      }
+    }
+  ],
+  "scanResults": []
+}
+
