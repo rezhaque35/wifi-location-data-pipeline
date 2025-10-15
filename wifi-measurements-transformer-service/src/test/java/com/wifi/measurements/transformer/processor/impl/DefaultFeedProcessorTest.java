@@ -94,7 +94,7 @@ class DefaultFeedProcessorTest {
         .thenReturn(mockScanData);
 
     // Mock transformation to return empty stream (hotspots already filtered in transformation layer)
-    when(wifiDataTransformationService.transformToMeasurements(any(WifiScanData.class), anyString()))
+    when(wifiDataTransformationService.transformToMeasurements(any(WifiScanData.class), anyString(), anyString()))
         .thenReturn(Stream.empty());
 
     // When
@@ -133,12 +133,11 @@ class DefaultFeedProcessorTest {
     var legitimateAp =
         WifiMeasurement.builder()
             .bssid("11:22:33:44:55:66")
-            .ssid("CoffeeShopWiFi") // Legitimate AP SSID
             .latitude(37.7749)
             .longitude(-122.4194)
             .build();
 
-    when(wifiDataTransformationService.transformToMeasurements(any(WifiScanData.class), anyString()))
+    when(wifiDataTransformationService.transformToMeasurements(any(WifiScanData.class), anyString(), anyString()))
         .thenReturn(Stream.of(legitimateAp));
 
     // When
@@ -177,7 +176,6 @@ class DefaultFeedProcessorTest {
     var legitimateAp1 =
         WifiMeasurement.builder()
             .bssid("11:22:33:44:55:66")
-            .ssid("CoffeeShopWiFi") // Legitimate AP
             .latitude(37.7749)
             .longitude(-122.4194)
             .build();
@@ -185,12 +183,11 @@ class DefaultFeedProcessorTest {
     var legitimateAp2 =
         WifiMeasurement.builder()
             .bssid("22:33:44:55:66:77")
-            .ssid("StarbucksWiFi") // Legitimate AP
             .latitude(37.7749)
             .longitude(-122.4194)
             .build();
 
-    when(wifiDataTransformationService.transformToMeasurements(any(WifiScanData.class), anyString()))
+    when(wifiDataTransformationService.transformToMeasurements(any(WifiScanData.class), anyString(), anyString()))
         .thenReturn(Stream.of(legitimateAp1, legitimateAp2));
 
     // When
@@ -205,11 +202,11 @@ class DefaultFeedProcessorTest {
 
     var publishedMeasurements = measurementCaptor.getAllValues();
     
-    // Verify both legitimate APs were published
+    // Verify both legitimate APs were published (by BSSID)
     assertThat(publishedMeasurements)
         .hasSize(2)
-        .extracting(WifiMeasurement::ssid)
-        .containsExactly("CoffeeShopWiFi", "StarbucksWiFi");
+        .extracting(WifiMeasurement::bssid)
+        .containsExactly("11:22:33:44:55:66", "22:33:44:55:66:77");
   }
 
   @Test
@@ -237,7 +234,6 @@ class DefaultFeedProcessorTest {
     var measurement1 =
         WifiMeasurement.builder()
             .bssid("aa:bb:cc:dd:ee:ff")
-            .ssid("John's iPhone")
             .latitude(37.7749)
             .longitude(-122.4194)
             .build();
@@ -245,12 +241,11 @@ class DefaultFeedProcessorTest {
     var measurement2 =
         WifiMeasurement.builder()
             .bssid("11:22:33:44:55:66")
-            .ssid("CoffeeShopWiFi")
             .latitude(37.7749)
             .longitude(-122.4194)
             .build();
 
-    when(wifiDataTransformationService.transformToMeasurements(any(WifiScanData.class), anyString()))
+    when(wifiDataTransformationService.transformToMeasurements(any(WifiScanData.class), anyString(), anyString()))
         .thenReturn(Stream.of(measurement1, measurement2));
 
     // When
@@ -285,7 +280,7 @@ class DefaultFeedProcessorTest {
         .thenReturn(mockScanData);
 
     // Mock transformation to return empty stream (hotspot with Apple OUI already filtered in transformation layer)
-    when(wifiDataTransformationService.transformToMeasurements(any(WifiScanData.class), anyString()))
+    when(wifiDataTransformationService.transformToMeasurements(any(WifiScanData.class), anyString(), anyString()))
         .thenReturn(Stream.empty());
 
     // When

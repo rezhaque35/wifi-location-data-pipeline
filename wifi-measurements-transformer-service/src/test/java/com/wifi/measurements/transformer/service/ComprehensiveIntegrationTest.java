@@ -743,9 +743,9 @@ class ComprehensiveIntegrationTest {
 
     for (WifiMeasurement measurement : records) {
       // Primary Keys - Required
+      assertNotNull(measurement.id(), "ID is required");
       assertNotNull(measurement.bssid(), "BSSID is required");
       assertNotNull(measurement.measurementTimestamp(), "Measurement timestamp is required");
-      assertNotNull(measurement.eventId(), "Event ID is required");
 
       // BSSID format validation (MAC address)
       assertTrue(
@@ -754,10 +754,6 @@ class ComprehensiveIntegrationTest {
               .matches(
                   "^[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}$"),
           "BSSID should be valid MAC address format: " + measurement.bssid());
-
-      // Device Information - Should be present
-      assertNotNull(measurement.deviceId(), "Device ID should be present");
-      assertNotNull(measurement.deviceModel(), "Device model should be present");
 
       // Location Data - Required
       assertNotNull(measurement.latitude(), "Latitude is required");
@@ -870,9 +866,9 @@ class ComprehensiveIntegrationTest {
           "BSSID should be valid MAC address format: " + measurement.bssid());
 
       // Required fields should be present
+      assertNotNull(measurement.id(), "ID is required");
       assertNotNull(measurement.bssid(), "BSSID is required");
       assertNotNull(measurement.measurementTimestamp(), "Measurement timestamp is required");
-      assertNotNull(measurement.eventId(), "Event ID is required");
       assertNotNull(measurement.latitude(), "Latitude is required");
       assertNotNull(measurement.longitude(), "Longitude is required");
       assertNotNull(measurement.locationAccuracy(), "Location accuracy is required");
@@ -910,12 +906,7 @@ class ComprehensiveIntegrationTest {
             "Altitude should be in reasonable range: " + measurement.altitude());
       }
 
-      // Speed validation (if present)
-      if (measurement.speed() != null) {
-        assertTrue(
-            measurement.speed() >= 0.0 && measurement.speed() <= 1000.0,
-            "Speed should be in reasonable range: " + measurement.speed());
-      }
+      // Speed field removed in streamlined schema
     }
 
     logger.info("✓ Filtering logic validation passed");
@@ -1151,12 +1142,7 @@ class ComprehensiveIntegrationTest {
             "Altitude should be in reasonable range: " + measurement.altitude());
       }
 
-      // Speed validation (if present)
-      if (measurement.speed() != null) {
-        assertTrue(
-            measurement.speed() >= 0.0 && measurement.speed() <= 1000.0,
-            "Speed should be in reasonable range: " + measurement.speed());
-      }
+      // Speed field removed in streamlined schema
 
       // BSSID format validation (MAC address format)
       assertTrue(
@@ -1271,7 +1257,6 @@ class ComprehensiveIntegrationTest {
 
     for (WifiMeasurement measurement : records) {
       Long measurementTimestamp = measurement.measurementTimestamp();
-      Long locationTimestamp = measurement.locationTimestamp();
 
       // Measurement timestamp validation
       assertNotNull(measurementTimestamp, "Measurement timestamp should not be null");
@@ -1283,16 +1268,7 @@ class ComprehensiveIntegrationTest {
           measurementTimestamp <= oneYearFuture,
           "Measurement timestamp should not be in future: " + measurementTimestamp);
 
-      // Location timestamp validation (if present)
-      if (locationTimestamp != null) {
-        assertTrue(locationTimestamp > 0, "Location timestamp should be positive");
-        assertTrue(
-            locationTimestamp >= fiveYearsAgo,
-            "Location timestamp should not be too far in past: " + locationTimestamp);
-        assertTrue(
-            locationTimestamp <= oneYearFuture,
-            "Location timestamp should not be in future: " + locationTimestamp);
-      }
+      // Location timestamp field removed in streamlined schema
     }
 
     logger.info("✓ Timestamp filtering validation passed");
@@ -1313,8 +1289,7 @@ class ComprehensiveIntegrationTest {
       assertTrue(
           measurement.measurementTimestamp() > 0, "Measurement timestamp should be positive");
 
-      assertNotNull(measurement.eventId(), "Event ID is required and should not be null");
-      assertFalse(measurement.eventId().trim().isEmpty(), "Event ID should not be empty");
+      // Event ID field removed in streamlined schema
 
       assertNotNull(measurement.latitude(), "Latitude is required and should not be null");
       assertNotNull(measurement.longitude(), "Longitude is required and should not be null");

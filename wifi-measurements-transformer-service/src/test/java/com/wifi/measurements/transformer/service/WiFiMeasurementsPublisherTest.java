@@ -200,51 +200,27 @@ class WiFiMeasurementsPublisherTest {
   }
 
   private WifiMeasurement createTestMeasurement() {
-    return new WifiMeasurement(
-        UUID.randomUUID().toString(), // id
-        "00:11:22:33:44:55",
-        Instant.now().toEpochMilli(),
-        "test-event-" + UUID.randomUUID(),
-        "test-device",
-        "Test Model",
-        "Test Manufacturer",
-        "1.0.0",
-        "1.0.0",
-        40.7128,
-        -74.0060,
-        10.0,
-        5.0,
-        Instant.now().toEpochMilli(),
-        "gps",
-        "network",
-        0.0,
-        0.0,
-        "TestNetwork",
-        -50,
-        2400,
-        Instant.now().toEpochMilli(),
-        "CONNECTED",
-        2.0,
-        100,
-        80,
-        null,
-        null,
-        "WPA2",
-        true,
-        null,
-        null,
-        null,
-        null,
-        0,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        Instant.now(),
-        "1.0",
-        UUID.randomUUID().toString(),
-        0.95);
+    return WifiMeasurement.builder()
+        .id(UUID.randomUUID().toString())
+        .bssid("00:11:22:33:44:55")
+        .measurementTimestamp(Instant.now().toEpochMilli())
+        .latitude(40.7128)
+        .longitude(-74.0060)
+        .altitude(10.0)
+        .locationAccuracy(5.0)
+        .ssid("TestNetwork")
+        .rssi(-50)
+        .frequency(2400)
+        .connectionStatus("CONNECTED")
+        .qualityWeight(2.0)
+        .linkSpeed(100)
+        .channelWidth(80)
+        .centerFreq0(2422)
+        .isGlobalOutlier(null)
+        .source("s3://test-bucket/test-file.json")
+        .ingestionTimestamp(Instant.now())
+        .dataVersion("1.0")
+        .processingBatchId(UUID.randomUUID().toString())
+        .build();
   }
 }

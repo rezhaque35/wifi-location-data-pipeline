@@ -712,7 +712,8 @@ validate_schema_and_data() {
     print_status $BLUE "🔍 Validating schema and data..."
     
     # Check required fields (JSON Lines format - check first record)
-    REQUIRED_FIELDS=("bssid" "measurement_timestamp" "event_id" "device_id" "latitude" "longitude" "connection_status" "quality_weight")
+    # Updated for streamlined schema - removed event_id, device_id, but kept ssid
+    REQUIRED_FIELDS=("id" "bssid" "measurement_timestamp" "latitude" "longitude" "ssid" "connection_status" "quality_weight" "source")
     
     for field in "${REQUIRED_FIELDS[@]}"; do
         if ! cat /tmp/firehose-output.json | head -1 | jq -e ".$field" > /dev/null 2>&1; then

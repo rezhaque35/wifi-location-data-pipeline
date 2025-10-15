@@ -73,6 +73,7 @@ public class DefaultFeedProcessor implements FeedProcessor {
     public boolean process(FeedUploadEvent feedUploadEvent) {
 
         String processingBatchId = UUID.randomUUID().toString();
+        String sourceFile = buildSourceFilePath(feedUploadEvent);
         AtomicInteger processedLines = new AtomicInteger(0);
         AtomicInteger totalMeasurements = new AtomicInteger(0);
         boolean success = false;
@@ -87,7 +88,7 @@ public class DefaultFeedProcessor implements FeedProcessor {
                         .filter(Predicate.not(String::isEmpty))
                         .flatMap(this::decodeData)
                         .flatMap(this::toWifiScanData)
-                        .flatMap(toAPLocationMeasurements(processingBatchId))
+                        .flatMap(toAPLocationMeasurements(processingBatchId, sourceFile))
                         .peek(measurement -> totalMeasurements.incrementAndGet())
                         .forEach(measurementsPublisher::publishMeasurement);
 
@@ -130,10 +131,22 @@ public class DefaultFeedProcessor implements FeedProcessor {
                 totalMeasurements.get());
     }
 
-    private Function<WifiScanData, Stream<? extends WifiMeasurement>> toAPLocationMeasurements(String processingBatchId) {
+    private Function<WifiScanData, Stream<? extends WifiMeasurement>> toAPLocationMeasurements(String processingBatchId, String sourceFile) {
         return wifiScanData ->
                 wifiDataTransformationService.transformToMeasurements(
-                        wifiScanData, processingBatchId);
+                        wifiScanData, processingBatchId, sourceFile);
+    }
+
+    /**
+     * Builds S3 source file path from FeedUploadEvent.
+     *
+     * @param feedUploadEvent The feed upload event containing bucket and key information
+     * @return S3 path in format "s3://bucket/key"
+     */
+    private String buildSourceFilePath(FeedUploadEvent feedUploadEvent) {
+        return String.format("s3://%s/%s", 
+                feedUploadEvent.bucketName(), 
+                feedUploadEvent.objectKey());
     }
 
     private static void logBeginning(FeedUploadEvent feedUploadEvent, String processingBatchId) {

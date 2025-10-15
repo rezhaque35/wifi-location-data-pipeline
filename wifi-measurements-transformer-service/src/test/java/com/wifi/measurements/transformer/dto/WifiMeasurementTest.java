@@ -10,7 +10,7 @@ import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.*;
 
-@DisplayName("WifiMeasurement DTO Tests")
+@DisplayName("WifiMeasurement DTO Tests - Streamlined Schema")
 class WifiMeasurementTest {
 
     @Nested
@@ -28,13 +28,12 @@ class WifiMeasurementTest {
                 .id("test-id-123")
                 .bssid("aa:bb:cc:dd:ee:ff")
                 .measurementTimestamp(now.toEpochMilli())
-                .eventId("event-123")
-                .deviceId("device-123")
                 .latitude(37.7749)
                 .longitude(-122.4194)
                 .rssi(-50)
                 .connectionStatus("CONNECTED")
                 .qualityWeight(2.0)
+                .source("s3://test-bucket/test-key.json")
                 .ingestionTimestamp(now)
                 .build();
 
@@ -43,13 +42,12 @@ class WifiMeasurementTest {
             assertThat(measurement.id()).isEqualTo("test-id-123");
             assertThat(measurement.bssid()).isEqualTo("aa:bb:cc:dd:ee:ff");
             assertThat(measurement.measurementTimestamp()).isEqualTo(now.toEpochMilli());
-            assertThat(measurement.eventId()).isEqualTo("event-123");
-            assertThat(measurement.deviceId()).isEqualTo("device-123");
             assertThat(measurement.latitude()).isEqualTo(37.7749);
             assertThat(measurement.longitude()).isEqualTo(-122.4194);
             assertThat(measurement.rssi()).isEqualTo(-50);
             assertThat(measurement.connectionStatus()).isEqualTo("CONNECTED");
             assertThat(measurement.qualityWeight()).isEqualTo(2.0);
+            assertThat(measurement.source()).isEqualTo("s3://test-bucket/test-key.json");
             assertThat(measurement.ingestionTimestamp()).isEqualTo(now);
         }
 
@@ -64,72 +62,36 @@ class WifiMeasurementTest {
                 .id("test-id-456")
                 .bssid("11:22:33:44:55:66")
                 .measurementTimestamp(now.toEpochMilli())
-                .eventId("event-456")
-                .deviceId("device-456")
-                .deviceModel("TestModel")
-                .deviceManufacturer("TestManufacturer")
-                .osVersion("TestOS 1.0")
-                .appVersion("TestApp 2.0")
                 .latitude(40.7128)
                 .longitude(-74.0060)
                 .altitude(10.5)
                 .locationAccuracy(5.0)
-                .locationTimestamp(now.toEpochMilli())
-                .locationProvider("gps")
-                .locationSource("network")
-                .speed(0.0)
-                .bearing(90.0)
-                .ssid("TestNetwork")
                 .rssi(-65)
                 .frequency(2412)
-                .scanTimestamp(now.toEpochMilli())
                 .connectionStatus("SCAN")
                 .qualityWeight(1.0)
                 .linkSpeed(150)
                 .channelWidth(80)
                 .centerFreq0(2422)
-                .centerFreq1(2442)
-                .capabilities("WPA2")
-                .is80211mcResponder(true)
-                .isPasspointNetwork(false)
-                .operatorFriendlyName("Test Operator")
-                .venueName("Test Venue")
-                .isCaptive(false)
-                .numScanResults(5)
+                .isGlobalOutlier(false)
+                .source("s3://test-bucket/test-file.json")
                 .ingestionTimestamp(now)
                 .dataVersion("1.0.0")
                 .processingBatchId("batch-123")
-                .qualityScore(0.95)
                 .build();
 
             // Then
             assertThat(measurement).isNotNull();
-            assertThat(measurement.deviceModel()).isEqualTo("TestModel");
-            assertThat(measurement.deviceManufacturer()).isEqualTo("TestManufacturer");
-            assertThat(measurement.osVersion()).isEqualTo("TestOS 1.0");
-            assertThat(measurement.appVersion()).isEqualTo("TestApp 2.0");
             assertThat(measurement.altitude()).isEqualTo(10.5);
             assertThat(measurement.locationAccuracy()).isEqualTo(5.0);
-            assertThat(measurement.locationProvider()).isEqualTo("gps");
-            assertThat(measurement.locationSource()).isEqualTo("network");
-            assertThat(measurement.speed()).isEqualTo(0.0);
-            assertThat(measurement.bearing()).isEqualTo(90.0);
-            assertThat(measurement.ssid()).isEqualTo("TestNetwork");
             assertThat(measurement.frequency()).isEqualTo(2412);
             assertThat(measurement.linkSpeed()).isEqualTo(150);
             assertThat(measurement.channelWidth()).isEqualTo(80);
             assertThat(measurement.centerFreq0()).isEqualTo(2422);
-            assertThat(measurement.centerFreq1()).isEqualTo(2442);
-            assertThat(measurement.capabilities()).isEqualTo("WPA2");
-            assertThat(measurement.is80211mcResponder()).isTrue();
-            assertThat(measurement.isPasspointNetwork()).isFalse();
-            assertThat(measurement.operatorFriendlyName()).isEqualTo("Test Operator");
-            assertThat(measurement.venueName()).isEqualTo("Test Venue");
-            assertThat(measurement.isCaptive()).isFalse();
-            assertThat(measurement.numScanResults()).isEqualTo(5);
+            assertThat(measurement.isGlobalOutlier()).isFalse();
+            assertThat(measurement.source()).isEqualTo("s3://test-bucket/test-file.json");
             assertThat(measurement.dataVersion()).isEqualTo("1.0.0");
             assertThat(measurement.processingBatchId()).isEqualTo("batch-123");
-            assertThat(measurement.qualityScore()).isEqualTo(0.95);
         }
 
         @Test
@@ -143,19 +105,17 @@ class WifiMeasurementTest {
                 .id("test-id-789")
                 .bssid("77:88:99:aa:bb:cc")
                 .measurementTimestamp(now.toEpochMilli())
-                .eventId("event-789")
-                .deviceId("device-789")
                 .latitude(51.5074)
                 .longitude(-0.1278)
                 .rssi(-45)
                 .connectionStatus("CONNECTED")
                 .qualityWeight(2.0)
+                .source("s3://test-bucket/test.json")
                 .ingestionTimestamp(now)
                 // Explicitly setting some fields to null
                 .altitude(null)
                 .frequency(null)
                 .linkSpeed(null)
-                .capabilities(null)
                 .build();
 
             // Then
@@ -163,7 +123,6 @@ class WifiMeasurementTest {
             assertThat(measurement.altitude()).isNull();
             assertThat(measurement.frequency()).isNull();
             assertThat(measurement.linkSpeed()).isNull();
-            assertThat(measurement.capabilities()).isNull();
             // Verify required fields are still set
             assertThat(measurement.id()).isEqualTo("test-id-789");
             assertThat(measurement.bssid()).isEqualTo("77:88:99:aa:bb:cc");
@@ -182,13 +141,12 @@ class WifiMeasurementTest {
                 .id("chain-test")
                 .bssid("ff:ee:dd:cc:bb:aa")
                 .measurementTimestamp(now.toEpochMilli())
-                .eventId("chain-event")
-                .deviceId("chain-device")
                 .latitude(35.6762)
                 .longitude(139.6503)
                 .rssi(-55)
                 .connectionStatus("SCAN")
                 .qualityWeight(1.0)
+                .source("s3://test-bucket/chain.json")
                 .ingestionTimestamp(now)
                 .build();
 
@@ -269,13 +227,12 @@ class WifiMeasurementTest {
                 .id("connected-test")
                 .bssid("11:22:33:44:55:66")
                 .measurementTimestamp(now.toEpochMilli())
-                .eventId("event-connected")
-                .deviceId("device-connected")
                 .latitude(37.7749)
                 .longitude(-122.4194)
                 .rssi(-40)
                 .connectionStatus("CONNECTED")
                 .qualityWeight(2.0)
+                .source("s3://test-bucket/connected.json")
                 .ingestionTimestamp(now)
                 .build();
 
@@ -283,13 +240,12 @@ class WifiMeasurementTest {
                 .id("scan-test")
                 .bssid("66:55:44:33:22:11")
                 .measurementTimestamp(now.toEpochMilli())
-                .eventId("event-scan")
-                .deviceId("device-scan")
                 .latitude(37.7749)
                 .longitude(-122.4194)
                 .rssi(-70)
                 .connectionStatus("SCAN")
                 .qualityWeight(1.0)
+                .source("s3://test-bucket/scan.json")
                 .ingestionTimestamp(now)
                 .build();
 
@@ -335,21 +291,16 @@ class WifiMeasurementTest {
         }
 
         @Test
-        @DisplayName("Should handle global outlier detection fields")
-        void measurement_GlobalOutlierFields_ShouldDefaultToNull() {
+        @DisplayName("Should handle global outlier detection field")
+        void measurement_GlobalOutlierField_ShouldDefaultToNull() {
             // Given
             Instant now = Instant.now();
             
             // When
             WifiMeasurement measurement = createTestMeasurement("outlier-test", now);
 
-            // Then - Global outlier fields should default to null (not yet processed)
+            // Then - Global outlier field should default to null (not yet processed)
             assertThat(measurement.isGlobalOutlier()).isNull();
-            assertThat(measurement.globalOutlierDistance()).isNull();
-            assertThat(measurement.globalOutlierThreshold()).isNull();
-            assertThat(measurement.globalDetectionAlgorithm()).isNull();
-            assertThat(measurement.globalDetectionTimestamp()).isNull();
-            assertThat(measurement.globalDetectionVersion()).isNull();
         }
     }
 
@@ -358,8 +309,8 @@ class WifiMeasurementTest {
     class ConnectedOnlyFieldsTest {
 
         @Test
-        @DisplayName("Should handle connected-specific enrichment fields")
-        void measurement_ConnectedFields_ShouldSupportEnrichmentData() {
+        @DisplayName("Should handle connected-specific advanced algorithm fields")
+        void measurement_ConnectedFields_ShouldSupportAdvancedFields() {
             // Given
             Instant now = Instant.now();
             
@@ -368,8 +319,6 @@ class WifiMeasurementTest {
                 .id("connected-enriched")
                 .bssid("aa:bb:cc:dd:ee:ff")
                 .measurementTimestamp(now.toEpochMilli())
-                .eventId("enriched-event")
-                .deviceId("enriched-device")
                 .latitude(37.7749)
                 .longitude(-122.4194)
                 .rssi(-45)
@@ -378,14 +327,7 @@ class WifiMeasurementTest {
                 .linkSpeed(866)
                 .channelWidth(80)
                 .centerFreq0(5190)
-                .centerFreq1(5210)
-                .capabilities("[WPA2-PSK-CCMP][RSN-PSK-CCMP][ESS]")
-                .is80211mcResponder(true)
-                .isPasspointNetwork(false)
-                .operatorFriendlyName("Test WiFi Provider")
-                .venueName("Test Coffee Shop")
-                .isCaptive(false)
-                .numScanResults(12)
+                .source("s3://test-bucket/connected.json")
                 .ingestionTimestamp(now)
                 .build();
 
@@ -393,14 +335,6 @@ class WifiMeasurementTest {
             assertThat(connectedMeasurement.linkSpeed()).isEqualTo(866);
             assertThat(connectedMeasurement.channelWidth()).isEqualTo(80);
             assertThat(connectedMeasurement.centerFreq0()).isEqualTo(5190);
-            assertThat(connectedMeasurement.centerFreq1()).isEqualTo(5210);
-            assertThat(connectedMeasurement.capabilities()).contains("WPA2-PSK");
-            assertThat(connectedMeasurement.is80211mcResponder()).isTrue();
-            assertThat(connectedMeasurement.isPasspointNetwork()).isFalse();
-            assertThat(connectedMeasurement.operatorFriendlyName()).isEqualTo("Test WiFi Provider");
-            assertThat(connectedMeasurement.venueName()).isEqualTo("Test Coffee Shop");
-            assertThat(connectedMeasurement.isCaptive()).isFalse();
-            assertThat(connectedMeasurement.numScanResults()).isEqualTo(12);
         }
 
         @Test
@@ -414,27 +348,54 @@ class WifiMeasurementTest {
                 .id("scan-only")
                 .bssid("aa:bb:cc:dd:ee:ff")
                 .measurementTimestamp(now.toEpochMilli())
-                .eventId("scan-event")
-                .deviceId("scan-device")
                 .latitude(37.7749)
                 .longitude(-122.4194)
                 .rssi(-65)
                 .connectionStatus("SCAN")
                 .qualityWeight(1.0)
+                .source("s3://test-bucket/scan.json")
                 .ingestionTimestamp(now)
                 // Connected-only fields should be null for SCAN
                 .linkSpeed(null)
                 .channelWidth(null)
-                .capabilities(null)
-                .is80211mcResponder(null)
                 .build();
 
             // Then
             assertThat(scanMeasurement.connectionStatus()).isEqualTo("SCAN");
             assertThat(scanMeasurement.linkSpeed()).isNull();
             assertThat(scanMeasurement.channelWidth()).isNull();
-            assertThat(scanMeasurement.capabilities()).isNull();
-            assertThat(scanMeasurement.is80211mcResponder()).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("Source Field Tests")
+    class SourceFieldTest {
+
+        @Test
+        @DisplayName("Should store S3 source file path")
+        void measurement_Source_ShouldStoreS3Path() {
+            // Given
+            Instant now = Instant.now();
+            String sourceFile = "s3://my-bucket/wifi-data/2024/01/15/scan-123.json";
+            
+            // When
+            WifiMeasurement measurement = WifiMeasurement.builder()
+                .id("source-test")
+                .bssid("aa:bb:cc:dd:ee:ff")
+                .measurementTimestamp(now.toEpochMilli())
+                .latitude(37.7749)
+                .longitude(-122.4194)
+                .rssi(-50)
+                .connectionStatus("CONNECTED")
+                .qualityWeight(2.0)
+                .source(sourceFile)
+                .ingestionTimestamp(now)
+                .build();
+
+            // Then
+            assertThat(measurement.source()).isEqualTo(sourceFile);
+            assertThat(measurement.source()).startsWith("s3://");
+            assertThat(measurement.source()).contains("my-bucket");
         }
     }
 
@@ -444,13 +405,12 @@ class WifiMeasurementTest {
             .id(id)
             .bssid("aa:bb:cc:dd:ee:ff")
             .measurementTimestamp(timestamp.toEpochMilli())
-            .eventId("event-" + id)
-            .deviceId("device-" + id)
             .latitude(37.7749)
             .longitude(-122.4194)
             .rssi(-50)
             .connectionStatus("CONNECTED")
             .qualityWeight(2.0)
+            .source("s3://test-bucket/test.json")
             .ingestionTimestamp(timestamp)
             .build();
     }
@@ -460,13 +420,12 @@ class WifiMeasurementTest {
             .id(id)
             .bssid("aa:bb:cc:dd:ee:ff")
             .measurementTimestamp(timestamp.toEpochMilli())
-            .eventId("event-" + id)
-            .deviceId("device-" + id)
             .latitude(37.7749)
             .longitude(-122.4194)
             .rssi(rssi)
             .connectionStatus("CONNECTED")
             .qualityWeight(2.0)
+            .source("s3://test-bucket/rssi-test.json")
             .ingestionTimestamp(timestamp)
             .build();
     }
@@ -476,14 +435,13 @@ class WifiMeasurementTest {
             .id(id)
             .bssid("aa:bb:cc:dd:ee:ff")
             .measurementTimestamp(timestamp.toEpochMilli())
-            .eventId("event-" + id)
-            .deviceId("device-" + id)
             .latitude(37.7749)
             .longitude(-122.4194)
             .rssi(-50)
             .frequency(frequency)
             .connectionStatus("CONNECTED")
             .qualityWeight(2.0)
+            .source("s3://test-bucket/freq-test.json")
             .ingestionTimestamp(timestamp)
             .build();
     }

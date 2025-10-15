@@ -41,16 +41,11 @@ class MobileHotspotDetectionServiceTest {
     var config = createTestConfig(true, true, false);
     var service = new MobileHotspotDetectionService(config, meterRegistry);
 
-    var measurement =
-        WifiMeasurement.builder()
-            .bssid("aa:bb:cc:dd:ee:ff")
-            .ssid("John's iPhone")
-            .latitude(37.7749)
-            .longitude(-122.4194)
-            .build();
+    String bssid = "aa:bb:cc:dd:ee:ff";
+    String ssid = "John's iPhone";
 
     // When
-    boolean isHotspot = service.isMobileHotspot(NetworkIdentifier.from(measurement.bssid(), measurement.ssid()));
+    boolean isHotspot = service.isMobileHotspot(NetworkIdentifier.from(bssid, ssid));
 
     // Then
     assertThat(isHotspot).isTrue();

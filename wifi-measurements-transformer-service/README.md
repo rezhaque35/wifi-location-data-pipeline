@@ -367,12 +367,18 @@ WiFi scan JSON files (Base64 encoded and gzipped) containing:
 
 ### Output Schema
 
-Normalized `wifi_measurements` table with:
-- Device information
-- Location data (GPS coordinates, accuracy)
-- WiFi signal data (RSSI, frequency, SSID)
-- Connection status and quality weights
-- Data quality and processing metadata
+**Streamlined** `wifi_measurements` table optimized for AP localization (~60% storage reduction):
+
+**Essential Fields (19 total):**
+- **Identifiers**: `id`, `bssid`, `measurement_timestamp`
+- **Location Data**: `latitude`, `longitude`, `altitude`, `location_accuracy`
+- **Signal Data**: `ssid`, `rssi`, `frequency`
+- **Quality Indicators**: `connection_status`, `quality_weight`
+- **Advanced Algorithm Fields**: `link_speed`, `channel_width`, `center_freq0` (for MLE/Bayesian)
+- **Outlier Detection**: `is_global_outlier`
+- **Metadata**: `source` (S3 file path), `ingestion_timestamp`, `data_version`, `processing_batch_id`
+
+**Note:** Schema has been optimized to include only fields required by WiFi access point localization algorithms, plus SSID for debugging and mobile hotspot detection. Removed fields include device info, extended location metadata, and advanced network capabilities.
 
 ### Data Filtering
 

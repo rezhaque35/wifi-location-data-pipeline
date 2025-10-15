@@ -121,74 +121,48 @@ Transform from sample WiFi scan JSON to `wifi_measurements` table schema:
 }
 ```
 
-**Output Schema**: Map to `wifi_measurements` table columns
-- Extract device metadata (model, manufacturer, OS version)
-- Flatten location data (latitude, longitude, accuracy, timestamp)
+**Output Schema**: Map to **streamlined** `wifi_measurements` table columns (optimized for AP localization)
 - Set `connection_status` ('CONNECTED' vs 'SCAN')
 - Calculate `quality_weight` (2.0 for CONNECTED, 1.0 for SCAN)
 - Generate measurement records for each BSSID
-- **wifi mesearuement schema** here is the schema
+- Include S3 `source` file path for traceability
+- **wifi measurement schema** (streamlined - ~60% storage reduction with SSID retained):
   ```sql
 CREATE TABLE wifi_measurements (
   -- Primary Keys
-  bssid                    STRING,
-  measurement_timestamp    BIGINT,
-  event_id                STRING,
+  id                      STRING,    -- Unique measurement identifier
+  bssid                   STRING,    -- Access point MAC address (normalized lowercase with colons)
+  measurement_timestamp   BIGINT,    -- Timestamp when measurement was taken (epoch milliseconds)
   
-  -- Device Information
-  device_id               STRING,
-  device_model            STRING,
-  device_manufacturer     STRING,
-  os_version              STRING,
-  app_version             STRING,
+  -- Location Data (GNSS/GPS) - Essential for all localization algorithms
+  latitude                DOUBLE,    -- Device GPS latitude in decimal degrees
+  longitude               DOUBLE,    -- Device GPS longitude in decimal degrees
+  altitude                DOUBLE,    -- Device GPS altitude in meters (nullable)
+  location_accuracy       DOUBLE,    -- GPS horizontal accuracy in meters
   
-  -- Location Data (GNSS/GPS)
-  latitude                DOUBLE,
-  longitude               DOUBLE,
-  altitude                DOUBLE,
-  location_accuracy       DOUBLE,
-  location_timestamp      BIGINT,
-  location_provider       STRING,
-  location_source         STRING,
-  speed                   DOUBLE,
-  bearing                 DOUBLE,
+  -- WiFi Signal Data - Essential for signal propagation models
+  ssid                    STRING,    -- Network name (useful for debugging and hotspot detection)
+  rssi                    INT,       -- Received Signal Strength Indicator in dBm
+  frequency               INT,       -- WiFi frequency in MHz (nullable for SCAN records)
   
-  -- WiFi Signal Data
-  ssid                    STRING,
-  rssi                    INT,
-  frequency               INT,
-  scan_timestamp          BIGINT,
+  -- Data Quality and Connection Tier - Critical for algorithm selection and weighting
+  connection_status       STRING,    -- 'CONNECTED' or 'SCAN'
+  quality_weight          DOUBLE,    -- Measurement quality weight (2.0 for CONNECTED, 1.0 for SCAN)
   
-  -- Data Quality and Connection Tier
-  connection_status       STRING,  -- 'CONNECTED' or 'SCAN'
-  quality_weight          DOUBLE,  -- 2.0 for CONNECTED, 1.0 for SCAN
+  -- Connected-Only Advanced Algorithm Fields (NULL for SCAN records)
+  -- Used by MLE and Bayesian algorithms for enhanced accuracy
+  link_speed              INT,       -- Network link speed in Mbps
+  channel_width           INT,       -- WiFi channel width in MHz
+  center_freq0            INT,       -- Center frequency 0 in MHz
   
-  -- Connected-Only Enrichment Fields (NULL for SCAN records)
-  link_speed              INT,
-  channel_width           INT,
-  center_freq0            INT,
-  center_freq1            INT,
-  capabilities            STRING,
-  is_80211mc_responder    BOOLEAN,
-  is_passpoint_network    BOOLEAN,
-  operator_friendly_name  STRING,
-  venue_name              STRING,
-  is_captive              BOOLEAN,
-  num_scan_results        INT,
+  -- Global Outlier Detection - For filtering invalid measurements
+  is_global_outlier       BOOLEAN,   -- Flag indicating if measurement is a detected outlier
   
-  -- Global Outlier Detection (stable, persistent flags)
-  is_global_outlier           BOOLEAN,
-  global_outlier_distance     DOUBLE,    -- Distance from AP centroid in meters
-  global_outlier_threshold    DOUBLE,    -- Threshold used for detection
-  global_detection_algorithm  STRING,    -- 'MAD', 'IQR', 'PERCENTILE'
-  global_detection_timestamp  TIMESTAMP,
-  global_detection_version    STRING,    -- Track algorithm improvements
-  
-  -- Ingestion and Processing Metadata
-  ingestion_timestamp     TIMESTAMP,
-  data_version            STRING,
-  processing_batch_id     STRING,
-  quality_score           DOUBLE     -- Overall quality score (0.0-1.0)
+  -- Source and Processing Metadata
+  source                  STRING,    -- S3 source file path (e.g., "s3://bucket/prefix/file.json")
+  ingestion_timestamp     TIMESTAMP, -- When data was ingested into the system
+  data_version            STRING,    -- Version of data schema/processing
+  processing_batch_id     STRING     -- Batch identifier for processing tracking
 )
 USING ICEBERG
 PARTITIONED BY (years(ingestion_timestamp), months(ingestion_timestamp), days(ingestion_timestamp))
@@ -199,6 +173,8 @@ TBLPROPERTIES (
   'format-version' = '2'                         -- Enable row-level operations
 );
 ```
+
+**Schema Optimization:** Fields have been streamlined to include only those required by WiFi access point localization algorithms, plus SSID for debugging and mobile hotspot detection. Removed fields include: device information (device_id, device_model, etc.), extended location metadata (location_provider, speed, bearing), advanced network capabilities (capabilities, 802.11mc fields, etc.), and detailed outlier metadata. New `source` field added for S3 file traceability.
 
 
 ### 5. Data Filtering and Quality Assessment Pipeline
@@ -348,30 +324,24 @@ filtering:
 
 ### 6. Schema Mapping and Data Normalization Requirements
 
-Transform WiFi scan data to match `wifi_measurements` table schema with proper field mapping:
+Transform WiFi scan data to match **streamlined** `wifi_measurements` table schema with proper field mapping:
 
-#### Device Information Mapping
+#### Primary Keys and Identifiers
 ```java
-// From JSON root level
-device_id = sha256(deviceId)  // Hash for privacy
-device_model = model
-device_manufacturer = manufacturer  
-os_version = osVersion
-app_version = appNameVersion
+// Generate unique identifier for each measurement
+id = UUID.randomUUID().toString()
+bssid = normalizedBssid(wifiConnectedInfo.bssid OR result.bssid)  // Lowercase with colons
+measurement_timestamp = wifiConnectedInfo.timestamp OR scanResults.timestamp
 ```
 
 #### Location Data Flattening
 ```java
 // From wifiConnectedEvents[].location and scanResults[].location
+// Essential fields for localization algorithms only
 latitude = location.latitude
 longitude = location.longitude
 altitude = location.altitude
 location_accuracy = location.accuracy
-location_timestamp = location.time
-location_provider = location.provider
-location_source = location.source
-speed = location.speed
-bearing = location.bearing
 ```
 
 #### WiFi Signal Data Extraction
@@ -383,64 +353,52 @@ frequency = wifiConnectedInfo.frequency
 connection_status = "CONNECTED"
 quality_weight = 2.0
 
-// Connected-only enrichment fields
+// Connected-only advanced algorithm fields (for MLE/Bayesian)
 link_speed = wifiConnectedInfo.linkSpeed
 channel_width = wifiConnectedInfo.channelWidth
 center_freq0 = wifiConnectedInfo.centerFreq0
-capabilities = wifiConnectedInfo.capabilities
-is_80211mc_responder = wifiConnectedInfo.is80211mcResponder
-is_passpoint_network = wifiConnectedInfo.isPasspointNetwork
 
 // For SCAN data from scanResults[].results[]
-ssid = result.ssid
 bssid = result.bssid  
+ssid = result.ssid
 rssi = result.rssi
-scan_timestamp = result.scantime
+frequency = null  // Not available in scan results
 connection_status = "SCAN"
 quality_weight = 1.0
 // All connected-only fields set to NULL
 ```
 
-#### Data Quality and Processing Metadata
+#### Source and Processing Metadata
 ```java
 // Set during processing
+source = s3_source_file_path  // NEW: e.g., "s3://bucket/prefix/file.json"
 ingestion_timestamp = current_timestamp()
 data_version = from_json_dataVersion
 processing_batch_id = generated_uuid()
-quality_score = calculated_based_on_filtering_results
-measurement_timestamp = wifiConnectedInfo.timestamp OR scanResults.timestamp
 
-// Global outlier fields - set to NULL (not implemented in this service)
+// Global outlier field - initialized to NULL (updated by localization service)
 is_global_outlier = null
-global_outlier_distance = null
-global_outlier_threshold = null
-global_detection_algorithm = null
-global_detection_timestamp = null
-global_detection_version = null
 ```
+
+**Note:** Streamlined schema removes device information (device_id, device_model, etc.), extended location metadata (location_provider, speed, bearing), advanced network capabilities (capabilities, 802.11mc fields, etc.), and detailed outlier metadata for ~60% storage reduction. SSID is retained for debugging and mobile hotspot detection.
 
 ### 7. Data Sanitization Requirements
 **Note**: Data sanitization occurs after mobile hotspot detection (Stage 2) has filtered out unwanted measurements. Sanitization focuses on normalizing and validating the remaining legitimate measurements.
 
-#### BSSID Validation
+#### BSSID Validation and Normalization
 - Validate MAC address format (XX:XX:XX:XX:XX:XX)
 - Convert to lowercase for consistency
+- Replace hyphens with colons for standardization
 - Filter out invalid MAC addresses (all zeros, broadcast addresses)
 - **Note**: Mobile hotspot detection (OUI-based + SSID-based) is performed separately in Stage 2 filtering - see §5 for details
 
-#### SSID Processing
-- Handle empty/null SSID values (common in scan results)
-- Trim whitespace and normalize encoding
-- Filter out SSID values containing only null characters
-
 #### Location Data Validation
 - Validate coordinate ranges (latitude: -90 to 90, longitude: -180 to 180)
-- Check for impossible location jumps (speed validation)
 - Validate altitude values (reasonable ranges)
+- Ensure location accuracy is within acceptable thresholds (< 150m by default)
 
 #### RSSI Value Sanitization
 - Ensure RSSI values are within valid range (-100 to 0 dBm)
-- Handle device-specific RSSI calibration if metadata available
 - Flag unusual RSSI patterns for quality assessment
 
 ### 8. Kinesis Data Firehose Write Strategy

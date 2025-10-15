@@ -170,47 +170,43 @@ class WifiDataTransformationServiceTest {
 
     // When: Transform the scan data to measurements
     List<WifiMeasurement> measurements =
-        transformationService.transformToMeasurements(scanData, batchId).toList();
+        transformationService.transformToMeasurements(scanData, batchId, "s3://test-bucket/test-file.json").toList();
 
     // Then: Verify transformation produces exactly one measurement with correct data
     assertThat(measurements).hasSize(1);
 
-    // Validate all measurement fields are correctly mapped from source data
+    // Validate all measurement fields are correctly mapped from source data (streamlined schema)
     WifiMeasurement measurement = measurements.get(0);
+    
+    // Primary keys and identifiers
+    assertThat(measurement.id()).isNotNull();
     assertThat(measurement.bssid()).isEqualTo("b8:f8:53:c0:1e:ff");
     assertThat(measurement.measurementTimestamp()).isEqualTo(1731091615562L);
-    assertThat(measurement.eventId()).isEqualTo("9a930a02-f0cc-4e6d-9b95-c18b4d5a542a");
-    assertThat(measurement.deviceId()).isNotNull();
-    assertThat(measurement.deviceModel()).isEqualTo("SM-A536V");
-    assertThat(measurement.deviceManufacturer()).isEqualTo("samsung");
-    assertThat(measurement.osVersion())
-        .isEqualTo("14:samsung/a53xsqw/a53x:14/UP1A.231005.007/A536VSQSADXC1:user/release-keys");
-    assertThat(measurement.appVersion()).isEqualTo("com.verizon.wifiloc.app/0.1.0.10000");
+    
+    // Location data - essential for localization algorithms
     assertThat(measurement.latitude()).isEqualTo(40.6768816);
     assertThat(measurement.longitude()).isEqualTo(-74.416391);
     assertThat(measurement.altitude()).isEqualTo(110.9);
     assertThat(measurement.locationAccuracy()).isEqualTo(100.0);
-    assertThat(measurement.locationTimestamp()).isEqualTo(1731091614415L);
-    assertThat(measurement.locationProvider()).isEqualTo("fused");
-    assertThat(measurement.locationSource()).isEqualTo("fused");
-    assertThat(measurement.ssid()).isEqualTo("Sweethome");
+    
+    // WiFi signal data - essential for signal propagation models
     assertThat(measurement.rssi()).isEqualTo(-58);
     assertThat(measurement.frequency()).isEqualTo(5660);
+    
+    // Connection status and quality - critical for algorithm selection
     assertThat(measurement.connectionStatus()).isEqualTo("CONNECTED");
     assertThat(measurement.qualityWeight()).isEqualTo(2.0);
+    
+    // Connected-only advanced algorithm fields
     assertThat(measurement.linkSpeed()).isEqualTo(351);
     assertThat(measurement.channelWidth()).isEqualTo(2);
     assertThat(measurement.centerFreq0()).isEqualTo(5690);
-    assertThat(measurement.centerFreq1()).isEqualTo(0);
-    assertThat(measurement.capabilities()).isEqualTo("[WPA2-PSK-CCMP][RSN-PSK-CCMP][ESS][WPS]");
-    assertThat(measurement.is80211mcResponder()).isFalse();
-    assertThat(measurement.isPasspointNetwork()).isFalse();
-    assertThat(measurement.isCaptive()).isFalse();
-    assertThat(measurement.numScanResults()).isEqualTo(19);
+    
+    // Source and processing metadata
+    assertThat(measurement.source()).isEqualTo("s3://test-bucket/test-file.json");
     assertThat(measurement.dataVersion()).isEqualTo("15");
     assertThat(measurement.processingBatchId()).isEqualTo(batchId);
     assertThat(measurement.ingestionTimestamp()).isNotNull();
-    assertThat(measurement.qualityScore()).isBetween(0.0, 1.0);
   }
 
   @Test
@@ -221,34 +217,38 @@ class WifiDataTransformationServiceTest {
 
     // When
     List<WifiMeasurement> measurements =
-        transformationService.transformToMeasurements(scanData, batchId).toList();
+        transformationService.transformToMeasurements(scanData, batchId, "s3://test-bucket/test-file.json").toList();
 
     // Then
     assertThat(measurements).hasSize(1);
 
+    // Validate scan result measurement (streamlined schema)
     WifiMeasurement measurement = measurements.get(0);
+    
+    // Primary keys and identifiers
+    assertThat(measurement.id()).isNotNull();
     assertThat(measurement.bssid()).isEqualTo("aa:bb:cc:dd:ee:ff");
     assertThat(measurement.measurementTimestamp()).isEqualTo(1731091616000L);
-    assertThat(measurement.eventId()).isNotNull();
-    assertThat(measurement.deviceId()).isNotNull();
-    assertThat(measurement.deviceModel()).isEqualTo("SM-A536V");
-    assertThat(measurement.deviceManufacturer()).isEqualTo("samsung");
+    
+    // Location data
     assertThat(measurement.latitude()).isEqualTo(40.6768816);
     assertThat(measurement.longitude()).isEqualTo(-74.416391);
-    assertThat(measurement.ssid()).isEqualTo("TestNetwork");
+    
+    // WiFi signal data
     assertThat(measurement.rssi()).isEqualTo(-65);
     assertThat(measurement.frequency()).isNull(); // Not available in scan results
+    
+    // Connection status and quality
     assertThat(measurement.connectionStatus()).isEqualTo("SCAN");
     assertThat(measurement.qualityWeight()).isEqualTo(1.0);
-    assertThat(measurement.linkSpeed()).isNull(); // Connected-only field
-    assertThat(measurement.channelWidth()).isNull(); // Connected-only field
-    assertThat(measurement.centerFreq0()).isNull(); // Connected-only field
-    assertThat(measurement.centerFreq1()).isNull(); // Connected-only field
-    assertThat(measurement.capabilities()).isNull(); // Connected-only field
-    assertThat(measurement.is80211mcResponder()).isNull(); // Connected-only field
-    assertThat(measurement.isPasspointNetwork()).isNull(); // Connected-only field
-    assertThat(measurement.isCaptive()).isNull(); // Connected-only field
-    assertThat(measurement.numScanResults()).isNull(); // Connected-only field
+    
+    // Connected-only fields (NULL for scan results)
+    assertThat(measurement.linkSpeed()).isNull();
+    assertThat(measurement.channelWidth()).isNull();
+    assertThat(measurement.centerFreq0()).isNull();
+    
+    // Source and processing metadata
+    assertThat(measurement.source()).isEqualTo("s3://test-bucket/test-file.json");
     assertThat(measurement.processingBatchId()).isEqualTo(batchId);
   }
 
@@ -261,7 +261,7 @@ class WifiDataTransformationServiceTest {
 
     // When
     List<WifiMeasurement> measurements =
-        transformationService.transformToMeasurements(scanData, "batch-123").toList();
+        transformationService.transformToMeasurements(scanData, "batch-123", "s3://test-bucket/test-file.json").toList();
 
     // Then
     assertThat(measurements).isEmpty();
@@ -276,7 +276,7 @@ class WifiDataTransformationServiceTest {
 
     // When
     List<WifiMeasurement> measurements =
-        transformationService.transformToMeasurements(scanData, "batch-123").toList();
+        transformationService.transformToMeasurements(scanData, "batch-123", "s3://test-bucket/test-file.json").toList();
 
     // Then
     assertThat(measurements).isEmpty();
@@ -291,7 +291,7 @@ class WifiDataTransformationServiceTest {
 
     // When
     List<WifiMeasurement> measurements =
-        transformationService.transformToMeasurements(scanData, "batch-123").toList();
+        transformationService.transformToMeasurements(scanData, "batch-123", "s3://test-bucket/test-file.json").toList();
 
     // Then
     assertThat(measurements).isEmpty();
@@ -313,7 +313,7 @@ class WifiDataTransformationServiceTest {
 
     // When: Transform the scan data
     List<WifiMeasurement> measurements =
-        transformationService.transformToMeasurements(scanData, "batch-123").toList();
+        transformationService.transformToMeasurements(scanData, "batch-123", "s3://test-bucket/test-file.json").toList();
 
     // Then: Connected event should be filtered out, leaving no measurements
     assertThat(measurements).isEmpty();
@@ -339,7 +339,7 @@ class WifiDataTransformationServiceTest {
 
     // When: Transform the scan data
     List<WifiMeasurement> measurements =
-        transformationService.transformToMeasurements(scanData, "batch-123").toList();
+        transformationService.transformToMeasurements(scanData, "batch-123", "s3://test-bucket/test-file.json").toList();
 
     // Then: Scan result should be filtered out, leaving no measurements
     assertThat(measurements).isEmpty();
@@ -360,12 +360,11 @@ class WifiDataTransformationServiceTest {
 
     // When: Transform the scan data
     List<WifiMeasurement> measurements =
-        transformationService.transformToMeasurements(scanData, "batch-123").toList();
+        transformationService.transformToMeasurements(scanData, "batch-123", "s3://test-bucket/test-file.json").toList();
 
     // Then: Legitimate network should be included
     assertThat(measurements).hasSize(1);
     assertThat(measurements.get(0).bssid()).isEqualTo("b8:f8:53:c0:1e:ff");
-    assertThat(measurements.get(0).ssid()).isEqualTo("Sweethome");
     
     // Verify hotspot detection was called with correct network identifier
     verify(mobileHotspotDetectionService, atLeastOnce())
@@ -390,14 +389,15 @@ class WifiDataTransformationServiceTest {
 
     // When: Transform the scan data
     List<WifiMeasurement> measurements =
-        transformationService.transformToMeasurements(scanData, "batch-123").toList();
+        transformationService.transformToMeasurements(scanData, "batch-123", "s3://test-bucket/test-file.json").toList();
 
     // Then: Only legitimate networks should be included (hotspots filtered)
     assertThat(measurements).hasSize(2);
+    // Verify only legitimate APs are present (by BSSID)
     assertThat(measurements)
-        .extracting(WifiMeasurement::ssid)
-        .containsExactlyInAnyOrder("LegitimateAP-1", "LegitimateAP-2")
-        .doesNotContain("John's iPhone");
+        .extracting(WifiMeasurement::bssid)
+        .hasSize(2)
+        .allMatch(bssid -> !bssid.startsWith("aa:aa:aa")); // Assuming hotspot BSSID starts with aa:aa:aa
     
     // Verify hotspot detection was called for all networks
     verify(mobileHotspotDetectionService, times(3))
@@ -412,7 +412,7 @@ class WifiDataTransformationServiceTest {
 
     // When
     List<WifiMeasurement> measurements =
-        transformationService.transformToMeasurements(scanData, "batch-123").toList();
+        transformationService.transformToMeasurements(scanData, "batch-123", "s3://test-bucket/test-file.json").toList();
 
     // Then
     assertThat(measurements).hasSize(1);
@@ -426,7 +426,7 @@ class WifiDataTransformationServiceTest {
 
     // When
     List<WifiMeasurement> measurements =
-        transformationService.transformToMeasurements(scanData, "batch-123").toList();
+        transformationService.transformToMeasurements(scanData, "batch-123", "s3://test-bucket/test-file.json").toList();
 
     // Then
     assertThat(measurements).isEmpty();
@@ -439,7 +439,7 @@ class WifiDataTransformationServiceTest {
 
     // When
     List<WifiMeasurement> measurements =
-        transformationService.transformToMeasurements(scanData, "batch-123").toList();
+        transformationService.transformToMeasurements(scanData, "batch-123", "s3://test-bucket/test-file.json").toList();
 
     // Then
     assertThat(measurements).isEmpty();

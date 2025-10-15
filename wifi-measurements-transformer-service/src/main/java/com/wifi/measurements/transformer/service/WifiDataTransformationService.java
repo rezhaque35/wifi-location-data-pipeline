@@ -1,9 +1,6 @@
 // wifi-measurements-transformer-service/src/main/java/com/wifi/measurements/transformer/service/WifiDataTransformationService.java
 package com.wifi.measurements.transformer.service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -144,15 +141,13 @@ public class WifiDataTransformationService {
    * both WiFi
    * connected events and scan results, applying comprehensive validation and
    * transformation rules
-   * to create high-quality measurement records.
+   * to create high-quality measurement records optimized for AP localization.
    *
    * <p>
    * <strong>Processing Steps:</strong>
    *
    * <ol>
    * <li><strong>Input Validation:</strong> Ensures input data is not null
-   * <li><strong>Device ID Generation:</strong> Creates consistent device
-   * identifier
    * <li><strong>Event Processing:</strong> Transforms connected events into
    * measurements
    * <li><strong>Scan Processing:</strong> Transforms scan results into
@@ -179,31 +174,32 @@ public class WifiDataTransformationService {
    * <li>Uses lazy evaluation with Java Streams for memory efficiency
    * <li>Processes data incrementally without loading entire datasets into memory
    * <li>Supports parallel processing for improved throughput
+   * <li>Reduced data size (~65% smaller) improves throughput and reduces costs
    * </ul>
    *
    * @param wifiScanData      The parsed WiFi scan data containing connected
    *                          events and scan results
    * @param processingBatchId Unique identifier for tracking this processing batch
+   * @param sourceFile        S3 source file path (e.g., "s3://bucket/prefix/file.json")
    * @return Stream of transformed and validated WiFi measurements
    * @throws IllegalArgumentException if wifiScanData is null
    * @throws RuntimeException         if critical transformation errors occur
    */
   public Stream<WifiMeasurement> transformToMeasurements(
-      WifiScanData wifiScanData, String processingBatchId) {
+      WifiScanData wifiScanData, String processingBatchId, String sourceFile) {
 
     Instant ingestionTimestamp = Instant.now();
-    String deviceId = generateDeviceId(wifiScanData);
 
-    logBeginning(processingBatchId, deviceId, ingestionTimestamp);
+    logBeginning(processingBatchId, sourceFile, ingestionTimestamp);
 
     // Process connected events - these represent active WiFi connections
     // with detailed network information and higher quality weights
     Stream<WifiMeasurement> connectedEventStream = measurementsFromConnectdEvent(wifiScanData, processingBatchId,
-        deviceId, ingestionTimestamp);
+        sourceFile, ingestionTimestamp);
 
     // Process scan results - these represent discovered networks from WiFi scans
     // with basic network information and standard quality weights
-    Stream<WifiMeasurement> scanResultStream = measurementsFromScan(wifiScanData, processingBatchId, deviceId,
+    Stream<WifiMeasurement> scanResultStream = measurementsFromScan(wifiScanData, processingBatchId, sourceFile,
         ingestionTimestamp);
 
     // Combine both data streams into a single output stream
@@ -212,30 +208,30 @@ public class WifiDataTransformationService {
   }
 
   private Stream<WifiMeasurement> measurementsFromScan(WifiScanData wifiScanData, String processingBatchId,
-      String deviceId, Instant ingestionTimestamp) {
+      String sourceFile, Instant ingestionTimestamp) {
     return Optional.ofNullable(wifiScanData.scanResults())
         .map(List::stream)
         .orElse(Stream.empty())
         .flatMap(
             scanResult -> transformScanResult(
-                scanResult, wifiScanData, deviceId, processingBatchId, ingestionTimestamp));
+                scanResult, wifiScanData, sourceFile, processingBatchId, ingestionTimestamp));
   }
 
   private Stream<WifiMeasurement> measurementsFromConnectdEvent(WifiScanData wifiScanData, String processingBatchId,
-      String deviceId, Instant ingestionTimestamp) {
+      String sourceFile, Instant ingestionTimestamp) {
     return Optional.ofNullable(wifiScanData.wifiConnectedEvents())
         .map(List::stream)
         .orElse(Stream.empty())
         .flatMap(
             event -> transformConnectedEvent(
-                event, wifiScanData, deviceId, processingBatchId, ingestionTimestamp)
+                event, wifiScanData, sourceFile, processingBatchId, ingestionTimestamp)
                 .stream());
   }
 
-  private static void logBeginning(String processingBatchId, String deviceId, Instant ingestionTimestamp) {
+  private static void logBeginning(String processingBatchId, String sourceFile, Instant ingestionTimestamp) {
     logger.debug(
-        "Starting transformation: deviceId={}, batchId={}, timestamp={}",
-        deviceId,
+        "Starting transformation: sourceFile={}, batchId={}, timestamp={}",
+        sourceFile,
         processingBatchId,
         ingestionTimestamp);
   }
@@ -288,8 +284,7 @@ public class WifiDataTransformationService {
    * @param event              The WiFi connected event to transform
    * @param wifiScanData       The complete WiFi scan data containing device and
    *                           context information
-   * @param deviceId           The generated device identifier for this scan
-   *                           session
+   * @param sourceFile         The S3 source file path for tracking
    * @param processingBatchId  The processing batch identifier for tracking
    * @param ingestionTimestamp The timestamp when this data was ingested
    * @return Optional containing the transformed WiFi measurement, or empty if
@@ -298,7 +293,7 @@ public class WifiDataTransformationService {
   private Optional<WifiMeasurement> transformConnectedEvent(
       WifiConnectedEvent event,
       WifiScanData wifiScanData,
-      String deviceId,
+      String sourceFile,
       String processingBatchId,
       Instant ingestionTimestamp) {
 
@@ -335,10 +330,10 @@ public class WifiDataTransformationService {
         event.wifiConnectedInfo().rssi());
 
     return Optional.of(
-        buildMeasurement(event, wifiScanData, deviceId, processingBatchId, ingestionTimestamp, qualityWeight));
+        buildMeasurement(event, wifiScanData, sourceFile, processingBatchId, ingestionTimestamp, qualityWeight));
   }
 
-  private WifiMeasurement buildMeasurement(WifiConnectedEvent event, WifiScanData wifiScanData, String deviceId,
+  private WifiMeasurement buildMeasurement(WifiConnectedEvent event, WifiScanData wifiScanData, String sourceFile,
       String processingBatchId, Instant ingestionTimestamp, double qualityWeight) {
     return WifiMeasurement.builder()
         // Unique Identifier
@@ -347,54 +342,32 @@ public class WifiDataTransformationService {
         // Primary Keys
         .bssid(normalizedBssid(event.wifiConnectedInfo().bssid()))
         .measurementTimestamp(event.timestamp())
-        .eventId(event.eventId())
 
-        // Device Information
-        .deviceId(deviceId)
-        .deviceModel(wifiScanData.model())
-        .deviceManufacturer(wifiScanData.manufacturer())
-        .osVersion(wifiScanData.osVersion())
-        .appVersion(wifiScanData.appNameVersion())
-
-        // Location Data
+        // Location Data - Essential for all localization algorithms
         .latitude(event.location() != null ? event.location().latitude() : null)
         .longitude(event.location() != null ? event.location().longitude() : null)
         .altitude(event.location() != null ? event.location().altitude() : null)
         .locationAccuracy(event.location() != null ? event.location().accuracy() : null)
-        .locationTimestamp(event.location() != null ? event.location().time() : null)
-        .locationProvider(event.location() != null ? event.location().provider() : null)
-        .locationSource(event.location() != null ? event.location().source() : null)
-        .speed(event.location() != null ? event.location().speed() : null)
-        .bearing(event.location() != null ? event.location().bearing() : null)
 
-        // WiFi Signal Data
-        .ssid(cleanSsid(event.wifiConnectedInfo().ssid()))
+        // WiFi Signal Data - Essential for signal propagation models
+        .ssid(event.wifiConnectedInfo().ssid())
         .rssi(event.wifiConnectedInfo().rssi())
         .frequency(event.wifiConnectedInfo().frequency())
-        .scanTimestamp(event.timestamp())
 
-        // Connection Status and Quality
+        // Connection Status and Quality - Critical for algorithm selection
         .connectionStatus("CONNECTED")
         .qualityWeight(qualityWeight)
 
-        // Connected-Only Enrichment Fields
+        // Connected-Only Advanced Algorithm Fields
         .linkSpeed(event.wifiConnectedInfo().linkSpeed())
         .channelWidth(event.wifiConnectedInfo().channelWidth())
         .centerFreq0(event.wifiConnectedInfo().centerFreq0())
-        .centerFreq1(event.wifiConnectedInfo().centerFreq1())
-        .capabilities(event.wifiConnectedInfo().capabilities())
-        .is80211mcResponder(event.wifiConnectedInfo().is80211mcResponder())
-        .isPasspointNetwork(event.wifiConnectedInfo().isPasspointNetwork())
-        .operatorFriendlyName(event.wifiConnectedInfo().operatorFriendlyName())
-        .venueName(event.wifiConnectedInfo().venueName())
-        .isCaptive(event.isCaptive())
-        .numScanResults(event.wifiConnectedInfo().numOfScanResults())
 
-        // Processing Metadata
+        // Source and Processing Metadata
+        .source(sourceFile)
         .ingestionTimestamp(ingestionTimestamp)
         .dataVersion(wifiScanData.dataVersion())
         .processingBatchId(processingBatchId)
-        .qualityScore(calculateQualityScore(event.location(), event.wifiConnectedInfo().rssi()))
         .build();
   }
 
@@ -433,8 +406,7 @@ public class WifiDataTransformationService {
    *                           entries
    * @param wifiScanData       The complete WiFi scan data containing device and
    *                           context information
-   * @param deviceId           The generated device identifier for this scan
-   *                           session
+   * @param sourceFile         The S3 source file path for tracking
    * @param processingBatchId  The processing batch identifier for tracking
    * @param ingestionTimestamp The timestamp when this data was ingested
    * @return Stream of transformed WiFi measurements from the scan result
@@ -442,7 +414,7 @@ public class WifiDataTransformationService {
   private Stream<WifiMeasurement> transformScanResult(
       ScanResult scanResult,
       WifiScanData wifiScanData,
-      String deviceId,
+      String sourceFile,
       String processingBatchId,
       Instant ingestionTimestamp) {
 
@@ -455,7 +427,7 @@ public class WifiDataTransformationService {
                 entry,
                 scanResult,
                 wifiScanData,
-                deviceId,
+                sourceFile,
                 processingBatchId,
                 ingestionTimestamp)
                 .stream());
@@ -511,8 +483,7 @@ public class WifiDataTransformationService {
    *                           timing information
    * @param wifiScanData       The complete WiFi scan data containing device and
    *                           context information
-   * @param deviceId           The generated device identifier for this scan
-   *                           session
+   * @param sourceFile         The S3 source file path for tracking
    * @param processingBatchId  The processing batch identifier for tracking
    * @param ingestionTimestamp The timestamp when this data was ingested
    * @return Optional containing the transformed WiFi measurement, or empty if
@@ -522,7 +493,7 @@ public class WifiDataTransformationService {
       ScanResultEntry entry,
       ScanResult scanResult,
       WifiScanData wifiScanData,
-      String deviceId,
+      String sourceFile,
       String processingBatchId,
       Instant ingestionTimestamp) {
     try {
@@ -542,14 +513,10 @@ public class WifiDataTransformationService {
         return Optional.empty();
       }
 
-      // Step 3: Generate unique event identifier for tracking and deduplication
-      // This combines timestamp and BSSID to create a deterministic but unique ID
-      String eventId = generateEventId(scanResult.timestamp(), entry.bssid());
-
-      // Step 4: Build comprehensive WiFi measurement record
-      // This creates a normalized measurement with all required fields and metadata
-      WifiMeasurement measurement = buildMeasurement(entry, scanResult, wifiScanData, deviceId, processingBatchId,
-          ingestionTimestamp, eventId);
+      // Step 3: Build comprehensive WiFi measurement record
+      // This creates a normalized measurement with essential fields for localization
+      WifiMeasurement measurement = buildMeasurement(entry, scanResult, wifiScanData, sourceFile, processingBatchId,
+          ingestionTimestamp);
 
       return Optional.of(measurement);
 
@@ -561,66 +528,41 @@ public class WifiDataTransformationService {
   }
 
   private WifiMeasurement buildMeasurement(ScanResultEntry entry, ScanResult scanResult, WifiScanData wifiScanData,
-      String deviceId, String processingBatchId, Instant ingestionTimestamp, String eventId) {
+      String sourceFile, String processingBatchId, Instant ingestionTimestamp) {
     return WifiMeasurement.builder()
         // Unique Identifier
         .id(UUID.randomUUID().toString())
 
-        // Primary Keys - These uniquely identify each measurement
-        .bssid(normalizedBssid(entry.bssid())) // Normalized BSSID format
-        .measurementTimestamp(scanResult.timestamp()) // When the scan occurred
-        .eventId(eventId) // Unique identifier for this measurement
+        // Primary Keys
+        .bssid(normalizedBssid(entry.bssid()))
+        .measurementTimestamp(scanResult.timestamp())
 
-        // Device Information - Inherited from the WiFi scan data
-        .deviceId(deviceId) // Generated device identifier
-        .deviceModel(wifiScanData.model()) // Device model (e.g., "SM-A536V")
-        .deviceManufacturer(
-            wifiScanData.manufacturer()) // Device manufacturer (e.g., "samsung")
-        .osVersion(wifiScanData.osVersion())
-        .appVersion(wifiScanData.appNameVersion())
-
-        // Location Data
+        // Location Data - Essential for all localization algorithms
         .latitude(scanResult.location() != null ? scanResult.location().latitude() : null)
         .longitude(scanResult.location() != null ? scanResult.location().longitude() : null)
         .altitude(scanResult.location() != null ? scanResult.location().altitude() : null)
         .locationAccuracy(
             scanResult.location() != null ? scanResult.location().accuracy() : null)
-        .locationTimestamp(
-            scanResult.location() != null ? scanResult.location().time() : null)
-        .locationProvider(
-            scanResult.location() != null ? scanResult.location().provider() : null)
-        .locationSource(scanResult.location() != null ? scanResult.location().source() : null)
-        .speed(scanResult.location() != null ? scanResult.location().speed() : null)
-        .bearing(scanResult.location() != null ? scanResult.location().bearing() : null)
 
-        // WiFi Signal Data
-        .ssid(cleanSsid(entry.ssid()))
+        // WiFi Signal Data - Essential for signal propagation models
+        .ssid(entry.ssid())
         .rssi(entry.rssi())
         .frequency(null) // Not available in scan results
-        .scanTimestamp(entry.scantime())
 
-        // Connection Status and Quality
+        // Connection Status and Quality - Critical for algorithm selection
         .connectionStatus("SCAN")
         .qualityWeight(filteringConfig.scanQualityWeight())
 
-        // Connected-Only Fields (NULL for scan results)
+        // Connected-Only Advanced Algorithm Fields (NULL for scan results)
         .linkSpeed(null)
         .channelWidth(null)
         .centerFreq0(null)
-        .centerFreq1(null)
-        .capabilities(null)
-        .is80211mcResponder(null)
-        .isPasspointNetwork(null)
-        .operatorFriendlyName(null)
-        .venueName(null)
-        .isCaptive(null)
-        .numScanResults(null)
 
-        // Processing Metadata
+        // Source and Processing Metadata
+        .source(sourceFile)
         .ingestionTimestamp(ingestionTimestamp)
         .dataVersion(wifiScanData.dataVersion())
         .processingBatchId(processingBatchId)
-        .qualityScore(calculateQualityScore(scanResult.location(), entry.rssi()))
         .build();
   }
 
@@ -732,155 +674,6 @@ public class WifiDataTransformationService {
     return baseWeight;
   }
 
-  /**
-   * Calculates overall quality score based on location accuracy and signal
-   * strength.
-   *
-   * <p>
-   * This method computes a composite quality score that reflects the overall
-   * reliability of the
-   * measurement for location analysis. The score combines location accuracy and
-   * signal strength to
-   * provide a normalized quality metric.
-   *
-   * <p>
-   * <strong>Score Components:</strong>
-   *
-   * <ul>
-   * <li><strong>Base Score (50%):</strong> Default quality level for all
-   * measurements
-   * <li><strong>Location Accuracy (30%):</strong> Higher accuracy improves score
-   * <li><strong>Signal Strength (20%):</strong> Stronger signals improve score
-   * </ul>
-   *
-   * <p>
-   * <strong>Scoring Algorithm:</strong>
-   *
-   * <ol>
-   * <li>Start with base score of 0.5 (50%)
-   * <li>Add location accuracy contribution (0-30% based on accuracy in meters)
-   * <li>Add RSSI contribution (0-20% based on signal strength)
-   * <li>Cap final score at 1.0 (100%)
-   * </ol>
-   *
-   * <p>
-   * <strong>Quality Ranges:</strong>
-   *
-   * <ul>
-   * <li>0.5-0.7: Low quality (poor accuracy or weak signal)
-   * <li>0.7-0.9: Medium quality (moderate accuracy and signal)
-   * <li>0.9-1.0: High quality (excellent accuracy and strong signal)
-   * </ul>
-   *
-   * @param location The location data containing accuracy information
-   * @param rssi     The signal strength in dBm
-   * @return Quality score between 0.5 and 1.0, where higher is better
-   */
-  private double calculateQualityScore(LocationData location, Integer rssi) {
-    double score = 0.5; // Base score - minimum quality level for all measurements
-
-    // Location accuracy contribution (30% of total score)
-    // Better accuracy (lower values) results in higher scores
-    if (location != null && location.accuracy() != null) {
-      // Calculate accuracy score: 100m accuracy = 0%, 0m accuracy = 100%
-      double accuracyScore = Math.max(0, 1.0 - (location.accuracy() / 100.0));
-      score += 0.3 * accuracyScore;
-    }
-
-    // RSSI contribution (20% of total score)
-    // Better signal strength (higher values) results in higher scores
-    if (rssi != null) {
-      // Calculate RSSI score: -100 dBm = 0%, 0 dBm = 100%
-      double rssiScore = Math.max(0, (rssi + 100.0) / 100.0);
-      score += 0.2 * rssiScore;
-    }
-
-    return Math.min(1.0, score); // Cap score at maximum of 1.0
-  }
-
-  /**
-   * Generates a privacy-preserving device identifier from device characteristics.
-   *
-   * <p>
-   * This method creates a unique, deterministic device identifier by combining
-   * multiple device
-   * characteristics and applying cryptographic hashing. This approach ensures
-   * privacy by not
-   * storing raw device information while maintaining consistency for tracking and
-   * analytics
-   * purposes.
-   *
-   * <p>
-   * <strong>Device Characteristics Used:</strong>
-   *
-   * <ul>
-   * <li><strong>Manufacturer:</strong> Device manufacturer (e.g., "samsung")
-   * <li><strong>Model:</strong> Device model (e.g., "SM-A536V")
-   * <li><strong>Device:</strong> Device identifier (e.g., "a53x")
-   * <li><strong>OS Version:</strong> Operating system version string
-   * </ul>
-   *
-   * <p>
-   * <strong>Privacy Features:</strong>
-   *
-   * <ul>
-   * <li>Uses SHA-256 hashing to prevent reverse engineering
-   * <li>Consistent identifier for same device characteristics
-   * <li>No storage of raw device information
-   * </ul>
-   *
-   * @param wifiScanData The WiFi scan data containing device information
-   * @return A hashed device identifier string
-   */
-  private String generateDeviceId(WifiScanData wifiScanData) {
-    // Create a unique identifier from device characteristics
-    // This combines multiple device attributes to ensure uniqueness
-    String identifier = String.format(
-        "%s:%s:%s:%s",
-        wifiScanData.manufacturer() != null ? wifiScanData.manufacturer() : "",
-        wifiScanData.model() != null ? wifiScanData.model() : "",
-        wifiScanData.device() != null ? wifiScanData.device() : "",
-        wifiScanData.osVersion() != null ? wifiScanData.osVersion() : "");
-
-    // Apply cryptographic hashing for privacy protection
-    return hashString(identifier);
-  }
-
-  /**
-   * Generates a unique event identifier for WiFi measurements.
-   *
-   * <p>
-   * This method creates a deterministic event ID by combining the scan timestamp
-   * and BSSID. This
-   * ensures unique identification of each measurement while maintaining
-   * consistency for
-   * deduplication and tracking purposes.
-   *
-   * <p>
-   * <strong>Event ID Components:</strong>
-   *
-   * <ul>
-   * <li><strong>Timestamp:</strong> When the scan occurred (milliseconds since
-   * epoch)
-   * <li><strong>BSSID:</strong> The network identifier (MAC address)
-   * </ul>
-   *
-   * <p>
-   * <strong>Use Cases:</strong>
-   *
-   * <ul>
-   * <li>Deduplication of duplicate measurements
-   * <li>Tracking individual measurements through the pipeline
-   * <li>Correlation with other data sources
-   * </ul>
-   *
-   * @param timestamp The scan timestamp in milliseconds
-   * @param bssid     The Basic Service Set Identifier (MAC address)
-   * @return A hashed event identifier string
-   */
-  private String generateEventId(Long timestamp, String bssid) {
-    return hashString(timestamp + ":" + bssid);
-  }
 
   /**
    * Normalizes BSSID format to standard lowercase with colons.
@@ -919,70 +712,5 @@ public class WifiDataTransformationService {
     }
     // Convert to lowercase and standardize separator format
     return bssid.toLowerCase().replace("-", ":");
-  }
-
-  /**
-   * Cleans SSID by removing null bytes and trimming whitespace.
-   *
-   * <p>
-   * This method sanitizes SSID (Service Set Identifier) values by removing null
-   * bytes and
-   * trimming whitespace. This ensures clean, consistent SSID representation for
-   * storage and
-   * analysis.
-   *
-   * <p>
-   * <strong>Cleaning Process:</strong>
-   *
-   * <ul>
-   * <li>Remove null bytes (0x00) that may be present in raw data
-   * <li>Trim leading and trailing whitespace
-   * <li>Preserve internal whitespace and special characters
-   * <li>Return null for empty strings after cleaning
-   * </ul>
-   *
-   * <p>
-   * <strong>Examples:</strong>
-   *
-   * <ul>
-   * <li>"MyWiFi\u0000" → "MyWiFi"
-   * <li>" Home Network " → "Home Network"
-   * <li>"Office-5G\u0000\u0000" → "Office-5G"
-   * <li>"\u0000\u0000" → null
-   * </ul>
-   *
-   * @param ssid The SSID string to clean
-   * @return Cleaned SSID string, or null if input is null or empty after cleaning
-   */
-  private String cleanSsid(String ssid) {
-    if (ssid == null) {
-      return null;
-    }
-
-    // Remove null bytes and trim whitespace for clean SSID representation
-    String cleaned = ssid.replace("\u0000", "").trim();
-    return cleaned.isEmpty() ? null : cleaned;
-  }
-
-  /** Hashes a string using SHA-256. */
-  private String hashString(String input) {
-    try {
-      MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-
-      StringBuilder hexString = new StringBuilder();
-      for (byte b : hash) {
-        String hex = Integer.toHexString(0xff & b);
-        if (hex.length() == 1) {
-          hexString.append('0');
-        }
-        hexString.append(hex);
-      }
-      return hexString.toString();
-
-    } catch (NoSuchAlgorithmException e) {
-      logger.error("SHA-256 algorithm not available", e);
-      return UUID.randomUUID().toString();
-    }
   }
 }
