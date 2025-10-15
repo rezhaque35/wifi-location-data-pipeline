@@ -30,7 +30,7 @@ SQS_QUEUE_NAME="wifi-scan-events"
 S3_BUCKET_NAME="ingested-wifiscan-data"
 S3_FIREHOSE_DESTINATION_BUCKET="wifi-measurements-table"
 FIREHOSE_DELIVERY_STREAM_NAME="wifi-measurements-stream"
-TEST_DATA_DIR="test/data"
+TEST_DATA_DIR="data"
 
 # Parse command line arguments
 SKIP_CLEANUP=false
@@ -347,9 +347,19 @@ EOF
 
 # Function to wait for processing
 wait_for_processing() {
-    print_status $YELLOW "⏳ Waiting for service processing (30 seconds)..."
-    sleep 30
-    print_status $GREEN "✅ Processing wait completed"
+    # Fixed wait time - Firehose buffer is set to 5s interval + processing time
+    local wait_time=8  # 8 seconds: 2s service processing + 5s Firehose buffer + 1s margin
+    
+    print_status $YELLOW "⏳ Waiting ${wait_time}s for service processing and Firehose delivery..."
+    
+    # Show progress dots
+    for i in $(seq 1 $wait_time); do
+        sleep 1
+        echo -n "."
+    done
+    echo ""
+    
+    print_status $GREEN "✅ Wait completed"
 }
 
 # Function to check Firehose destination bucket
@@ -486,10 +496,46 @@ provide_processing_summary() {
         return 0
     fi
     
-    # Standard mode - get source data expectations
-    EXPECTED_CONNECTED=$(cat /tmp/test-wifi-scan.json | jq '.wifiConnectedEvents | length')
-    EXPECTED_SCAN=$(cat /tmp/test-wifi-scan.json | jq '[.scanResults[].results[]] | length')
-    EXPECTED_TOTAL=$((EXPECTED_CONNECTED + EXPECTED_SCAN))
+    # Standard mode - check if test has metadata with expected results
+    local has_metadata=$(cat /tmp/test-wifi-scan.json | jq 'has("_test_metadata")' 2>/dev/null || echo "false")
+    
+    if [ "$has_metadata" = "true" ]; then
+        # Use expected results from test metadata
+        EXPECTED_TOTAL=$(cat /tmp/test-wifi-scan.json | jq '._test_metadata.expected_results.total_output_records // -1')
+        EXPECTED_CONNECTED=$(cat /tmp/test-wifi-scan.json | jq '._test_metadata.expected_results.connected_records // -1')
+        EXPECTED_SCAN=$(cat /tmp/test-wifi-scan.json | jq '._test_metadata.expected_results.scan_records // -1')
+        
+        print_status $BLUE "📋 Test Metadata Found:"
+        echo "  Test ID: $(cat /tmp/test-wifi-scan.json | jq -r '._test_metadata.test_case_id')"
+        echo "  Description: $(cat /tmp/test-wifi-scan.json | jq -r '._test_metadata.description')"
+        echo "  Category: $(cat /tmp/test-wifi-scan.json | jq -r '._test_metadata.category')"
+        
+        # Check for configuration mismatches
+        local test_requires_oui=$(cat /tmp/test-wifi-scan.json | jq -r '._test_metadata.filtering_config.oui_detection_enabled // "false"')
+        local test_requires_ssid=$(cat /tmp/test-wifi-scan.json | jq -r '._test_metadata.filtering_config.ssid_detection_enabled // "false"')
+        local test_requires_hotspot=$(cat /tmp/test-wifi-scan.json | jq -r '._test_metadata.filtering_config.mobile_hotspot_filtering_enabled // "false"')
+        
+        # Warn about configuration mismatches
+        local config_warnings=()
+        if [ "$test_requires_oui" = "true" ]; then
+            config_warnings+=("  ⚠️  Test requires OUI detection ENABLED (currently DISABLED in application.yml)")
+        fi
+        
+        if [ "${#config_warnings[@]}" -gt 0 ]; then
+            echo ""
+            print_status $YELLOW "⚠️  Configuration Warnings:"
+            for warning in "${config_warnings[@]}"; do
+                echo "$warning"
+            done
+            echo "  💡 Test results may not match expectations due to configuration differences"
+        fi
+        echo ""
+    else
+        # Fall back to raw input counts (old behavior)
+        EXPECTED_CONNECTED=$(cat /tmp/test-wifi-scan.json | jq '.wifiConnectedEvents | length')
+        EXPECTED_SCAN=$(cat /tmp/test-wifi-scan.json | jq '[.scanResults[].results[]] | length')
+        EXPECTED_TOTAL=$((EXPECTED_CONNECTED + EXPECTED_SCAN))
+    fi
     
     # Get actual results
     ACTUAL_TOTAL=$(cat /tmp/firehose-output.json | jq -s 'length')
@@ -525,9 +571,16 @@ provide_processing_summary() {
     echo ""
     print_status $BLUE "📋 BSSID-BY-BSSID COMPARISON:"
     
-    # Get all expected BSSIDs with their expected connection status
-    EXPECTED_CONNECTED_BSSIDS=$(cat /tmp/test-wifi-scan.json | jq -r '.wifiConnectedEvents[].wifiConnectedInfo.bssid')
-    EXPECTED_SCAN_BSSIDS=$(cat /tmp/test-wifi-scan.json | jq -r '.scanResults[].results[].bssid')
+    # Get expected BSSIDs - either from metadata or raw input
+    if [ "$has_metadata" = "true" ] && [ "$(cat /tmp/test-wifi-scan.json | jq '._test_metadata.expected_results.expected_aps | length' 2>/dev/null || echo 0)" -gt 0 ]; then
+        # Use expected BSSIDs from metadata (after filtering)
+        EXPECTED_CONNECTED_BSSIDS=$(cat /tmp/test-wifi-scan.json | jq -r '._test_metadata.expected_results.expected_aps[] | select(.connection_status == "CONNECTED") | .bssid')
+        EXPECTED_SCAN_BSSIDS=$(cat /tmp/test-wifi-scan.json | jq -r '._test_metadata.expected_results.expected_aps[] | select(.connection_status == "SCAN") | .bssid')
+    else
+        # Use all BSSIDs from raw input (old behavior, no filtering expected)
+        EXPECTED_CONNECTED_BSSIDS=$(cat /tmp/test-wifi-scan.json | jq -r '.wifiConnectedEvents[].wifiConnectedInfo.bssid')
+        EXPECTED_SCAN_BSSIDS=$(cat /tmp/test-wifi-scan.json | jq -r '.scanResults[].results[].bssid')
+    fi
     
     printf "    %-20s %-15s %-15s %-10s\n" "BSSID" "Expected Type" "Actual Type" "Status"
     printf "    %-20s %-15s %-15s %-10s\n" "===================" "=============" "===========" "======"
@@ -555,6 +608,47 @@ provide_processing_summary() {
             fi
         fi
     done
+    
+    # Check quality_weight if specified in expected_fields
+    if [ "$has_metadata" = "true" ]; then
+        local has_quality_checks=$(cat /tmp/test-wifi-scan.json | jq '[._test_metadata.expected_results.expected_aps[]? | select(.expected_fields.quality_weight != null)] | length' 2>/dev/null || echo "0")
+        
+        if [ "$has_quality_checks" -gt "0" ]; then
+            echo ""
+            print_status $BLUE "⚖️  QUALITY WEIGHT VALIDATION:"
+            printf "    %-20s %-15s %-15s %-10s\n" "BSSID" "Expected" "Actual" "Status"
+            printf "    %-20s %-15s %-15s %-10s\n" "===================" "=============" "===========" "======"
+            
+            # Store quality weight validation results for final tally
+            QUALITY_SUCCESS=0
+            QUALITY_TOTAL=0
+            
+            # Check each AP that has quality_weight expectation
+            cat /tmp/test-wifi-scan.json | jq -r '._test_metadata.expected_results.expected_aps[]? | select(.expected_fields.quality_weight != null) | "\(.bssid)|\(.connection_status)|\(.expected_fields.quality_weight)"' 2>/dev/null | while IFS='|' read -r bssid connection_status expected_weight; do
+                if [ -n "$bssid" ]; then
+                    # Get actual quality_weight from firehose output matching both BSSID and connection status
+                    actual_weight=$(cat /tmp/firehose-output.json | jq -s --arg bssid "$bssid" --arg status "$connection_status" '[.[] | select(.bssid == $bssid and .connection_status == $status) | .quality_weight] | .[0] // "MISSING"')
+                    
+                    # Compare (allowing small floating point differences)
+                    if [ "$actual_weight" != "MISSING" ] && [ "$actual_weight" != "null" ]; then
+                        # Use bc for floating point comparison
+                        weight_match=$(echo "$expected_weight == $actual_weight" | bc -l 2>/dev/null || echo "0")
+                        if [ "$weight_match" = "1" ]; then
+                            printf "    %-20s %-15s %-15s %-10s\n" "$bssid" "$expected_weight" "$actual_weight" "✅ PASS"
+                            echo "$bssid:$connection_status:PASS" >> /tmp/quality_weight_results.txt
+                        else
+                            printf "    %-20s %-15s %-15s %-10s\n" "$bssid" "$expected_weight" "$actual_weight" "❌ FAIL"
+                            echo "$bssid:$connection_status:FAIL" >> /tmp/quality_weight_results.txt
+                        fi
+                    else
+                        printf "    %-20s %-15s %-15s %-10s\n" "$bssid" "$expected_weight" "MISSING" "❌ FAIL"
+                        echo "$bssid:$connection_status:FAIL" >> /tmp/quality_weight_results.txt
+                    fi
+                    echo "$bssid:$connection_status:CHECK" >> /tmp/quality_weight_results.txt
+                fi
+            done
+        fi
+    fi
     
     echo ""
     print_status $BLUE "🎯 FINAL TEST RESULT:"
@@ -593,16 +687,24 @@ provide_processing_summary() {
     SUCCESS_COUNT=$((SUCCESS_COUNT + BSSID_SUCCESS))
     TOTAL_CHECKS=$((TOTAL_CHECKS + BSSID_TOTAL))
     
+    # Add quality weight validation results if they exist
+    if [ -f /tmp/quality_weight_results.txt ]; then
+        QUALITY_SUCCESS=$(grep ":PASS" /tmp/quality_weight_results.txt | wc -l | tr -d ' ')
+        QUALITY_TOTAL=$(grep ":CHECK" /tmp/quality_weight_results.txt | wc -l | tr -d ' ')
+        SUCCESS_COUNT=$((SUCCESS_COUNT + QUALITY_SUCCESS))
+        TOTAL_CHECKS=$((TOTAL_CHECKS + QUALITY_TOTAL))
+        rm -f /tmp/quality_weight_results.txt
+    fi
+    
     SUCCESS_RATE=$(echo "scale=1; $SUCCESS_COUNT * 100 / $TOTAL_CHECKS" | bc -l 2>/dev/null || echo "100")
     
     if [ "$SUCCESS_COUNT" -eq "$TOTAL_CHECKS" ]; then
         print_status $GREEN "✅ ALL TESTS PASSED: $SUCCESS_COUNT/$TOTAL_CHECKS (100%) - Processing was SUCCESSFUL!"
+        return 0
     else
         print_status $RED "❌ SOME TESTS FAILED: $SUCCESS_COUNT/$TOTAL_CHECKS ($SUCCESS_RATE%) - Processing had ISSUES!"
+        return 1
     fi
-    
-    echo ""
-    print_status $GREEN "✅ Processing summary completed"
 }
 
 # Function to validate schema and data
@@ -704,27 +806,36 @@ cleanup_s3_files() {
         print_status $YELLOW "ℹ️  Source bucket file not found: $S3_KEY"
     fi
     
-    # Clean up destination bucket files (all files with test prefix)
+    # Clean up destination bucket files (Firehose writes to partitioned structure)
     print_status $BLUE "📥 Cleaning up destination bucket files..."
-    DESTINATION_FILES=$(aws --endpoint-url=$LOCALSTACK_ENDPOINT s3 ls s3://$S3_FIREHOSE_DESTINATION_BUCKET/ --recursive 2>/dev/null | grep "$TEST_FILE_PREFIX" | awk '{print $4}' || true)
     
-    if [ -n "$DESTINATION_FILES" ]; then
-        CLEANUP_COUNT=0
-        echo "$DESTINATION_FILES" | while read -r file; do
-            if [ -n "$file" ]; then
-                if aws --endpoint-url=$LOCALSTACK_ENDPOINT s3 rm s3://$S3_FIREHOSE_DESTINATION_BUCKET/$file >/dev/null 2>&1; then
-                    print_status $GREEN "✅ Destination bucket file cleaned up: $file"
-                    CLEANUP_COUNT=$((CLEANUP_COUNT + 1))
-                else
-                    print_status $YELLOW "⚠️  Failed to clean up destination file: $file"
-                fi
-            fi
-        done
-        if [ $CLEANUP_COUNT -gt 0 ]; then
-            print_status $GREEN "✅ Cleaned up $CLEANUP_COUNT destination files"
+    # Clean the specific file we downloaded (stored in LATEST_FILE)
+    if [ -n "$LATEST_FILE" ] && [ "$LATEST_FILE" != "null" ]; then
+        if aws --endpoint-url=$LOCALSTACK_ENDPOINT s3 rm s3://$S3_FIREHOSE_DESTINATION_BUCKET/$LATEST_FILE >/dev/null 2>&1; then
+            print_status $GREEN "✅ Destination bucket file cleaned up: $LATEST_FILE"
+        else
+            print_status $YELLOW "⚠️  Failed to clean up destination file: $LATEST_FILE"
         fi
     else
-        print_status $YELLOW "ℹ️  No destination files found with test prefix to clean up"
+        # If no LATEST_FILE, clean all files (test environment)
+        DESTINATION_FILES=$(aws --endpoint-url=$LOCALSTACK_ENDPOINT s3 ls s3://$S3_FIREHOSE_DESTINATION_BUCKET/ --recursive 2>/dev/null | awk '{print $4}' || true)
+        
+        if [ -n "$DESTINATION_FILES" ]; then
+            CLEANUP_COUNT=0
+            while IFS= read -r file; do
+                if [ -n "$file" ]; then
+                    if aws --endpoint-url=$LOCALSTACK_ENDPOINT s3 rm s3://$S3_FIREHOSE_DESTINATION_BUCKET/$file >/dev/null 2>&1; then
+                        CLEANUP_COUNT=$((CLEANUP_COUNT + 1))
+                    fi
+                fi
+            done <<< "$DESTINATION_FILES"
+            
+            if [ $CLEANUP_COUNT -gt 0 ]; then
+                print_status $GREEN "✅ Cleaned up $CLEANUP_COUNT destination file(s)"
+            fi
+        else
+            print_status $YELLOW "ℹ️  No destination files found to clean up"
+        fi
     fi
     
     print_status $GREEN "✅ S3 cleanup completed"
@@ -738,36 +849,78 @@ cleanup_test_files() {
     rm -f /tmp/s3-event.json
     rm -f /tmp/firehose-output.gz
     rm -f /tmp/firehose-output.json
+    
+    # Verify files are actually deleted
+    if [ -f /tmp/test-wifi-scan.json ] || [ -f /tmp/firehose-output.json ]; then
+        print_status $YELLOW "⚠️  Some temp files still exist, forcing cleanup..."
+        rm -rf /tmp/test-wifi-scan.json /tmp/test-encoded.txt /tmp/s3-event.json /tmp/firehose-output.gz /tmp/firehose-output.json
+    fi
+    
     print_status $GREEN "✅ Test files cleaned up"
 }
 
 # Main execution
 main() {
+    local test_exit_code=0
+    
+    # Clean up any leftover temp files from previous tests
+    rm -f /tmp/test-wifi-scan.json /tmp/test-encoded.txt /tmp/s3-event.json /tmp/firehose-output.gz /tmp/firehose-output.json /tmp/quality_weight_results.txt 2>/dev/null
+    
     select_test_data_file
     check_localstack
     prepare_test_data
     upload_test_data
     send_s3_event_to_sqs
     wait_for_processing
-    check_firehose_destination
     
-    # Skip end validation if requested
-    if [ "$SKIP_END_VALIDATION" = true ]; then
-        print_status $YELLOW "⏭️  Skipping end validation (--skip-end-validation flag provided)"
-        print_status $YELLOW "📁 Schema and data validation will be skipped for troubleshooting"
+    # Check destination even if it fails, we want to continue to show what went wrong
+    check_firehose_destination || {
+        print_status $RED "⚠️  Destination check failed - no processed data found!"
+        test_exit_code=1
+    }
+    
+    # Only run further validation if we found destination data
+    if [ $test_exit_code -eq 0 ]; then
+        # Skip end validation if requested
+        if [ "$SKIP_END_VALIDATION" = true ]; then
+            print_status $YELLOW "⏭️  Skipping end validation (--skip-end-validation flag provided)"
+            print_status $YELLOW "📁 Schema and data validation will be skipped for troubleshooting"
+        else
+            validate_schema_and_data || test_exit_code=$?
+        fi
+        
+        # Show analysis based on verbosity preference
+        if [ "$SUMMARY_ONLY" = false ]; then
+            show_source_message_content
+            show_destination_records_content
+        fi
+        
+        # Capture test result exit code (this is the definitive test result)
+        # Reset test_exit_code first, then capture the actual result
+        if provide_processing_summary; then
+            test_exit_code=0  # Test passed
+        else
+            test_exit_code=1  # Test failed
+        fi
     else
-        validate_schema_and_data
+        print_status $RED "❌ TEST FAILED: No data was processed by the service!"
+        echo ""
+        print_status $YELLOW "Possible causes:"
+        echo "  • Service is not running"
+        echo "  • Service is not listening to the SQS queue"
+        echo "  • Service failed to process the message"
+        echo "  • Firehose failed to deliver data to S3"
+        echo ""
+        print_status $BLUE "To debug:"
+        echo "  1. Check if service is running: ps aux | grep java"
+        echo "  2. Check service logs for errors"
+        echo "  3. Verify SQS queue has messages: aws --endpoint-url=http://localhost:4566 sqs get-queue-attributes --queue-url <url> --attribute-names All"
+        echo "  4. Check Firehose delivery stream status"
     fi
     
-    # Show analysis based on verbosity preference
-    if [ "$SUMMARY_ONLY" = false ]; then
-        show_source_message_content
-        show_destination_records_content
-    fi
-    
-    provide_processing_summary
     display_test_summary
     
+    # Cleanup regardless of test result
     if [ "$SKIP_CLEANUP" = false ]; then
         cleanup_s3_files
         cleanup_test_files
@@ -775,6 +928,9 @@ main() {
         print_status $YELLOW "⏭️  Skipping cleanup (--skip-cleanup flag provided)"
         print_status $YELLOW "📁 Test files and S3 files will be preserved for inspection"
     fi
+    
+    # Exit with test result code
+    exit $test_exit_code
 }
 
 # Execute main function

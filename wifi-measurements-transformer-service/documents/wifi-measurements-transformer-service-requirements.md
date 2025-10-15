@@ -885,13 +885,13 @@ S3 Download → Base64 Decode → Unzip → JSON Parse (Line by Line)
 **Test Execution:**
 ```bash
 # Run all tests
-cd scripts && ./test-runner.sh
+cd scripts/test && ./test-runner.sh
 
 # Run specific test
-./test-runner.sh sample-wifi-scan.json
+cd scripts/test && ./test-with-data-file.sh sample-wifi-scan.json
 
 # Skip cleanup for debugging
-./test-runner.sh --skip-cleanup
+cd scripts/test && ./test-runner.sh --skip-cleanup
 ```
 
 **Test Data Format:**

@@ -135,7 +135,7 @@ filtering:
   scan-quality-weight: 1.0
   low-link-speed-quality-weight: 1.5
   mobile-hotspot:
-    enabled: false
+    enabled: true
     
     # OUI-based detection (MAC address)
     oui-detection:
@@ -191,6 +191,5 @@ processing:
   batch-write-size: 1000
   max-memory-threshold: 3221225472
   deduplication-window-seconds: 5
-  enable-data-sanitization: true
   max-retry-attempts: 3
   retry-base-delay-millis: 1000 

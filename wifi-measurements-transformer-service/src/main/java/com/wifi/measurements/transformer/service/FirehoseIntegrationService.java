@@ -7,7 +7,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -308,8 +307,8 @@ public class FirehoseIntegrationService {
                 || // Rate limiting
                 cause instanceof SdkClientException
                 || // Network issues, timeouts
-                (cause instanceof FirehoseException
-                        && ((FirehoseException) cause).statusCode() >= 500); // Server errors (5xx)
+                (cause instanceof FirehoseException firehoseException
+                        && firehoseException.statusCode() >= 500); // Server errors (5xx)
     }
 
     /**

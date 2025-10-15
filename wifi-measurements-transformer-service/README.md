@@ -190,14 +190,15 @@ The scripts are designed for offline development:
 Run the comprehensive end-to-end test to verify the complete data pipeline:
 
 ```bash
-# Run test with default test data (embedded in script)
-./scripts/test-end-to-end-flow.sh
+# Run all tests
+cd scripts/test
+./test-runner.sh
 
-# Run test with specific test data file
-./scripts/test-with-data-file.sh sample-wifi-scan.json
+# Run specific test
+./test-with-data-file.sh sample-wifi-scan.json
 
 # Run mobile hotspot filtering test
-./scripts/test-with-data-file.sh hotspot-filtering-test-data.json
+./test-with-data-file.sh hotspot-filtering-test-data.json
 ```
 
 #### Available Test Data Files
@@ -341,12 +342,14 @@ S3 Download → Base64 Decode → Unzip → JSON Parse
                          Stage 1: Sanity Checks
                     (Invalid data filtering + Quality weighting)
                                       ↓
-                      Optional: OUI-Based Mobile Hotspot Check
-                         (MAC address OUI lookup)
+                    SSID-Based Mobile Hotspot Detection
+                    (Network name pattern matching - ENABLED)
                                       ↓
-                    Schema Mapping + Data Normalization
+                    OUI-Based Mobile Hotspot Detection
+                    (MAC address OUI lookup - IMPLEMENTED but DISABLED)
                                       ↓
-                              Data Sanitization
+                    Schema Mapping + Data Normalization + Sanitization
+                    (BSSID normalization + SSID cleaning + Quality scoring)
                                       ↓
                     Kinesis Data Firehose Batch Writer
                                       ↓
@@ -580,9 +583,8 @@ The service includes a comprehensive automated test framework with 12+ end-to-en
 
 **Quick Start:**
 ```bash
-cd scripts
+cd scripts/test
 ./test-runner.sh                    # Run all tests
-./test-runner.sh sample-wifi-scan.json  # Run specific test
 ./test-runner.sh --skip-cleanup     # Skip cleanup for debugging
 ```
 
@@ -617,20 +619,17 @@ cd scripts
 
 #### Alternative Test Scripts
 
-**Interactive Test Runner:**
-```bash
-cd scripts
-./run-tests.sh  # Menu-driven interface for all test options
-```
-
 **Individual Test Scripts:**
 ```bash
-# Flexible test with JSON files
+cd scripts/test
 ./test-with-data-file.sh sample-wifi-scan.json
 ./test-with-data-file.sh --list-files  # Show available test files
+./test-with-data-file.sh --summary-only sample-wifi-scan.json  # Summary only mode
+```
 
-# Original test with hardcoded data
-./test-end-to-end-flow.sh
+**Original test with hardcoded data:**
+```bash
+./scripts/test-end-to-end-flow.sh
 ```
 
 #### Test Data Format
@@ -682,7 +681,8 @@ Each test file includes metadata with expected results:
 
 4. **Run the test**:
    ```bash
-   ./scripts/test-runner.sh my-test.json
+   cd scripts/test
+   ./test-with-data-file.sh my-test.json
    ```
 
 #### Test Prerequisites
@@ -696,16 +696,16 @@ Each test file includes metadata with expected results:
 **Standard Mode** (default):
 - Compresses and base64-encodes files before upload
 - Simulates production environment
-- `./test-with-data-file.sh sample-wifi-scan.json`
+- `cd scripts/test && ./test-with-data-file.sh sample-wifi-scan.json`
 
 **Raw File Mode**:
 - Uploads files directly without compression
 - Useful for debugging and pre-encoded files
-- `./test-with-data-file.sh --raw-file sample-raw-wifi-scan.txt`
+- `cd scripts/test && ./test-with-data-file.sh --raw-file sample-raw-wifi-scan.txt`
 
 **Summary Only Mode**:
 - Shows only final results without verbose output
-- `./test-with-data-file.sh --summary-only sample-wifi-scan.json`
+- `cd scripts/test && ./test-with-data-file.sh --summary-only sample-wifi-scan.json`
 
 #### Troubleshooting Tests
 
@@ -721,6 +721,7 @@ cat /tmp/test-output-<test-name>.log
 
 **Debug mode:**
 ```bash
+cd scripts/test
 ./test-runner.sh --skip-cleanup sample-wifi-scan.json
 ls -la /tmp/test-*  # Check preserved files
 ```

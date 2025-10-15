@@ -95,7 +95,6 @@ processing:
   batch-write-size: 10
   max-memory-threshold: 104857600  # 100MB
   deduplication-window-seconds: 1
-  enable-data-sanitization: true
   max-retry-attempts: 2
   retry-base-delay-millis: 100
 

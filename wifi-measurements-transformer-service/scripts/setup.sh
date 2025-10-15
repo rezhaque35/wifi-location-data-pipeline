@@ -174,8 +174,8 @@ setup_firehose() {
             "Prefix": "wifi-measurements/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/",
             "ErrorOutputPrefix": "errors/!{firehose:error-output-type}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/",
             "BufferingHints": {
-                "SizeInMBs": 148,
-                "IntervalInSeconds": 60
+                "SizeInMBs": 1,
+                "IntervalInSeconds": 5
             },
             "CompressionFormat": "GZIP",
             "EncryptionConfiguration": {

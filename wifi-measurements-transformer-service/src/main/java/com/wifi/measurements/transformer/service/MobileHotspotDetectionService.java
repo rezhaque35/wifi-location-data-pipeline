@@ -1,7 +1,6 @@
 // wifi-measurements-transformer-service/src/main/java/com/wifi/measurements/transformer/service/MobileHotspotDetectionService.java
 package com.wifi.measurements.transformer.service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -368,12 +367,6 @@ public class MobileHotspotDetectionService {
         }
 
         return Optional.of(config.ssidDetection().patterns().stream()
-                .peek(
-                        pattern -> logger.info(
-                                "Compiling SSID pattern: '{}' (type: {}, description: {})",
-                                pattern.pattern(),
-                                pattern.type(),
-                                pattern.description()))
                 .map(this::createSsidMatcher));
 
     }
@@ -386,6 +379,12 @@ public class MobileHotspotDetectionService {
      * @throws PatternSyntaxException if regex pattern is invalid
      */
     private HotspotMatcher createSsidMatcher(SsidPattern ssidPattern) {
+        logger.info(
+                "Compiling SSID pattern: '{}' (type: {}, description: {})",
+                ssidPattern.pattern(),
+                ssidPattern.type(),
+                ssidPattern.description());
+        
         return ssidPattern.type() == PatternType.CONTAINS
                 ? new ContainsMatcher(ssidPattern.pattern(), ssidPattern.description())
                 : new RegexMatcher(

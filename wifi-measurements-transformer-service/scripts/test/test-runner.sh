@@ -7,7 +7,7 @@ set -e
 
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TEST_DATA_DIR="$SCRIPT_DIR/test/data"
+TEST_DATA_DIR="$SCRIPT_DIR/data"
 
 # AWS Configuration
 LOCALSTACK_ENDPOINT="http://localhost:4566"
@@ -70,14 +70,31 @@ run_test_case() {
     print_status "$BLUE" "🧪 Test #$TOTAL_TESTS: $test_name"
     print_status "$BLUE" "════════════════════════════════════════════════"
     
-    # Use existing test-with-data-file.sh script (needs to run from scripts dir)
-    if (cd "$SCRIPT_DIR" && ./test-with-data-file.sh --summary-only "$(basename "$test_file")") 2>&1 | tee /tmp/test-output-$test_name.log | grep -q "✅"; then
+    # Run test and capture exit code (NOT grep for emoji!)
+    local test_output_file="/tmp/test-output-$test_name.log"
+    local exit_code=0
+    
+    (cd "$SCRIPT_DIR" && ./test-with-data-file.sh --summary-only "$(basename "$test_file")") > "$test_output_file" 2>&1 || exit_code=$?
+    
+    # Show output
+    cat "$test_output_file"
+    
+    # Check actual exit code, not grep for success emoji
+    if [ $exit_code -eq 0 ]; then
         PASSED_TESTS=$((PASSED_TESTS + 1))
         print_status "$GREEN" "✅ PASSED: $test_name"
     else
         FAILED_TESTS=$((FAILED_TESTS + 1))
         FAILED_TEST_NAMES+=("$test_name")
-        print_status "$RED" "❌ FAILED: $test_name"
+        print_status "$RED" "❌ FAILED: $test_name (exit code: $exit_code)"
+        print_status "$RED" "    Log saved to: $test_output_file"
+    fi
+    
+    # Add delay between tests to allow Firehose to flush its buffer
+    # This prevents data from multiple tests being batched together
+    if [ $TOTAL_TESTS -lt $(find "$TEST_DATA_DIR" -name "*.json" -type f | wc -l | tr -d ' ') ]; then
+        print_status "$YELLOW" "⏳ Waiting 3s for Firehose buffer flush..."
+        sleep 3
     fi
 }
 
