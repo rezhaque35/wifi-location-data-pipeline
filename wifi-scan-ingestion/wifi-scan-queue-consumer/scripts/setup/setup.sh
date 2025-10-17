@@ -6,6 +6,37 @@
 
 set -e  # Exit on any error
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the parent scripts directory
+SCRIPTS_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Parse command line arguments
+FORCE_REGENERATE_CERTS=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --force-certs)
+            FORCE_REGENERATE_CERTS=true
+            shift
+            ;;
+        --help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "🚀 Complete Development Environment Setup"
+            echo ""
+            echo "Options:"
+            echo "  --force-certs    Force regenerate SSL certificates (requires service restart)"
+            echo "  --help           Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -136,6 +167,9 @@ check_prerequisites() {
 # Make scripts executable
 make_scripts_executable() {
     print_step "Making scripts executable..."
+    cd "$SCRIPT_DIR"
+    chmod +x *.sh
+    cd "$SCRIPTS_DIR"
     chmod +x *.sh
     chmod +x test/*.sh
 }
@@ -143,6 +177,7 @@ make_scripts_executable() {
 # Clean up any existing environment
 cleanup_environment() {
     print_step "Cleaning up any existing environment..."
+    cd "$SCRIPT_DIR"
     ./stop-local-kafka.sh 2>/dev/null || true
     docker system prune -f
 }
@@ -150,6 +185,8 @@ cleanup_environment() {
 # Main setup process
 main() {
     print_step "Starting development environment setup..."
+    print_step "Script directory: $SCRIPT_DIR"
+    print_step "Scripts directory: $SCRIPTS_DIR"
     
     # Check prerequisites
     check_prerequisites
@@ -162,10 +199,16 @@ main() {
     
     # Run the complete setup
     print_step "Setting up local Kafka environment..."
-    ./setup-local-kafka.sh
+    cd "$SCRIPT_DIR"
+    if [ "$FORCE_REGENERATE_CERTS" = true ]; then
+        ./setup-local-kafka.sh --force-certs
+    else
+        ./setup-local-kafka.sh
+    fi
     
     # Start Kafka cluster (with better error handling)
     print_step "Starting Kafka cluster..."
+    cd "$SCRIPT_DIR"
     if ! ./start-local-kafka.sh; then
         print_error "Failed to start Kafka cluster"
         print_step "Checking container status..."
@@ -181,21 +224,25 @@ main() {
     
     # Test the setup
     print_step "Testing SSL connection..."
-    if ! ./setup/test-ssl-connection.sh; then
+    cd "$SCRIPT_DIR"
+    if ! ./test-ssl-connection.sh; then
         print_warning "SSL connection test failed, but continuing with setup..."
     fi
     
     print_step "Creating test topic..."
-    ./setup/create-test-topic.sh
+    ./create-test-topic.sh
     
     print_step "Sending test message..."
+    cd "$SCRIPTS_DIR"
     ./test/send-test-message.sh "Test message from setup script"
     
     print_step "Consuming test message..."
-    ./setup/consume-test-messages.sh
+    cd "$SCRIPT_DIR"
+    ./consume-test-messages.sh
     
     # Setup AWS infrastructure
     print_step "Setting up AWS infrastructure (LocalStack)..."
+    cd "$SCRIPT_DIR"
     if ! ./setup-aws-infrastructure.sh; then
         print_warning "AWS infrastructure setup had issues, but continuing with setup..."
     fi
@@ -205,10 +252,11 @@ main() {
     echo "1. Start your Spring Boot application"
     echo "2. Monitor the application logs"
     echo "3. Use the test scripts to verify message flow"
-    echo "4. Run Firehose integration tests: ./test/validate-firehose-integration.sh"
-    echo -e "\nTo stop the environment, run: ${YELLOW}./stop-local-kafka.sh${NC}"
-    echo -e "To stop LocalStack, run: ${YELLOW}docker-compose -f docker-compose-localstack.yml down${NC}"
+    echo "4. Run Firehose integration tests: cd $SCRIPTS_DIR && ./test/validate-firehose-integration.sh"
+    echo -e "\nTo stop the environment, run: ${YELLOW}cd $SCRIPT_DIR && ./stop-local-kafka.sh${NC}"
+    echo -e "To stop LocalStack, run: ${YELLOW}cd $SCRIPT_DIR && docker-compose -f docker-compose-localstack.yml down${NC}"
 }
 
 # Run main function
-main 
+main
+

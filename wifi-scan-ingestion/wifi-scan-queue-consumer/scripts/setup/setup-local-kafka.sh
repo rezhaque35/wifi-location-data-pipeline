@@ -5,6 +5,37 @@
 
 set -e  # Exit on any error
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the parent scripts directory
+SCRIPTS_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Parse command line arguments
+FORCE_REGENERATE_CERTS=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --force-certs)
+            FORCE_REGENERATE_CERTS=true
+            shift
+            ;;
+        --help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "🚀 Setting up Local Kafka SSL Development Environment"
+            echo ""
+            echo "Options:"
+            echo "  --force-certs    Force regenerate SSL certificates (requires service restart)"
+            echo "  --help           Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 echo "🚀 Setting up Local Kafka SSL Development Environment..."
 
 # Define colors for output
@@ -72,7 +103,8 @@ check_prerequisites() {
 create_directories() {
     print_status "Creating directory structure..."
     
-    # Create kafka secrets directory
+    # Create kafka secrets directory in parent scripts directory
+    cd "$SCRIPTS_DIR"
     mkdir -p kafka/secrets
     
     print_success "Directory structure created!"
@@ -80,7 +112,10 @@ create_directories() {
 
 # Function to create Docker Compose file
 create_docker_compose() {
-    print_status "Creating Docker Compose configuration..."
+    print_status "Creating Docker Compose configuration in setup directory..."
+    
+    # Create in setup directory
+    cd "$SCRIPT_DIR"
     
     cat > docker-compose.yml << 'EOF'
 version: '3.8'
@@ -108,7 +143,7 @@ services:
       - "9092:9092"
       - "9093:9093"
     volumes:
-      - ./kafka/secrets:/etc/kafka/secrets
+      - ../kafka/secrets:/etc/kafka/secrets
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
@@ -146,24 +181,34 @@ main() {
     echo "🔧 Kafka SSL Local Development Setup"
     echo "======================================"
     
+    print_status "Setup script directory: $SCRIPT_DIR"
+    print_status "Scripts directory: $SCRIPTS_DIR"
+    
     check_prerequisites
     create_directories
     create_docker_compose
     
     # Generate SSL certificates
-    print_status "Generating SSL certificates..."
-    ./generate-ssl-certs.sh
+    print_status "Configuring SSL certificates..."
+    cd "$SCRIPT_DIR"
+    if [ "$FORCE_REGENERATE_CERTS" = true ]; then
+        print_status "Force regeneration requested..."
+        ./generate-ssl-certs.sh --force
+    else
+        ./generate-ssl-certs.sh
+    fi
     
     print_success "Local Kafka SSL environment setup completed!"
     echo ""
     echo "Next steps:"
-    echo "1. Start Kafka: ./start-local-kafka.sh"
-    echo "2. Test SSL: ./setup/test-ssl-connection.sh"
-    echo "3. Create topic: ./setup/create-test-topic.sh"
-    echo "4. Send message: ./test/send-test-message.sh 'Hello SSL!'"
-    echo "5. Consume messages: ./setup/consume-test-messages.sh"
+    echo "1. Start Kafka: cd $SCRIPT_DIR && ./start-local-kafka.sh"
+    echo "2. Test SSL: cd $SCRIPT_DIR && ./test-ssl-connection.sh"
+    echo "3. Create topic: cd $SCRIPT_DIR && ./create-test-topic.sh"
+    echo "4. Send message: cd $SCRIPTS_DIR && ./test/send-test-message.sh 'Hello SSL!'"
+    echo "5. Consume messages: cd $SCRIPT_DIR && ./consume-test-messages.sh"
     echo ""
 }
 
 # Run main function
-main "$@" 
+main "$@"
+

@@ -1,0 +1,25 @@
+{
+  "wifiScanResults": [
+    {
+      "macAddress": "aa:bb:cc:dd:ee:ff",
+      "signalStrength": -65.4,
+      "frequency": 2437,
+      "ssid": "DebugTestNetwork",
+      "linkSpeed": 866,
+      "channelWidth": 80
+    },
+    {
+      "macAddress": "11:22:33:44:55:66",
+      "signalStrength": -72.1,
+      "frequency": 5180,
+      "ssid": "TroubleshootAP",
+      "linkSpeed": 1200,
+      "channelWidth": 160
+    }
+  ],
+  "client": "debug-test-client",
+  "requestId": "debug-req-12345",
+  "application": "troubleshooting-suite",
+  "calculationDetail": true
+}
+

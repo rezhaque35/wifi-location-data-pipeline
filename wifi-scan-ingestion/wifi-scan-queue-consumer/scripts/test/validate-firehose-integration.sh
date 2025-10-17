@@ -247,7 +247,7 @@ wait_for_processing() {
             
             # Send a few messages to wake up the service
             print_info "Sending 3 recovery messages to wake up the consumer..."
-            if ./send-wifi-scan-messages.sh --count 3 --interval 1 > /dev/null 2>&1; then
+            if ./send-generated-wifi-scan-messages.sh --count 3 --interval 1 > /dev/null 2>&1; then
                 print_info "Recovery messages sent successfully"
                 
                 # Wait for health to recover
@@ -417,7 +417,7 @@ wait_for_processing() {
             
             # Send a few messages to wake up the service
             print_info "Sending 3 recovery messages to wake up the consumer..."
-            if ./send-wifi-scan-messages.sh --count 3 --interval 1 > /dev/null 2>&1; then
+            if ./send-generated-wifi-scan-messages.sh --count 3 --interval 1 > /dev/null 2>&1; then
                 print_info "Recovery messages sent successfully"
                 
                 # Wait for health to recover

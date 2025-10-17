@@ -130,8 +130,8 @@ bc --version              # Should show bc version (for calculations)
 
 ### Quick SSL Setup (Recommended)
 ```bash
-# Navigate to scripts directory
-cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
+# Navigate to setup directory
+cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts/setup
 
 # Generate SSL certificates (takes ~30 seconds)
 ./generate-ssl-certs.sh
@@ -143,6 +143,8 @@ This script will:
 - ✅ **Automatically copy keystore/truststore to test resources**
 - ✅ Set up proper file permissions
 - ✅ Validate certificate generation
+
+**✨ Smart Behavior**: The script automatically detects if certificates already exist and **skips regeneration** to avoid disrupting your running services. Use `--force` flag only when you need to regenerate (requires service restart).
 
 ### What Gets Created
 ```
@@ -192,7 +194,7 @@ rm -rf src/test/resources/secrets/*.p12
 ./scripts/generate-ssl-certs.sh
 
 # Verify SSL setup worked
-./scripts/test/test-ssl-connection.sh
+./scripts/setup/test-ssl-connection.sh
 ```
 
 ### ✅ SSL Setup Complete!
@@ -202,15 +204,16 @@ Once you see the success message "✅ Keystore and truststore files have been au
 
 ### Option 1: Automated Setup (Recommended)
 ```bash
-# Navigate to scripts directory
-cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
+# Navigate to setup scripts directory
+cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts/setup
 
 # Run the complete setup script (handles everything automatically)
 ./setup.sh
 ```
 
 This script will:
-- ✅ Check all prerequisites
+- ✅ Check all prerequisites (Docker, Java, Maven, etc.)
+- ✅ **Auto-install Docker Compose** via Homebrew if needed
 - ✅ **Generate SSL certificates** (if not already done)
 - ✅ Set up the Kafka environment with SSL
 - ✅ Start Kafka cluster
@@ -220,38 +223,39 @@ This script will:
 - ✅ Set up AWS infrastructure (LocalStack)
 - ✅ Provide clear next steps
 
-**💡 Note**: If you're setting up for the first time, the script will automatically run `./generate-ssl-certs.sh` to create the required SSL certificates.
+**💡 Note**: The script uses intelligent path resolution and can find the `kafka/` directory regardless of where it's run from.
 
 ### Option 2: Manual Setup
 ```bash
-# Navigate to scripts directory
-cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
+# Navigate to setup directory
+cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts/setup
 
 # Make scripts executable
 chmod +x *.sh
-chmod +x test/*.sh
+chmod +x ../test/*.sh
 
 # Generate SSL certificates (required for first-time setup)
 ./generate-ssl-certs.sh
 
-# Set up Kafka environment
+# Set up Kafka environment  
 ./setup-local-kafka.sh
 
-# Start Kafka cluster
+# Start Kafka cluster (from parent scripts directory)
+cd ..
 ./start-local-kafka.sh
 
 # Test the setup
-./test/test-ssl-connection.sh
-./test/create-test-topic.sh
+./setup/test-ssl-connection.sh
+./setup/create-test-topic.sh
 ./test/send-test-message.sh "Hello SSL Kafka!"
-./test/consume-test-messages.sh
+./setup/consume-test-messages.sh
 ```
 
 ### Option 3: Test with WiFi Scan Data
 ```bash
 # After basic setup, test with realistic WiFi data
-./test/send-wifi-scan-messages.sh --count 5 --interval 1
-./test/consume-test-messages.sh wifi-scan-data
+./test/send-generated-wifi-scan-messages.sh --count 5 --interval 1
+./setup/consume-test-messages.sh wifi-scan-data
 ```
 
 ### 4. Run Integration Tests
@@ -608,25 +612,27 @@ Tests use the `test` profile with:
 ```
 wifi-scan-queue-consumer/
 ├── scripts/
-│   ├── setup.sh                           # ⭐ Complete automated setup
-│   ├── setup-local-kafka.sh              # Kafka environment setup
-│   ├── setup-aws-infrastructure.sh       # AWS infrastructure setup
-│   ├── start-local-kafka.sh              # Start Kafka cluster
-│   ├── stop-local-kafka.sh               # Stop and cleanup
-│   ├── cleanup.sh                        # Complete infrastructure cleanup
-│   ├── generate-ssl-certs.sh             # SSL certificate generation
-│   ├── docker-compose.yml                # Docker configuration
-│   ├── test/                             # Test scripts directory
+│   ├── setup/                            # 🆕 Setup scripts directory
+│   │   ├── setup.sh                      # ⭐ Complete automated setup
+│   │   ├── setup-local-kafka.sh         # Kafka environment setup
+│   │   ├── setup-aws-infrastructure.sh  # AWS infrastructure setup
+│   │   ├── generate-ssl-certs.sh        # SSL certificate generation
+│   │   ├── start-local-kafka.sh         # Start Kafka cluster
+│   │   ├── stop-local-kafka.sh          # Stop and cleanup
+│   │   ├── cleanup.sh                   # Complete infrastructure cleanup
+│   │   ├── test-ssl-connection.sh        # 🔐 SSL connectivity test (moved from test/)
+│   │   ├── create-test-topic.sh          # 📝 Topic creation (moved from test/)
+│   │   ├── consume-test-messages.sh      # 📨 Message consumer (moved from test/)
+│   │   ├── docker-compose.yml           # 🆕 Kafka Docker config (generated)
+│   │   └── docker-compose-localstack.yml # 🆕 LocalStack Docker config (generated)
+│   ├── test/                            # Test scripts directory
 │   │   ├── run-test-suite.sh             # Comprehensive test suite
-│   │   ├── test-ssl-connection.sh        # SSL connectivity test
-│   │   ├── create-test-topic.sh          # Topic creation
 │   │   ├── send-test-message.sh          # Simple message sender
-│   │   ├── send-wifi-scan-messages.sh    # 📡 WiFi scan data generator
+│   │   ├── send-generated-wifi-scan-messages.sh    # 📡 WiFi scan data generator
 │   │   ├── validate-service-health.sh    # 🔍 End-to-end service validation
 │   │   ├── validate-firehose-integration.sh # Firehose integration testing
 │   │   ├── validate-wifi-scan-endpoint.sh # WiFi scan endpoint testing
-│   │   ├── test-wifi-scan-endpoint.sh    # WiFi scan endpoint testing
-│   │   └── consume-test-messages.sh      # Message consumer
+│   │   └── test-wifi-scan-endpoint.sh    # WiFi scan endpoint testing
 │   └── kafka/                            # Generated during setup
 │       └── secrets/
 │           ├── kafka.keystore.p12        # SSL keystore
@@ -642,29 +648,124 @@ wifi-scan-queue-consumer/
 
 ### Core Setup Scripts
 
+🆕 **All setup scripts have been moved to `scripts/setup/` directory for better organization. They can be run from any location and will automatically handle path resolution.**
+
+#### 📁 Script Organization Update
+
+**🔄 Recent Reorganization**: Scripts have been reorganized for better logical grouping:
+
+- **Setup Utility Scripts** (moved from `test/` to `setup/`):
+  - `test-ssl-connection.sh` - SSL connectivity validation
+  - `create-test-topic.sh` - Kafka topic creation
+  - `consume-test-messages.sh` - Message consumption utilities
+
+- **Comprehensive Test Scripts** (remain in `test/`):
+  - `run-test-suite.sh` - Complete test suite with 13 scenarios
+  - `validate-service-health.sh` - End-to-end service validation
+  - `validate-firehose-integration.sh` - AWS Firehose integration testing
+  - `send-generated-wifi-scan-messages.sh` - Realistic WiFi data generation
+
+**🎯 Rationale**: Scripts used primarily by setup processes are now grouped with setup utilities, while comprehensive testing scripts remain in the test directory. This improves maintainability and makes the script structure more intuitive.
+
 | Script | Purpose | Usage | Parameters | Duration |
 |--------|---------|--------|------------|----------|
-| `setup.sh` | **Complete automated setup** | `./setup.sh` | None | ~3-5 min |
-| `setup-local-kafka.sh` | Kafka environment setup only | `./setup-local-kafka.sh` | None | ~2-3 min |
-| `setup-aws-infrastructure.sh` | AWS infrastructure setup | `./setup-aws-infrastructure.sh` | None | ~2-3 min |
-| `generate-ssl-certs.sh` | Generate SSL certificates | `./generate-ssl-certs.sh` | None | ~30 sec |
-| `start-local-kafka.sh` | Start Kafka cluster | `./start-local-kafka.sh` | None | ~30 sec |
-| `stop-local-kafka.sh` | Stop and cleanup | `./stop-local-kafka.sh` | None | ~15 sec |
-| `cleanup.sh` | Complete infrastructure cleanup | `./cleanup.sh` | None | ~1-2 min |
+| `setup/setup.sh` | **Complete automated setup** | `cd scripts/setup && ./setup.sh` | `--force-certs` | ~3-5 min |
+| `setup/setup-local-kafka.sh` | Kafka environment setup only | `cd scripts/setup && ./setup-local-kafka.sh` | `--force-certs` | ~2-3 min |
+| `setup/setup-aws-infrastructure.sh` | AWS infrastructure setup | `cd scripts/setup && ./setup-aws-infrastructure.sh` | None | ~2-3 min |
+| `setup/generate-ssl-certs.sh` | Generate/manage SSL certificates | `cd scripts/setup && ./generate-ssl-certs.sh` | `--force` | ~30 sec |
+| `setup/start-local-kafka.sh` | Start Kafka cluster | `cd scripts/setup && ./start-local-kafka.sh` | None | ~30 sec |
+| `setup/stop-local-kafka.sh` | Stop Kafka cluster | `cd scripts/setup && ./stop-local-kafka.sh` | `--force` | ~15 sec |
+| `setup/cleanup.sh` | Complete infrastructure cleanup | `cd scripts/setup && ./cleanup.sh` | `--no-docker`, `--no-aws` | ~1-2 min |
+
+**Key Benefits:**
+- ✅ **Path-independent**: Run from `scripts/setup/` directory without path issues
+- ✅ **Automatic path resolution**: Scripts find `kafka/` directory in parent `scripts/` dir
+- ✅ **Better organization**: Setup scripts separated from operational scripts
+- ✅ **Smart SSL management**: Certificates are only generated once, reused on subsequent runs
+- ✅ **Service continuity**: Re-running setup won't require application restarts (unless `--force-certs` used)
+
+### 🔐 SSL Certificate Management
+
+The setup scripts now include **intelligent SSL certificate management** that prevents service disruptions:
+
+#### Default Behavior (Smart Mode)
+```bash
+cd scripts/setup
+./setup.sh                    # Skips cert generation if they exist
+./setup-local-kafka.sh        # Skips cert generation if they exist
+./generate-ssl-certs.sh       # Skips if certificates exist
+```
+
+**What happens:**
+- ✅ Checks if SSL certificates already exist
+- ✅ If found, reuses existing certificates (no regeneration)
+- ✅ **No service restart required** - your running application continues working
+- ✅ Perfect for re-running setup scripts multiple times during development
+
+#### Force Regeneration Mode
+```bash
+cd scripts/setup
+./setup.sh --force-certs              # Forces new certificate generation
+./setup-local-kafka.sh --force-certs  # Forces new certificate generation
+./generate-ssl-certs.sh --force       # Forces new certificate generation
+```
+
+**What happens:**
+- ⚠️ Regenerates SSL certificates even if they exist
+- ⚠️ **Requires Spring Boot application restart** after completion
+- ✅ Use when certificates expire or need to be refreshed
+
+#### Why This Matters
+
+**Problem it solves:**
+- When SSL certificates are regenerated, Kafka loads the new certificates
+- Your running Spring Boot application still has old certificates in memory
+- This causes `SSLHandshakeException: Path does not chain with any of the trust anchors`
+
+**Solution:**
+- Certificates are generated once and reused
+- Re-running setup scripts won't disrupt your running services
+- Explicit `--force-certs` flag when you intentionally want to regenerate (with awareness of restart requirement)
+
+#### Certificate Locations
+```
+scripts/
+├── kafka/
+│   └── secrets/                      # Used by Kafka broker (Docker volume)
+│       ├── kafka.keystore.p12
+│       ├── kafka.truststore.p12
+│       └── *_creds files
+└── ../src/test/resources/secrets/    # Used by Spring Boot application
+    ├── kafka.keystore.p12
+    └── kafka.truststore.p12
+```
+
+**Note:** Both locations are kept in sync automatically by `generate-ssl-certs.sh`
 
 ### Testing Scripts
 
 | Script | Purpose | Usage | Parameters | Use Case |
 |--------|---------|--------|------------|----------|
 | `test/run-test-suite.sh` | **🎯 Comprehensive test suite (13 scenarios)** | `./test/run-test-suite.sh [options]` | --skip-cleanup, --backup-old-data, --verbose | **Complete service validation** |
-| `test/test-ssl-connection.sh` | Validate SSL connectivity | `./test/test-ssl-connection.sh` | None | SSL verification |
-| `test/create-test-topic.sh` | Create test topic | `./test/create-test-topic.sh [topic-name]` | Optional: topic name | Topic management |
 | `test/send-test-message.sh` | Send simple text messages | `./test/send-test-message.sh "message" [topic-name]` | Required: message, Optional: topic | Basic testing |
-| `test/send-wifi-scan-messages.sh` | **Send realistic WiFi scan data** | `./test/send-wifi-scan-messages.sh [options]` | --count, --interval, --topic, --ssl | **Positioning service testing** |
+| `test/send-generated-wifi-scan-messages.sh` | **📡 Send generated WiFi scan data** | `./test/send-generated-wifi-scan-messages.sh [options]` | --count, --interval, --topic, --ssl | **Load/performance testing** |
+| `test/send-file-wifi-scan-messages.sh` | **📄 Send WiFi scan data from file** | `./test/send-file-wifi-scan-messages.sh --file FILE [options]` | --file (required), --interval, --topic, --ssl | **Bug reproduction/troubleshooting** |
 | `test/validate-service-health.sh` | **End-to-end service validation** | `./test/validate-service-health.sh [options]` | --count, --interval, --timeout, --verbose | **Complete service validation** |
 | `test/validate-firehose-integration.sh` | **Firehose integration testing** | `./test/validate-firehose-integration.sh [options]` | --count, --interval, --timeout, --verbose | **AWS integration testing** |
 | `test/validate-wifi-scan-endpoint.sh` | **WiFi scan endpoint testing** | `./test/validate-wifi-scan-endpoint.sh [options]` | --count, --interval, --timeout, --verbose | **Endpoint validation** |
-| `test/consume-test-messages.sh` | Consume messages | `./test/consume-test-messages.sh [topic-name]` | Optional: topic name | Message verification |
+| `test/test-wifi-scan-endpoint.sh` | WiFi scan endpoint testing | `./test/test-wifi-scan-endpoint.sh [options]` | --count, --interval, --timeout, --verbose | **Endpoint validation** |
+
+### Setup Utility Scripts
+
+**🆕 Scripts moved from `test/` to `setup/` directory for better organization:**
+
+| Script | Purpose | Usage | Parameters | Use Case |
+|--------|---------|--------|------------|----------|
+| `setup/test-ssl-connection.sh` | Validate SSL connectivity | `./setup/test-ssl-connection.sh` | None | SSL verification |
+| `setup/create-test-topic.sh` | Create test topic | `./setup/create-test-topic.sh [topic-name]` | Optional: topic name | Topic management |
+| `setup/consume-test-messages.sh` | Consume messages | `./setup/consume-test-messages.sh [topic-name]` | Optional: topic name | Message verification |
+
+**📝 Note**: These scripts were moved because they are primarily used by setup scripts and provide infrastructure utilities rather than comprehensive testing functionality.
 
 ### 🎯 Comprehensive Test Suite (`run-test-suite.sh`)
 
@@ -715,50 +816,275 @@ The `run-test-suite.sh` script is the **flagship testing tool** that validates t
 7. **🌐 API Functionality**: REST endpoint validation
 8. **📈 Observability**: Logging and monitoring capabilities
 
-### WiFi Scan Message Generator
+### WiFi Scan Message Generator Scripts
 
-The `test/send-wifi-scan-messages.sh` script is a specialized tool that generates realistic WiFi scan data messages for testing the positioning service. This script creates messages that exactly match the `WifiPositioningRequest` format used by the WiFi positioning service.
+#### 📡 Generated Messages: `send-generated-wifi-scan-messages.sh`
+
+The `test/send-generated-wifi-scan-messages.sh` script is a specialized tool that generates realistic WiFi scan data messages for testing the positioning service. This script creates messages that exactly match the `WifiPositioningRequest` format used by the WiFi positioning service.
+
+#### 📄 File-Based Messages: `send-file-wifi-scan-messages.sh`
+
+The `test/send-file-wifi-scan-messages.sh` script sends WiFi scan messages from files, perfect for troubleshooting, bug reproduction, and testing specific scenarios. It supports multiple file formats and reads configuration from `application.yml` just like the generator script.
 
 #### 🎯 Key Features
 
 - **📡 Realistic Data Generation**: Creates valid MAC addresses, signal strengths (-30 to -100 dBm), and frequencies
 - **📶 Multiple Frequency Bands**: Supports both 2.4GHz (2412-2472 MHz) and 5GHz (5180-5825 MHz) bands
 - **🔢 Variable Scan Results**: Each message contains 1-5 scan results per positioning request
-- **⚙️ Highly Configurable**: Count, interval, topic, SSL, and message structure options
+- **⚙️ Configuration from application.yml**: Automatically reads Kafka broker, topic, and SSL settings from `application.yml` to ensure consistency with the service
+- **🔄 Single Source of Truth**: Eliminates configuration drift by using the same configuration as the Spring Boot application
 - **📋 JSON Format**: Generates properly formatted JSON messages for the positioning service
 - **🔄 Continuous Streaming**: Can generate continuous message streams for load testing
+- **🎛️ Override Support**: Allows command-line overrides for testing different configurations
 
 #### 📖 Usage Examples
 
 ```bash
-# Basic usage - Send 10 messages every 2 seconds (default)
-./test/send-wifi-scan-messages.sh
+# Basic usage - Uses configuration from application.yml, sends 10 messages
+./test/send-generated-wifi-scan-messages.sh
 
-# Quick test - Send 5 messages every 1 second
-./test/send-wifi-scan-messages.sh --count 5 --interval 1
+# Quick test - Send 5 messages every 1 second (uses application.yml for broker/topic)
+./test/send-generated-wifi-scan-messages.sh --count 5 --interval 1
 
 # Load testing - Send 100 messages rapidly
-./test/send-wifi-scan-messages.sh --count 100 --interval 0.1
+./test/send-generated-wifi-scan-messages.sh --count 100 --interval 0.1
 
-# SSL testing with custom topic
-./test/send-wifi-scan-messages.sh --count 20 --topic wifi-positioning-test --ssl
+# Override topic from application.yml (not recommended - causes warning)
+./test/send-generated-wifi-scan-messages.sh --count 20 --topic wifi-positioning-test
+
+# Force plaintext connection (overrides SSL setting from application.yml)
+./test/send-generated-wifi-scan-messages.sh --count 20 --no-ssl
 
 # High-frequency continuous stream for stress testing
-./test/send-wifi-scan-messages.sh --count 1000 --interval 0.05
+./test/send-generated-wifi-scan-messages.sh --count 1000 --interval 0.05
 
 # Production-like testing with realistic intervals
-./test/send-wifi-scan-messages.sh --count 50 --interval 2 --topic wifi-scan-data
+./test/send-generated-wifi-scan-messages.sh --count 50 --interval 2
+```
+
+#### 🔧 Configuration Source
+
+The script automatically reads the following from `src/main/resources/application.yml`:
+- **Bootstrap Servers** (`kafka.bootstrap-servers`)
+- **Topic Name** (`kafka.topic.name`)
+- **SSL Enabled** (`kafka.ssl.enabled`)
+- **SSL Keystore/Truststore** locations and passwords
+
+This ensures messages are **always sent to the same broker and topic** that your Spring Boot service is consuming from, eliminating configuration drift.
+
+---
+
+### 📄 File-Based Message Sender (`send-file-wifi-scan-messages.sh`)
+
+#### 🎯 Purpose
+
+Perfect for **developer troubleshooting** and **bug reproduction**. Send specific WiFi scan messages from files to test exact scenarios, reproduce production issues, or validate edge cases.
+
+#### 📋 Supported File Formats
+
+1. **Single JSON Object** - Send one message
+   ```json
+   {
+     "wifiScanResults": [...],
+     "client": "debug-client",
+     "requestId": "test-001"
+   }
+   ```
+
+2. **JSON Array** - Send multiple messages
+   ```json
+   [
+     {"wifiScanResults": [...], "client": "test-1"},
+     {"wifiScanResults": [...], "client": "test-2"}
+   ]
+   ```
+
+3. **JSONL (Newline-Delimited JSON)** - Send messages from log files
+   ```
+   {"wifiScanResults": [...], "client": "test-1"}
+   {"wifiScanResults": [...], "client": "test-2"}
+   ```
+
+#### 📖 Usage Examples
+
+```bash
+# Send single debug message once
+./test/send-file-wifi-scan-messages.sh --file samples/single-message.json
+
+# Send same message 5 times for load testing
+./test/send-file-wifi-scan-messages.sh --file samples/single-message.json --count 5
+
+# Send multiple test cases with 1s interval
+./test/send-file-wifi-scan-messages.sh --file samples/multiple-messages.json --interval 1
+
+# Repeat array 3 times (each element sent 3 times)
+./test/send-file-wifi-scan-messages.sh --file samples/multiple-messages.json --count 3
+
+# Reproduce bug from production logs (JSONL format)
+./test/send-file-wifi-scan-messages.sh --file bug-reproduction.jsonl
+
+# Replay production logs 10 times for stress testing
+./test/send-file-wifi-scan-messages.sh --file production-issue.jsonl --count 10
+
+# Send to custom topic for isolated testing
+./test/send-file-wifi-scan-messages.sh --file debug-case.json --topic debug-topic
 ```
 
 #### 📋 Command Line Options
 
 | Option | Description | Default | Example |
 |--------|-------------|---------|---------|
+| `--file FILE` | JSON file with WiFi scan messages (required) | - | `--file test.json` |
+| `--count N` | Number of times to repeat message(s) from file | 1 | `--count 5` |
+| `--interval SECONDS` | Interval between messages | 2 | `--interval 1` |
+| `--topic TOPIC` | Override topic from application.yml | From application.yml | `--topic debug` |
+| `--ssl` | Force SSL connection | From application.yml | `--ssl` |
+| `--no-ssl` | Force plaintext connection | From application.yml | `--no-ssl` |
+| `--help` | Show help message | - | `--help` |
+
+#### 🔧 Sample Files Included
+
+The script comes with sample files in `scripts/test/samples/`:
+
+**`single-message.json`**
+- **Format**: Single JSON object
+- **Messages**: 1
+- **Use Case**: Quick debug testing, single message reproduction
+```bash
+./test/send-file-wifi-scan-messages.sh --file samples/single-message.json
+./test/send-file-wifi-scan-messages.sh --file samples/single-message.json --count 10  # Send 10 times
+```
+
+**`multiple-messages.json`**
+- **Format**: JSON array
+- **Messages**: 3
+- **Use Case**: Multiple test scenarios, batch testing
+```bash
+./test/send-file-wifi-scan-messages.sh --file samples/multiple-messages.json --interval 1
+./test/send-file-wifi-scan-messages.sh --file samples/multiple-messages.json --count 5  # Each element sent 5 times
+```
+
+**`bug-reproduction.jsonl`**
+- **Format**: JSONL (newline-delimited JSON)
+- **Messages**: 2 valid + 1 invalid (for testing error handling)
+- **Use Case**: Production log replay, bug reproduction from log files
+```bash
+./test/send-file-wifi-scan-messages.sh --file samples/bug-reproduction.jsonl
+./test/send-file-wifi-scan-messages.sh --file samples/bug-reproduction.jsonl --count 3  # Replay 3 times
+```
+
+#### 💡 Use Cases
+
+- **🐛 Bug Reproduction**: Save problematic messages from logs and replay them multiple times
+- **🧪 Edge Case Testing**: Test specific signal strengths, frequencies, or configurations
+- **📊 Integration Testing**: Send predefined test scenarios with configurable repetition
+- **🔍 Debugging**: Isolate and test specific message formats
+- **📝 Documentation**: Create reproducible test cases
+- **⚡ Load Testing**: Repeat messages from file to test performance under load
+- **🔄 Stress Testing**: Send production-like message patterns repeatedly
+
+#### 🔧 Creating Your Own Test Files
+
+**Single JSON Object**
+```json
+{
+  "wifiScanResults": [
+    {
+      "macAddress": "aa:bb:cc:dd:ee:ff",
+      "signalStrength": -65.4,
+      "frequency": 2437,
+      "ssid": "TestNetwork",
+      "linkSpeed": 866,
+      "channelWidth": 80
+    }
+  ],
+  "client": "your-test-client",
+  "requestId": "test-001",
+  "application": "debugging",
+  "calculationDetail": true
+}
+```
+
+**JSON Array (Multiple Messages)**
+```json
+[
+  {
+    "wifiScanResults": [...],
+    "client": "test-1",
+    "requestId": "req-001"
+  },
+  {
+    "wifiScanResults": [...],
+    "client": "test-2",
+    "requestId": "req-002"
+  }
+]
+```
+
+**JSONL Format (From Logs)**
+```
+{"wifiScanResults":[...],"client":"prod-1","requestId":"req-001"}
+{"wifiScanResults":[...],"client":"prod-2","requestId":"req-002"}
+```
+
+#### 💡 Tips & Best Practices
+
+1. **Extract from Production Logs**: Use `grep` or `jq` to extract messages from logs
+   ```bash
+   grep "WifiPositioningRequest" app.log | jq -c . > production-issue.jsonl
+   ```
+
+2. **Validate JSON**: Always validate your JSON before sending
+   ```bash
+   jq empty your-file.json  # Will show errors if invalid
+   ```
+
+3. **Test Locally First**: Use `--topic test-topic` to avoid affecting production data
+   ```bash
+   ./test/send-file-wifi-scan-messages.sh --file test.json --topic test-debug
+   ```
+
+4. **Monitor Service**: Check metrics after sending
+   ```bash
+   curl http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/api/metrics/kafka
+   ```
+
+#### 🐛 Bug Reproduction Workflow
+
+1. **Identify Issue**: Find problematic message in logs
+2. **Extract Message**: Save to JSON file
+3. **Validate Format**: Check with `jq empty file.json`
+4. **Send to Test Topic**: Use `--topic debug-topic`
+5. **Monitor Service**: Check logs and metrics
+6. **Repeat if Needed**: Use `--count N` to reproduce intermittent issues
+7. **Fix & Verify**: Apply fix and replay message
+
+---
+
+### 📊 Comparison: Generated vs File-Based
+
+| Feature | Generated Messages | File-Based Messages |
+|---------|-------------------|---------------------|
+| **Use Case** | General testing, load testing | Troubleshooting, bug reproduction |
+| **Data Source** | Random generation | File (JSON/JSONL) |
+| **Reproducibility** | Different each time | Exact same messages |
+| **Best For** | Performance testing | Debugging specific issues |
+| **Configuration** | From application.yml | From application.yml |
+
+---
+
+#### 📋 Command Line Options (Generated Messages)
+
+| Option | Description | Default | Example |
+|--------|-------------|---------|---------|
 | `--count N` | Number of messages to send | 10 | `--count 50` |
 | `--interval SECONDS` | Interval between messages | 2 | `--interval 1.5` |
-| `--topic TOPIC` | Target Kafka topic | wifi-scan-data | `--topic my-topic` |
-| `--ssl` | Use SSL connection | false | `--ssl` |
+| `--topic TOPIC` | Override topic from application.yml | From application.yml | `--topic my-topic` |
+| `--ssl` | Force SSL connection | From application.yml | `--ssl` |
+| `--no-ssl` | Force plaintext connection | From application.yml | `--no-ssl` |
 | `--help` | Show help message | - | `--help` |
+
+**Note**: The script reads Kafka configuration from `application.yml` by default. Command-line flags override these settings and display a warning to indicate the override.
 
 #### 📄 Sample Generated Message
 
@@ -803,7 +1129,7 @@ The `test/validate-service-health.sh` script provides comprehensive end-to-end v
 
 #### 🎯 Key Features
 
-- **📨 Automated Message Generation**: Uses `send-wifi-scan-messages.sh` to generate realistic test data
+- **📨 Automated Message Generation**: Uses `send-generated-wifi-scan-messages.sh` to generate realistic test data
 - **🔍 Real-time Health Monitoring**: Monitors overall health, readiness, and liveness endpoints
 - **📊 Message Count Tracking**: Tracks message consumption through service metrics
 - **⏱️ Configurable Timeouts**: Customizable validation timeouts and intervals
@@ -859,10 +1185,10 @@ cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
 ./start-local-kafka.sh
 
 # 2. Verify connectivity
-./test/test-ssl-connection.sh
+./setup/test-ssl-connection.sh
 
 # 3. Create topic for your work (if needed)
-./test/create-test-topic.sh my-dev-topic
+./setup/create-test-topic.sh my-dev-topic
 ```
 
 **💡 Note**: SSL certificate generation is only needed once. On subsequent runs, you can skip step 0.
@@ -871,18 +1197,18 @@ cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
 ```bash
 # Simple text message testing
 ./test/send-test-message.sh "Debug message" my-dev-topic
-./test/consume-test-messages.sh my-dev-topic
+./setup/consume-test-messages.sh my-dev-topic
 
 # WiFi scan data testing (realistic data)
-./test/send-wifi-scan-messages.sh --count 5 --topic my-dev-topic
-./test/consume-test-messages.sh my-dev-topic
+./test/send-generated-wifi-scan-messages.sh --count 5 --topic my-dev-topic
+./setup/consume-test-messages.sh my-dev-topic
 
 # End-to-end service validation (recommended)
 ./test/validate-service-health.sh --count 10 --verbose
 
 # SSL testing
-./test/send-wifi-scan-messages.sh --count 3 --ssl
-./test/consume-test-messages.sh wifi-scan-data --ssl
+./test/send-generated-wifi-scan-messages.sh --count 3 --ssl
+./setup/consume-test-messages.sh wifi-scan-data --ssl
 ```
 
 #### 🔧 Development with Spring Boot Application
@@ -891,7 +1217,7 @@ cd wifi-scan-ingestion/wifi-scan-queue-consumer/scripts
 ./start-local-kafka.sh
 
 # 2. Generate test data
-./test/send-wifi-scan-messages.sh --count 10 --interval 2
+./test/send-generated-wifi-scan-messages.sh --count 10 --interval 2
 
 # 3. Start your Spring Boot application
 cd ../
@@ -905,7 +1231,7 @@ curl http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/health
 #### 🔄 Continuous Testing
 ```bash
 # Terminal 1: Start continuous message generation
-./test/send-wifi-scan-messages.sh --count 1000 --interval 1
+./test/send-generated-wifi-scan-messages.sh --count 1000 --interval 1
 
 # Terminal 2: Monitor Spring Boot application
 cd ../ && mvn spring-boot:run
@@ -1254,45 +1580,91 @@ docker system prune -f
 ```
 
 #### 3. 🔐 SSL/TLS Issues
-**Problem**: SSL handshake failures or missing certificates
+
+##### A. SSL Handshake Failure - Certificate Mismatch
+**Problem**: `SSLHandshakeException: Path does not chain with any of the trust anchors`
 **Symptoms**:
-- `SSL handshake failed`
+- Application was working, then SSL handshake errors appear
+- Error after running setup scripts
+- `org.apache.kafka.common.errors.SslAuthenticationException`
+- `javax.net.ssl.SSLHandshakeException: PKIX path validation failed`
+
+**Root Cause**:
+- SSL certificates were regenerated while your Spring Boot application was running
+- Kafka broker has new certificates, but your application has old ones in memory
+
+**Solutions**:
+1. **✅ Best Practice**: Re-run setup without regenerating certificates:
+   ```bash
+   cd scripts/setup
+   ./setup.sh              # Skips cert generation if they exist
+   ```
+   This won't cause SSL issues because certificates aren't regenerated.
+
+2. **If you must regenerate certificates**:
+   ```bash
+   cd scripts/setup
+   ./setup.sh --force-certs    # Regenerates certificates
+   ```
+   **⚠️ Important**: Restart your Spring Boot application after this!
+
+3. **Quick fix**: Just restart your Spring Boot application
+   - It will reload the certificates from disk
+   - Application will sync with Kafka's certificates
+
+##### B. Missing SSL Certificates
+**Problem**: Certificates don't exist
+**Symptoms**:
 - `Certificate not found`
-- `javax.net.ssl.SSLHandshakeException`
-- `Unit tests failing with SSL errors`
 - `FileNotFoundException: kafka.keystore.p12`
+- `Unit tests failing with SSL errors`
+
 **Solutions**:
 1. **First-time setup**: Generate SSL certificates:
    ```bash
-   cd scripts && ./generate-ssl-certs.sh
+   cd scripts/setup
+   ./generate-ssl-certs.sh
    ```
-2. **Verify test resources**: Check if certificates are in test resources:
+
+2. **Verify certificates exist**:
    ```bash
+   ls -la scripts/kafka/secrets/
+   # Should show: kafka.keystore.p12 and kafka.truststore.p12
+   
    ls -la src/test/resources/secrets/
    # Should show: kafka.keystore.p12 and kafka.truststore.p12
    ```
-3. **Regenerate certificates** (if corrupted or expired):
+
+3. **If certificates are corrupted**, regenerate them:
    ```bash
-   rm -rf scripts/kafka/secrets/
-   rm -rf src/test/resources/secrets/*.p12
-   ./scripts/generate-ssl-certs.sh
+   cd scripts/setup
+   ./generate-ssl-certs.sh --force
    ```
-4. **Restart Kafka**:
-   ```bash
-   ./stop-local-kafka.sh && ./start-local-kafka.sh
-   ```
-5. **Verify certificate validity**:
-   ```bash
-   keytool -list -v -keystore kafka/secrets/kafka.keystore.p12 -storepass kafka123
-   ```
-6. **Check certificate expiration**:
-   ```bash
-   keytool -list -keystore kafka/secrets/kafka.keystore.p12 -storepass kafka123 | grep "Valid from"
-   ```
-7. **Test SSL connectivity**:
-   ```bash
-   ./test/test-ssl-connection.sh
-   ```
+   Then restart both Kafka and your Spring Boot application.
+
+##### C. Certificate Verification
+**Useful commands for debugging**:
+```bash
+# Verify certificate validity
+keytool -list -v -keystore scripts/kafka/secrets/kafka.keystore.p12 -storepass kafka123
+
+# Check certificate expiration
+keytool -list -keystore scripts/kafka/secrets/kafka.keystore.p12 -storepass kafka123 | grep "Valid"
+
+# Test SSL connectivity
+cd scripts && ./setup/test-ssl-connection.sh
+
+# Verify certificates are in sync
+diff <(md5 scripts/kafka/secrets/kafka.keystore.p12 | awk '{print $4}') \
+     <(md5 src/test/resources/secrets/kafka.keystore.p12 | awk '{print $4}')
+```
+
+##### D. When to Force Regenerate Certificates
+Only use `--force-certs` when:
+- ✅ Certificates are expired (after 365 days)
+- ✅ Certificates are corrupted
+- ✅ You need to change certificate parameters
+- ❌ NOT for routine setup re-runs (causes service disruption)
 
 #### 4. ☕ Java Version Issues
 **Problem**: Wrong Java version
@@ -1513,7 +1885,7 @@ aws s3 ls s3://wifi-scan-data-bucket --recursive
 - [ ] Plaintext port 9092 accessible (`telnet localhost 9092`)
 - [ ] Test topic created
 - [ ] Messages can be sent and consumed
-- [ ] WiFi message generator works (`./test/send-wifi-scan-messages.sh --count 1`)
+- [ ] WiFi message generator works (`./test/send-generated-wifi-scan-messages.sh --count 1`)
 
 ### ✅ Application Setup Checklist
 - [ ] Spring Boot application builds successfully (`mvn clean compile`)
@@ -1539,11 +1911,11 @@ To test scripts on a fresh Mac:
 
 3. **Verify setup:**
 ```bash
-   ./test/test-ssl-connection.sh
-   ./test/create-test-topic.sh
+   ./setup/test-ssl-connection.sh
+   ./setup/create-test-topic.sh
    ./test/send-test-message.sh "Test message"
-   ./test/send-wifi-scan-messages.sh --count 3
-   ./test/consume-test-messages.sh
+   ./test/send-generated-wifi-scan-messages.sh --count 3
+   ./setup/consume-test-messages.sh
    ```
 
 ## 🍎 Mac-Specific Notes

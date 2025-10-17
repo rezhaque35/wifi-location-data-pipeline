@@ -1,0 +1,51 @@
+[
+  {
+    "wifiScanResults": [
+      {
+        "macAddress": "aa:bb:cc:dd:ee:01",
+        "signalStrength": -45.0,
+        "frequency": 2412,
+        "ssid": "TestCase1",
+        "linkSpeed": 600,
+        "channelWidth": 40
+      }
+    ],
+    "client": "test-case-1",
+    "requestId": "test-req-001",
+    "application": "integration-test",
+    "calculationDetail": false
+  },
+  {
+    "wifiScanResults": [
+      {
+        "macAddress": "aa:bb:cc:dd:ee:02",
+        "signalStrength": -55.5,
+        "frequency": 5200,
+        "ssid": "TestCase2",
+        "linkSpeed": 866,
+        "channelWidth": 80
+      }
+    ],
+    "client": "test-case-2",
+    "requestId": "test-req-002",
+    "application": "integration-test",
+    "calculationDetail": true
+  },
+  {
+    "wifiScanResults": [
+      {
+        "macAddress": "aa:bb:cc:dd:ee:03",
+        "signalStrength": -70.0,
+        "frequency": 2437,
+        "ssid": "TestCase3",
+        "linkSpeed": 300,
+        "channelWidth": 20
+      }
+    ],
+    "client": "test-case-3",
+    "requestId": "test-req-003",
+    "application": "integration-test",
+    "calculationDetail": false
+  }
+]
+

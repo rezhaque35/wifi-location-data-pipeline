@@ -266,7 +266,7 @@ main() {
     print_success "Topic creation completed!"
     echo ""
     echo "Next steps:"
-    echo "1. Send messages: ./send-test-message.sh 'Hello $topic_name!' $topic_name"
+    echo "1. Send messages: ../test/send-test-message.sh 'Hello $topic_name!' $topic_name"
     echo "2. Consume messages: ./consume-test-messages.sh $topic_name"
     echo ""
 }

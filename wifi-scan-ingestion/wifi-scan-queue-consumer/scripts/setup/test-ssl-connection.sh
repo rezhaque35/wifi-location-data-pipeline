@@ -241,7 +241,7 @@ display_connection_summary() {
 # Function to show next steps
 show_next_steps() {
     echo "Next Steps:"
-    echo "1. Send test message: ./send-test-message.sh 'Hello SSL Kafka!'"
+    echo "1. Send test message: ../test/send-test-message.sh 'Hello SSL Kafka!'"
     echo "2. Consume messages: ./consume-test-messages.sh"
     echo "3. Create custom topic: ./create-test-topic.sh my-topic"
     echo ""

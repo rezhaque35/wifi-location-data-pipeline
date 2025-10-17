@@ -40,11 +40,11 @@ health:
 # Logging configuration for tests
 logging:
   level:
-    com.wifi.scan.consume: DEBUG
-    org.springframework.kafka: INFO
+    com.wifi.scan.consume: WARN
+    org.springframework.kafka: WARN
     org.apache.kafka: WARN
-    org.springframework.kafka.test: INFO
-    kafka.embedded: INFO
+    org.springframework.kafka.test: WARN
+    kafka.embedded: WARN
     org.apache.kafka.clients.consumer.ConsumerConfig: WARN
     org.apache.kafka.clients.producer.ProducerConfig: WARN
     org.apache.kafka.clients.admin.AdminClientConfig: WARN

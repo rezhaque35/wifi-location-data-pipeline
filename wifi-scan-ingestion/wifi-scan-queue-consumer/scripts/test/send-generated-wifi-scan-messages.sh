@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# wifi-database/wifi-scan-collection/wifi-scan-queue-consumer/scripts/send-wifi-scan-messages.sh
+# wifi-database/wifi-scan-collection/wifi-scan-queue-consumer/scripts/send-generated-wifi-scan-messages.sh
 # Script to send randomly generated WiFi scan data messages to Kafka topics
+# Reads configuration from application.yml to ensure consistency with the service
 
 set -e  # Exit on any error
 
@@ -29,12 +30,20 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Configuration
-DEFAULT_TOPIC="wifi-scan-data"
+# Default configuration (can be overridden by application.yml)
 DEFAULT_COUNT=10
 DEFAULT_INTERVAL=2
-KAFKA_SSL_PORT=9093
-KAFKA_PLAIN_PORT=9092
+
+# Configuration variables (will be populated from application.yml)
+KAFKA_BOOTSTRAP_SERVERS=""
+KAFKA_TOPIC=""
+KAFKA_SSL_ENABLED=""
+KAFKA_SSL_KEYSTORE_LOCATION=""
+KAFKA_SSL_KEYSTORE_PASSWORD=""
+KAFKA_SSL_TRUSTSTORE_LOCATION=""
+KAFKA_SSL_TRUSTSTORE_PASSWORD=""
+KAFKA_SSL_PORT=""
+KAFKA_PLAIN_PORT=""
 
 # WiFi frequency bands
 FREQ_2_4GHz=(2412 2417 2422 2427 2432 2437 2442 2447 2452 2457 2462 2467 2472)
@@ -48,23 +57,132 @@ VENDORS=("Cisco" "TP-Link" "Netgear" "Aruba" "Ubiquiti" "Linksys" "D-Link" "ASUS
 
 # Function to show usage
 show_usage() {
-    echo "Usage: $0 [--count N] [--interval SECONDS] [--topic TOPIC] [--ssl] [--help]"
+    echo "Usage: $0 [--count N] [--interval SECONDS] [--topic TOPIC] [--ssl|--no-ssl] [--help]"
     echo ""
     echo "Send randomly generated WiFi scan data messages to Kafka"
+    echo ""
+    echo "🔧 Configuration Source:"
+    echo "  This script reads Kafka configuration from src/main/resources/application.yml"
+    echo "  to ensure messages are sent to the same broker/topic the service consumes from."
     echo ""
     echo "Parameters:"
     echo "  --count N               Number of messages to send (default: $DEFAULT_COUNT)"
     echo "  --interval SECONDS      Interval between messages in seconds (default: $DEFAULT_INTERVAL)"
-    echo "  --topic TOPIC          Target topic (default: '$DEFAULT_TOPIC')"
-    echo "  --ssl                  Use SSL connection (default: plaintext)"
+    echo "  --topic TOPIC          Override topic from application.yml (not recommended)"
+    echo "  --ssl                  Force SSL connection (overrides application.yml)"
+    echo "  --no-ssl               Force plaintext connection (overrides application.yml)"
     echo "  --help                 Show this help message"
     echo ""
-    echo "Examples:"
-    echo "  $0                                          # Send 10 messages every 2 seconds"
-    echo "  $0 --count 5                               # Send 5 messages every 2 seconds"
-    echo "  $0 --count 20 --interval 1                 # Send 20 messages every 1 second"
-    echo "  $0 --count 5 --topic my-topic --ssl        # Send to custom topic using SSL"
+    echo "📝 Note: Without explicit --topic/--ssl flags, the script uses values from application.yml"
     echo ""
+    echo "Examples:"
+    echo "  $0                                          # Use application.yml config, send 10 messages"
+    echo "  $0 --count 5                               # Use application.yml config, send 5 messages"
+    echo "  $0 --count 20 --interval 1                 # Send 20 messages every 1 second"
+    echo "  $0 --count 5 --topic my-topic              # Override topic (warns about override)"
+    echo ""
+}
+
+# Function to find application.yml file
+find_application_yml() {
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local project_root="$(cd "$script_dir/../.." && pwd)"
+    local app_yml="$project_root/src/main/resources/application.yml"
+    
+    if [ -f "$app_yml" ]; then
+        echo "$app_yml"
+        return 0
+    else
+        print_error "application.yml not found at: $app_yml"
+        return 1
+    fi
+}
+
+# Function to parse YAML using grep and sed (simple parser for our needs)
+parse_yaml_value() {
+    local yaml_file="$1"
+    local key_path="$2"
+    local default_value="$3"
+    
+    # Simple YAML parser for single-level and two-level keys
+    # Handles patterns like "key: value" and "  subkey: value"
+    local value=""
+    
+    case "$key_path" in
+        "kafka.bootstrap-servers")
+            value=$(grep -A0 "^kafka:" "$yaml_file" -A 20 | grep "bootstrap-servers:" | sed 's/.*bootstrap-servers: *//' | tr -d ' ')
+            ;;
+        "kafka.topic.name")
+            value=$(grep -A0 "^kafka:" "$yaml_file" -A 20 | grep "name:" | head -1 | sed 's/.*name: *//' | tr -d ' ')
+            ;;
+        "kafka.ssl.enabled")
+            value=$(grep -A0 "^kafka:" "$yaml_file" -A 30 | grep "enabled:" | head -1 | sed 's/.*enabled: *//' | tr -d ' ')
+            ;;
+        "kafka.ssl.keystore.location")
+            value=$(grep -A0 "keystore:" "$yaml_file" -A 5 | grep "location:" | sed 's/.*location: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
+            ;;
+        "kafka.ssl.keystore.password")
+            value=$(grep -A0 "keystore:" "$yaml_file" -A 5 | grep "password:" | head -1 | sed 's/.*password: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
+            ;;
+        "kafka.ssl.truststore.location")
+            value=$(grep -A0 "truststore:" "$yaml_file" -A 5 | grep "location:" | sed 's/.*location: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
+            ;;
+        "kafka.ssl.truststore.password")
+            value=$(grep -A0 "truststore:" "$yaml_file" -A 5 | grep "password:" | head -1 | sed 's/.*password: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
+            ;;
+    esac
+    
+    # Return value or default
+    if [ -z "$value" ]; then
+        echo "$default_value"
+    else
+        echo "$value"
+    fi
+}
+
+# Function to load configuration from application.yml
+load_config_from_yml() {
+    print_status "Loading configuration from application.yml..."
+    
+    local app_yml=$(find_application_yml)
+    if [ -z "$app_yml" ]; then
+        print_error "Could not find application.yml. Using default configuration."
+        return 1
+    fi
+    
+    print_success "Found application.yml at: $app_yml"
+    
+    # Parse Kafka configuration
+    KAFKA_BOOTSTRAP_SERVERS=$(parse_yaml_value "$app_yml" "kafka.bootstrap-servers" "localhost:9093")
+    KAFKA_TOPIC=$(parse_yaml_value "$app_yml" "kafka.topic.name" "wifi-scan-data")
+    KAFKA_SSL_ENABLED=$(parse_yaml_value "$app_yml" "kafka.ssl.enabled" "true")
+    KAFKA_SSL_KEYSTORE_LOCATION=$(parse_yaml_value "$app_yml" "kafka.ssl.keystore.location" "scripts/kafka/secrets/kafka.keystore.p12")
+    KAFKA_SSL_KEYSTORE_PASSWORD=$(parse_yaml_value "$app_yml" "kafka.ssl.keystore.password" "kafka123")
+    KAFKA_SSL_TRUSTSTORE_LOCATION=$(parse_yaml_value "$app_yml" "kafka.ssl.truststore.location" "scripts/kafka/secrets/kafka.truststore.p12")
+    KAFKA_SSL_TRUSTSTORE_PASSWORD=$(parse_yaml_value "$app_yml" "kafka.ssl.truststore.password" "kafka123")
+    
+    # Extract port from bootstrap servers
+    if [[ "$KAFKA_BOOTSTRAP_SERVERS" =~ :([0-9]+)$ ]]; then
+        local port="${BASH_REMATCH[1]}"
+        if [ "$port" = "9093" ]; then
+            KAFKA_SSL_PORT=9093
+            KAFKA_PLAIN_PORT=9092
+        else
+            KAFKA_SSL_PORT="$port"
+            KAFKA_PLAIN_PORT="$port"
+        fi
+    else
+        KAFKA_SSL_PORT=9093
+        KAFKA_PLAIN_PORT=9092
+    fi
+    
+    print_success "Configuration loaded from application.yml:"
+    print_status "  Bootstrap Servers: $KAFKA_BOOTSTRAP_SERVERS"
+    print_status "  Topic: $KAFKA_TOPIC"
+    print_status "  SSL Enabled: $KAFKA_SSL_ENABLED"
+    print_status "  SSL Port: $KAFKA_SSL_PORT"
+    
+    return 0
 }
 
 # Function to check prerequisites
@@ -86,22 +204,30 @@ check_prerequisites() {
     print_success "Prerequisites verified!"
 }
 
-# Function to create SSL client properties
+# Function to create SSL client properties from application.yml configuration
 create_ssl_client_properties() {
+    print_status "Creating SSL client properties from application.yml configuration..."
+    
+    # Map local paths to container paths
+    local container_keystore="/etc/kafka/secrets/kafka.keystore.p12"
+    local container_truststore="/etc/kafka/secrets/kafka.truststore.p12"
+    
     CLIENT_PROPS_FILE="/tmp/kafka-ssl-client.properties"
     cat > "$CLIENT_PROPS_FILE" << EOF
 security.protocol=SSL
-ssl.truststore.location=/etc/kafka/secrets/kafka.truststore.p12
-ssl.truststore.password=kafka123
+ssl.truststore.location=$container_truststore
+ssl.truststore.password=$KAFKA_SSL_TRUSTSTORE_PASSWORD
 ssl.truststore.type=PKCS12
-ssl.keystore.location=/etc/kafka/secrets/kafka.keystore.p12
-ssl.keystore.password=kafka123
+ssl.keystore.location=$container_keystore
+ssl.keystore.password=$KAFKA_SSL_KEYSTORE_PASSWORD
 ssl.keystore.type=PKCS12
-ssl.key.password=kafka123
+ssl.key.password=$KAFKA_SSL_KEYSTORE_PASSWORD
 EOF
     
     # Copy client properties to container
     docker cp "$CLIENT_PROPS_FILE" kafka:/tmp/kafka-ssl-client.properties
+    
+    print_success "SSL client properties created with configuration from application.yml"
     
     # Cleanup local file
     rm -f "$CLIENT_PROPS_FILE"
@@ -301,9 +427,9 @@ show_summary() {
     echo ""
     echo "Next steps:"
     if [ "$use_ssl" == "true" ]; then
-        echo "1. Consume messages: ./consume-test-messages.sh $topic_name --ssl"
+        echo "1. Consume messages: ../setup/consume-test-messages.sh $topic_name --ssl"
     else
-        echo "1. Consume messages: ./consume-test-messages.sh $topic_name"
+        echo "1. Consume messages: ../setup/consume-test-messages.sh $topic_name"
     fi
     echo "2. Start your Spring Boot application to process the messages"
     echo "3. Monitor application logs for message processing"
@@ -312,13 +438,22 @@ show_summary() {
 
 # Main execution
 main() {
-    # Default values
-    local topic_name="$DEFAULT_TOPIC"
-    local use_ssl="false"
+    echo "=========================================="
+    echo "📡 WiFi Scan Data Message Generator"
+    echo "=========================================="
+    echo ""
+    
+    # Load configuration from application.yml first
+    load_config_from_yml
+    
+    # Default values from loaded configuration
+    local topic_name="$KAFKA_TOPIC"
+    local use_ssl="$KAFKA_SSL_ENABLED"
     local message_count="$DEFAULT_COUNT"
     local interval="$DEFAULT_INTERVAL"
+    local config_override=false
     
-    # Parse command line arguments
+    # Parse command line arguments (can override application.yml values)
     while [[ $# -gt 0 ]]; do
         case $1 in
             --count)
@@ -339,6 +474,8 @@ main() {
                 ;;
             --topic)
                 topic_name="$2"
+                config_override=true
+                print_warning "Overriding topic from application.yml: $KAFKA_TOPIC -> $topic_name"
                 if [ -z "$topic_name" ]; then
                     print_error "Topic name cannot be empty."
                     exit 1
@@ -347,6 +484,14 @@ main() {
                 ;;
             --ssl)
                 use_ssl="true"
+                config_override=true
+                print_warning "Overriding SSL setting from application.yml: $KAFKA_SSL_ENABLED -> true"
+                shift
+                ;;
+            --no-ssl)
+                use_ssl="false"
+                config_override=true
+                print_warning "Overriding SSL setting from application.yml: $KAFKA_SSL_ENABLED -> false"
                 shift
                 ;;
             --help|-h)
@@ -361,20 +506,25 @@ main() {
         esac
     done
     
-    echo "=========================================="
-    echo "📡 WiFi Scan Data Message Generator"
-    echo "=========================================="
-    
-    echo "Configuration:"
-    echo "- Topic: $topic_name"
-    echo "- Message count: $message_count"
-    echo "- Interval: ${interval}s"
-    echo "- SSL: $use_ssl"
+    echo ""
+    print_success "Configuration Summary:"
+    echo "┌─────────────────────────────────────────┐"
+    echo "│ Source: application.yml                 │"
+    echo "├─────────────────────────────────────────┤"
+    echo "│ Bootstrap Servers: $KAFKA_BOOTSTRAP_SERVERS"
+    echo "│ Topic: $topic_name"
+    echo "│ Message Count: $message_count"
+    echo "│ Interval: ${interval}s"
+    echo "│ SSL Enabled: $use_ssl"
+    if [ "$config_override" = true ]; then
+        echo "│ ⚠️  Command-line overrides applied"
+    fi
+    echo "└─────────────────────────────────────────┘"
     echo ""
     
     check_prerequisites
     
-    # Create SSL client properties if needed
+    # Create SSL client properties if SSL is enabled
     if [ "$use_ssl" == "true" ]; then
         create_ssl_client_properties
     fi

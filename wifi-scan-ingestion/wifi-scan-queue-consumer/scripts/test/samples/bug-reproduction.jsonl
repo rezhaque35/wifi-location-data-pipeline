@@ -1,0 +1,3 @@
+{"wifiScanResults":[{"macAddress":"bug:case:00:00:00:01","signalStrength":-90.0,"frequency":2412,"ssid":"EdgeCase1","linkSpeed":54,"channelWidth":20}],"client":"bug-reproduction","requestId":"bug-001","application":"debug-suite","calculationDetail":true}
+{"wifiScanResults":[{"macAddress":"bug:case:00:00:00:02","signalStrength":-95.0,"frequency":2462,"ssid":"EdgeCase2","linkSpeed":72,"channelWidth":20}],"client":"bug-reproduction","requestId":"bug-002","application":"debug-suite","calculationDetail":true}
+

@@ -267,11 +267,11 @@ show_next_steps() {
     echo ""
     echo "Next steps:"
     if [ "$use_ssl" == "true" ]; then
-        echo "1. Send more messages: ./send-test-message.sh 'New message' $topic_name --ssl"
+        echo "1. Send more messages: ../test/send-test-message.sh 'New message' $topic_name --ssl"
         echo "2. Consume again: $0 $topic_name --ssl --group $group_id"
         echo "3. View consumer groups: docker exec kafka kafka-consumer-groups --bootstrap-server localhost:9093 --command-config /tmp/kafka-ssl-consumer.properties --list"
     else
-        echo "1. Send more messages: ./send-test-message.sh 'New message' $topic_name"
+        echo "1. Send more messages: ../test/send-test-message.sh 'New message' $topic_name"
         echo "2. Consume again: $0 $topic_name --group $group_id"
         echo "3. View consumer groups: docker exec kafka kafka-consumer-groups --bootstrap-server localhost:9092 --list"
     fi

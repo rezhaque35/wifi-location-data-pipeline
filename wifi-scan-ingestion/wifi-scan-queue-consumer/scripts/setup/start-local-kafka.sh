@@ -7,6 +7,11 @@ set -e  # Exit on any error
 
 echo "🚀 Starting Local Kafka SSL Cluster..."
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the parent scripts directory
+SCRIPTS_DIR="$(dirname "$SCRIPT_DIR")"
+
 # Define colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -41,15 +46,21 @@ check_prerequisites() {
         exit 1
     fi
     
+    # Change to setup directory where docker-compose.yml is located
+    cd "$SCRIPT_DIR"
+    
     # Check if docker-compose.yml exists
     if [ ! -f "docker-compose.yml" ]; then
-        print_error "docker-compose.yml not found. Please run ./setup-local-kafka.sh first."
+        print_error "docker-compose.yml not found in setup directory. Please run ./setup-local-kafka.sh first."
         exit 1
     fi
     
+    # Change back to scripts directory to check SSL certificates
+    cd "$SCRIPTS_DIR"
+    
     # Check if SSL certificates exist
     if [ ! -f "kafka/secrets/kafka.keystore.p12" ] || [ ! -f "kafka/secrets/kafka.truststore.p12" ]; then
-        print_error "SSL certificates not found. Please run ./setup-local-kafka.sh first."
+        print_error "SSL certificates not found. Please run ./setup/setup-local-kafka.sh first."
         exit 1
     fi
     
@@ -69,6 +80,7 @@ check_existing_services() {
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_status "Stopping existing containers..."
+            cd "$SCRIPT_DIR"
             ./stop-local-kafka.sh
         else
             print_warning "Keeping existing containers running."
@@ -80,6 +92,9 @@ check_existing_services() {
 # Function to start services
 start_services() {
     print_status "Starting Kafka and Zookeeper containers..."
+    
+    # Change to setup directory where docker-compose.yml is located
+    cd "$SCRIPT_DIR"
     
     # Start services in detached mode
     docker-compose up -d
@@ -210,10 +225,10 @@ main() {
     print_success "Local Kafka SSL cluster is now running!"
     echo ""
     echo "Next steps:"
-    echo "1. Test SSL connection: ./setup/test-ssl-connection.sh"
-    echo "2. Send test message: ./test/send-test-message.sh 'Hello Kafka!'"
-    echo "3. Consume messages: ./setup/consume-test-messages.sh"
-    echo "4. Stop cluster: ./stop-local-kafka.sh"
+    echo "1. Test SSL connection: cd $SCRIPT_DIR && ./test-ssl-connection.sh"
+    echo "2. Send test message: cd $SCRIPTS_DIR && ./test/send-test-message.sh 'Hello Kafka!'"
+    echo "3. Consume messages: cd $SCRIPT_DIR && ./consume-test-messages.sh"
+    echo "4. Stop cluster: cd $SCRIPT_DIR && ./stop-local-kafka.sh"
     echo ""
     echo "Useful commands:"
     echo "- View logs: docker logs kafka -f"

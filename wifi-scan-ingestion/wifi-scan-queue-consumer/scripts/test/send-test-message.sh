@@ -269,9 +269,9 @@ show_next_steps() {
     echo ""
     echo "Next steps:"
     if [ "$use_ssl" == "true" ]; then
-        echo "1. Consume messages: ./consume-test-messages.sh $topic_name --ssl"
+        echo "1. Consume messages: ../setup/consume-test-messages.sh $topic_name --ssl"
     else
-        echo "1. Consume messages: ./consume-test-messages.sh $topic_name"
+        echo "1. Consume messages: ../setup/consume-test-messages.sh $topic_name"
     fi
     echo "2. Send more messages: $0 'Another message' $topic_name"
     echo "3. View topic details: docker exec kafka kafka-topics --bootstrap-server localhost:9092 --describe --topic $topic_name"
