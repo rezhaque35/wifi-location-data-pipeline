@@ -5,6 +5,10 @@
 
 set -e
 
+# Determine script directory and test scripts directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEST_SCRIPTS_DIR="$SCRIPT_DIR"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -167,6 +171,8 @@ cleanup_s3_after_test() {
 display_configuration() {
     if [ "$VERBOSE" = true ]; then
         print_info "Current Configuration:"
+        echo "  - Script Directory: $SCRIPT_DIR"
+        echo "  - Test Scripts Directory: $TEST_SCRIPTS_DIR"
         echo "  - AWS Region: $AWS_REGION"
         echo "  - AWS Endpoint: $AWS_ENDPOINT_URL"
         echo "  - S3 Bucket: $S3_BUCKET_NAME"
@@ -212,7 +218,7 @@ check_and_fix_message_timeout() {
             
             # Send a few messages to wake up the service
             print_info "Sending 3 recovery messages to wake up the consumer..."
-            if ./test/send-wifi-scan-messages.sh --count 3 --interval 1 > /dev/null 2>&1; then
+            if "$TEST_SCRIPTS_DIR/send-generated-wifi-scan-messages.sh" --count 3 --interval 1 > /dev/null 2>&1; then
                 print_info "Recovery messages sent successfully"
                 
                 # Wait for health to recover
@@ -294,55 +300,55 @@ echo ""
 
 # Test 1: Basic Functionality
 run_test "Basic Functionality (3 messages)" \
-            "./test/validate-service-health.sh --count 3 --interval 1"
+            "\"$TEST_SCRIPTS_DIR/validate-service-health.sh\" --count 3 --interval 1"
 
 # Test 2: Quick Processing
 run_test "Quick Processing (5 messages, 0.5s interval)" \
-            "./test/validate-service-health.sh --count 5 --interval 0.5 --timeout 60"
+            "\"$TEST_SCRIPTS_DIR/validate-service-health.sh\" --count 5 --interval 0.5 --timeout 60"
 
 # Test 3: Moderate Load
 run_test "Moderate Load (10 messages, 1s interval)" \
-            "./test/validate-service-health.sh --count 10 --interval 1 --timeout 120"
+            "\"$TEST_SCRIPTS_DIR/validate-service-health.sh\" --count 10 --interval 1 --timeout 120"
 
 # Test 4: Health Monitoring
 run_test "Health Monitoring (8 messages, frequent checks)" \
-            "./test/validate-service-health.sh --count 8 --interval 1 --health-interval 2 --timeout 90"
+            "\"$TEST_SCRIPTS_DIR/validate-service-health.sh\" --count 8 --interval 1 --health-interval 2 --timeout 90"
 
 # Test 5: High Frequency
 run_test "High Frequency (15 messages, 0.3s interval)" \
-            "./test/validate-service-health.sh --count 15 --interval 0.3 --timeout 120"
+            "\"$TEST_SCRIPTS_DIR/validate-service-health.sh\" --count 15 --interval 0.3 --timeout 120"
 
 # Test 6: Verbose Monitoring
 run_test "Verbose Monitoring (5 messages with detailed output)" \
-            "./test/validate-service-health.sh --count 5 --interval 1 --verbose"
+            "\"$TEST_SCRIPTS_DIR/validate-service-health.sh\" --count 5 --interval 1 --verbose"
 
 # Test 7: Firehose Integration - Basic
 run_test "Firehose Integration - Basic (5 messages)" \
-            "./test/validate-firehose-integration.sh --count 5 --interval 1 --timeout 90"
+            "\"$TEST_SCRIPTS_DIR/validate-firehose-integration.sh\" --count 5 --interval 1 --timeout 90"
 
 # Test 8: Firehose Integration - Moderate Load
 run_test "Firehose Integration - Moderate Load (10 messages)" \
-            "./test/validate-firehose-integration.sh --count 10 --interval 1 --timeout 120"
+            "\"$TEST_SCRIPTS_DIR/validate-firehose-integration.sh\" --count 10 --interval 1 --timeout 120"
 
 # Test 9: Firehose Integration - High Frequency
 run_test "Firehose Integration - High Frequency (15 messages, 0.5s interval)" \
-            "./test/validate-firehose-integration.sh --count 15 --interval 0.5 --timeout 150"
+            "\"$TEST_SCRIPTS_DIR/validate-firehose-integration.sh\" --count 15 --interval 0.5 --timeout 150"
 
 # Test 10: Firehose Integration - Verbose
 run_test "Firehose Integration - Verbose (8 messages with detailed output)" \
-            "./test/validate-firehose-integration.sh --count 8 --interval 1 --verbose --timeout 120"
+            "\"$TEST_SCRIPTS_DIR/validate-firehose-integration.sh\" --count 8 --interval 1 --verbose --timeout 120"
 
 # Test 11: WiFi Scan Endpoint - Basic
 run_test "WiFi Scan Endpoint - Basic (3 messages)" \
-            "./test/validate-wifi-scan-endpoint.sh --count 3 --interval 1 --timeout 60"
+            "\"$TEST_SCRIPTS_DIR/validate-wifi-scan-endpoint.sh\" --count 3 --interval 1 --timeout 60"
 
 # Test 12: WiFi Scan Endpoint - Moderate Load
 run_test "WiFi Scan Endpoint - Moderate Load (5 messages)" \
-            "./test/validate-wifi-scan-endpoint.sh --count 5 --interval 1 --timeout 90"
+            "\"$TEST_SCRIPTS_DIR/validate-wifi-scan-endpoint.sh\" --count 5 --interval 1 --timeout 90"
 
 # Test 13: WiFi Scan Endpoint - Verbose
 run_test "WiFi Scan Endpoint - Verbose (3 messages with detailed output)" \
-            "./test/validate-wifi-scan-endpoint.sh --count 3 --interval 1 --verbose --timeout 60"
+            "\"$TEST_SCRIPTS_DIR/validate-wifi-scan-endpoint.sh\" --count 3 --interval 1 --verbose --timeout 60"
 
 # Display cleanup summary
 echo ""
