@@ -167,11 +167,31 @@ check_prerequisites() {
 # Make scripts executable
 make_scripts_executable() {
     print_step "Making scripts executable..."
+    
+    # Make setup scripts executable
     cd "$SCRIPT_DIR"
-    chmod +x *.sh
+    for script in *.sh; do
+        if [ -f "$script" ]; then
+            chmod +x "$script"
+        fi
+    done
+    
+    # Make main scripts executable
     cd "$SCRIPTS_DIR"
-    chmod +x *.sh
-    chmod +x test/*.sh
+    for script in *.sh; do
+        if [ -f "$script" ]; then
+            chmod +x "$script"
+        fi
+    done
+    
+    # Make test scripts executable
+    if [ -d "test" ]; then
+        for script in test/*.sh; do
+            if [ -f "$script" ]; then
+                chmod +x "$script"
+            fi
+        done
+    fi
 }
 
 # Clean up any existing environment
