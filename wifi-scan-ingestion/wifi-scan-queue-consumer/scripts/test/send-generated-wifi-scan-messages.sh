@@ -99,6 +99,7 @@ find_application_yml() {
 }
 
 # Function to parse YAML using grep and sed (simple parser for our needs)
+# Enhanced to properly handle commented lines and avoid grabbing values from comments
 parse_yaml_value() {
     local yaml_file="$1"
     local key_path="$2"
@@ -106,29 +107,37 @@ parse_yaml_value() {
     
     # Simple YAML parser for single-level and two-level keys
     # Handles patterns like "key: value" and "  subkey: value"
+    # Filters out commented lines (lines starting with # or containing # at the beginning)
     local value=""
     
     case "$key_path" in
         "kafka.bootstrap-servers")
-            value=$(grep -A0 "^kafka:" "$yaml_file" -A 20 | grep "bootstrap-servers:" | sed 's/.*bootstrap-servers: *//' | tr -d ' ')
+            # Find active (non-commented) bootstrap-servers line
+            value=$(grep -A0 "^kafka:" "$yaml_file" -A 20 | grep -v "^\s*#" | grep "bootstrap-servers:" | sed 's/.*bootstrap-servers: *//' | tr -d ' ')
             ;;
         "kafka.topic.name")
-            value=$(grep -A0 "^kafka:" "$yaml_file" -A 20 | grep "name:" | head -1 | sed 's/.*name: *//' | tr -d ' ')
+            # Find active (non-commented) name line under topic section
+            value=$(grep -A0 "^kafka:" "$yaml_file" -A 20 | grep -A5 "topic:" | grep -v "^\s*#" | grep "name:" | head -1 | sed 's/.*name: *//' | tr -d ' ')
             ;;
         "kafka.ssl.enabled")
-            value=$(grep -A0 "^kafka:" "$yaml_file" -A 30 | grep "enabled:" | head -1 | sed 's/.*enabled: *//' | tr -d ' ')
+            # Find active (non-commented) enabled line under ssl section
+            value=$(grep -A0 "^kafka:" "$yaml_file" -A 30 | grep -A10 "ssl:" | grep -v "^\s*#" | grep "enabled:" | head -1 | sed 's/.*enabled: *//' | tr -d ' ')
             ;;
         "kafka.ssl.keystore.location")
-            value=$(grep -A0 "keystore:" "$yaml_file" -A 5 | grep "location:" | sed 's/.*location: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
+            # Find active (non-commented) location line under keystore section
+            value=$(grep -A0 "keystore:" "$yaml_file" -A 5 | grep -v "^\s*#" | grep "location:" | sed 's/.*location: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
             ;;
         "kafka.ssl.keystore.password")
-            value=$(grep -A0 "keystore:" "$yaml_file" -A 5 | grep "password:" | head -1 | sed 's/.*password: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
+            # Find active (non-commented) password line under keystore section
+            value=$(grep -A0 "keystore:" "$yaml_file" -A 5 | grep -v "^\s*#" | grep "password:" | head -1 | sed 's/.*password: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
             ;;
         "kafka.ssl.truststore.location")
-            value=$(grep -A0 "truststore:" "$yaml_file" -A 5 | grep "location:" | sed 's/.*location: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
+            # Find active (non-commented) location line under truststore section
+            value=$(grep -A0 "truststore:" "$yaml_file" -A 5 | grep -v "^\s*#" | grep "location:" | sed 's/.*location: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
             ;;
         "kafka.ssl.truststore.password")
-            value=$(grep -A0 "truststore:" "$yaml_file" -A 5 | grep "password:" | head -1 | sed 's/.*password: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
+            # Find active (non-commented) password line under truststore section
+            value=$(grep -A0 "truststore:" "$yaml_file" -A 5 | grep -v "^\s*#" | grep "password:" | head -1 | sed 's/.*password: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
             ;;
     esac
     

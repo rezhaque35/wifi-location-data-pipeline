@@ -341,7 +341,7 @@ send_test_messages() {
         
         local message="{\"timestamp\":\"$timestamp\",\"device_id\":\"$device_id\",\"wifi_scan_data\":{\"ssid\":\"$test_ssid\",\"signal_strength\":-$signal_strength,\"frequency\":2400,\"capabilities\":\"WPA2\"}}"
         
-        if ./test/send-test-message.sh "$message" "wifi-scan-data" > /dev/null 2>&1; then
+        if ./send-test-message.sh "$message" "wifi-scan-data" > /dev/null 2>&1; then
             ((success_count++))
             
             # Track the sent message
@@ -818,6 +818,10 @@ main() {
     echo "  - Verbose: $VERBOSE"
     echo "  - Test Session ID: $TEST_SESSION_ID"
     echo ""
+    
+    # Clean up S3 before starting test to ensure clean state
+    print_info "Cleaning up S3 bucket before test..."
+    cleanup_test_data
     
     # Track test results
     local total_tests=0
