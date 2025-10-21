@@ -3,6 +3,7 @@
 # wifi-database/wifi-scan-collection/wifi-scan-queue-consumer/scripts/send-file-wifi-scan-messages.sh
 # Script to send WiFi scan data messages from file to Kafka topics
 # Reads configuration from application.yml to ensure consistency with the service
+# Uses direct Kafka CLI tools (no Docker dependency)
 
 set -e  # Exit on any error
 
@@ -44,23 +45,26 @@ KAFKA_SSL_TRUSTSTORE_PASSWORD=""
 KAFKA_SSL_PORT=""
 KAFKA_PLAIN_PORT=""
 
+# Kafka CLI tools detection
+KAFKA_CONSOLE_PRODUCER=""
+KAFKA_CONSOLE_CONSUMER=""
+
 # Function to show usage
 show_usage() {
-    echo "Usage: $0 --file FILE [--count N] [--interval SECONDS] [--topic TOPIC] [--ssl|--no-ssl] [--help]"
+    echo "Usage: $0 --file FILE [--count N] [--interval SECONDS] [--topic TOPIC] [--help]"
     echo ""
     echo "Send WiFi scan data messages from file to Kafka"
     echo ""
     echo "🔧 Configuration Source:"
     echo "  This script reads Kafka configuration from src/main/resources/application.yml"
     echo "  to ensure messages are sent to the same broker/topic the service consumes from."
+    echo "  SSL settings are automatically determined from application.yml configuration."
     echo ""
     echo "Parameters:"
     echo "  --file FILE             JSON file containing WiFi scan messages (required)"
     echo "  --count N               Number of times to send the message(s) from file (default: 1)"
     echo "  --interval SECONDS      Interval between messages in seconds (default: $DEFAULT_INTERVAL)"
     echo "  --topic TOPIC          Override topic from application.yml (not recommended)"
-    echo "  --ssl                  Force SSL connection (overrides application.yml)"
-    echo "  --no-ssl               Force plaintext connection (overrides application.yml)"
     echo "  --help                 Show this help message"
     echo ""
     echo "📝 File Format:"
@@ -74,6 +78,10 @@ show_usage() {
     echo "  $0 --file messages.json --count 3          # Send array 3 times (each element sent 3 times)"
     echo "  $0 --file debug-case.json --topic test     # Send to custom topic"
     echo "  $0 --file production-issue.jsonl --count 10 # Replay log file 10 times"
+    echo ""
+    echo "🌐 Remote Server Support:"
+    echo "  Set KAFKA_BOOTSTRAP_SERVERS environment variable to override:"
+    echo "  KAFKA_BOOTSTRAP_SERVERS=remote-server:9093 $0 --file message.json"
     echo ""
 }
 
@@ -92,147 +100,416 @@ find_application_yml() {
     fi
 }
 
-# Function to parse YAML using grep and sed (simple parser for our needs)
-# Enhanced to properly handle commented lines and avoid grabbing values from comments
+# Function to parse YAML using awk (handles nested structure)
 parse_yaml_value() {
     local yaml_file="$1"
     local key_path="$2"
     local default_value="$3"
     
-    # Simple YAML parser for single-level and two-level keys
-    # Filters out commented lines (lines starting with # or containing # at the beginning)
-    local value=""
+    # Use awk to parse nested YAML structure
+    local value=$(awk -v key="$key_path" '
+    BEGIN { 
+        indent = -1
+        found = 0
+    }
+    # Skip comments and empty lines
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*$/ { next }
+    # Match the key
+    $0 ~ "^[[:space:]]*" key ":" {
+        # Extract value after colon
+        sub(/^[[:space:]]*[^:]+:[[:space:]]*/, "")
+        # Remove trailing spaces and comments
+        sub(/[[:space:]]*#.*$/, "")
+        sub(/[[:space:]]+$/, "")
+        if (length($0) > 0) {
+            print $0
+            found = 1
+            exit
+        }
+    }
+    END {
+        if (!found && length(default_val) > 0) {
+            print default_val
+        }
+    }
+    ' default_val="$default_value" "$yaml_file")
     
-    case "$key_path" in
-        "kafka.bootstrap-servers")
-            # Find active (non-commented) bootstrap-servers line
-            value=$(grep -A0 "^kafka:" "$yaml_file" -A 20 | grep -v "^\s*#" | grep "bootstrap-servers:" | sed 's/.*bootstrap-servers: *//' | tr -d ' ')
-            ;;
-        "kafka.topic.name")
-            # Find active (non-commented) name line under topic section
-            value=$(grep -A0 "^kafka:" "$yaml_file" -A 20 | grep -A5 "topic:" | grep -v "^\s*#" | grep "name:" | head -1 | sed 's/.*name: *//' | tr -d ' ')
-            ;;
-        "kafka.ssl.enabled")
-            # Find active (non-commented) enabled line under ssl section
-            value=$(grep -A0 "^kafka:" "$yaml_file" -A 30 | grep -A10 "ssl:" | grep -v "^\s*#" | grep "enabled:" | head -1 | sed 's/.*enabled: *//' | tr -d ' ')
-            ;;
-        "kafka.ssl.keystore.location")
-            # Find active (non-commented) location line under keystore section
-            value=$(grep -A0 "keystore:" "$yaml_file" -A 5 | grep -v "^\s*#" | grep "location:" | sed 's/.*location: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
-            ;;
-        "kafka.ssl.keystore.password")
-            # Find active (non-commented) password line under keystore section
-            value=$(grep -A0 "keystore:" "$yaml_file" -A 5 | grep -v "^\s*#" | grep "password:" | head -1 | sed 's/.*password: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
-            ;;
-        "kafka.ssl.truststore.location")
-            # Find active (non-commented) location line under truststore section
-            value=$(grep -A0 "truststore:" "$yaml_file" -A 5 | grep -v "^\s*#" | grep "location:" | sed 's/.*location: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
-            ;;
-        "kafka.ssl.truststore.password")
-            # Find active (non-commented) password line under truststore section
-            value=$(grep -A0 "truststore:" "$yaml_file" -A 5 | grep -v "^\s*#" | grep "password:" | head -1 | sed 's/.*password: *//' | sed 's/\${[^:]*://' | sed 's/}//' | tr -d ' ')
-            ;;
-    esac
-    
-    # Return value or default
-    if [ -z "$value" ]; then
-        echo "$default_value"
-    else
+    if [ -n "$value" ] && [ "$value" != "null" ]; then
         echo "$value"
+    else
+        echo "$default_value"
     fi
 }
 
 # Function to load configuration from application.yml
-load_config_from_yml() {
-    print_status "Loading configuration from application.yml..."
+load_configuration() {
+    local app_yml="$1"
     
-    local app_yml=$(find_application_yml)
-    if [ -z "$app_yml" ]; then
-        print_error "Could not find application.yml. Using default configuration."
+    print_status "Loading configuration from: $app_yml"
+    echo ""
+    
+    # Load Kafka configuration
+    print_status "Reading Kafka configuration..."
+    
+    # Extract bootstrap-servers (skip commented lines)
+    KAFKA_BOOTSTRAP_SERVERS=$(awk '
+        /^kafka:$/ { in_kafka=1; next }
+        in_kafka && /^[^ ]/ { in_kafka=0 }
+        in_kafka && /^  bootstrap-servers:/ && !/^[[:space:]]*#/ {
+            sub(/^[[:space:]]*bootstrap-servers:[[:space:]]*/, "")
+            sub(/[[:space:]]*#.*$/, "")
+            print
+            exit
+        }
+    ' "$app_yml")
+    
+    # Extract topic name
+    KAFKA_TOPIC=$(awk '
+        /^kafka:$/ { in_kafka=1 }
+        in_kafka && /^  topic:$/ { in_topic=1; next }
+        in_topic && /^    name:/ {
+            sub(/^[[:space:]]*name:[[:space:]]*/, "")
+            sub(/[[:space:]]*#.*$/, "")
+            print
+            exit
+        }
+        in_topic && /^  [^ ]/ { in_topic=0 }
+    ' "$app_yml")
+    
+    # Load SSL configuration from kafka.ssl section
+    print_status "Reading SSL configuration..."
+    KAFKA_SSL_ENABLED=$(awk '
+        /^kafka:$/ { in_kafka=1 }
+        in_kafka && /^  ssl:$/ { in_ssl=1; next }
+        in_ssl && /^    enabled:/ {
+            sub(/^[[:space:]]*enabled:[[:space:]]*/, "")
+            sub(/[[:space:]]*#.*$/, "")
+            print
+            exit
+        }
+        in_ssl && /^  [^ ]/ { in_ssl=0 }
+    ' "$app_yml")
+    
+    # Extract keystore location (skip commented lines)
+    KAFKA_SSL_KEYSTORE_LOCATION=$(awk '
+        /^kafka:$/ { in_kafka=1 }
+        in_kafka && /^  ssl:$/ { in_ssl=1 }
+        in_ssl && /^    keystore:$/ { in_keystore=1; next }
+        in_keystore && /^      location:/ && !/^[[:space:]]*#/ {
+            sub(/^[[:space:]]*location:[[:space:]]*/, "")
+            sub(/[[:space:]]*#.*$/, "")
+            print
+            exit
+        }
+        in_keystore && /^    [^ ]/ { in_keystore=0 }
+    ' "$app_yml")
+    
+    # Extract keystore password (skip commented lines)
+    KAFKA_SSL_KEYSTORE_PASSWORD=$(awk '
+        /^kafka:$/ { in_kafka=1 }
+        in_kafka && /^  ssl:$/ { in_ssl=1 }
+        in_ssl && /^    keystore:$/ { in_keystore=1; next }
+        in_keystore && /^      password:/ && !/^[[:space:]]*#/ {
+            sub(/^[[:space:]]*password:[[:space:]]*/, "")
+            sub(/[[:space:]]*#.*$/, "")
+            print
+            exit
+        }
+        in_keystore && /^    [^ ]/ { in_keystore=0 }
+    ' "$app_yml")
+    
+    # Extract truststore location
+    KAFKA_SSL_TRUSTSTORE_LOCATION=$(awk '
+        /^kafka:$/ { in_kafka=1 }
+        in_kafka && /^  ssl:$/ { in_ssl=1 }
+        in_ssl && /^    truststore:$/ { in_truststore=1; next }
+        in_truststore && /^      location:/ && !/^[[:space:]]*#/ {
+            sub(/^[[:space:]]*location:[[:space:]]*/, "")
+            sub(/[[:space:]]*#.*$/, "")
+            print
+            exit
+        }
+        in_truststore && /^    [^ ]/ { in_truststore=0 }
+    ' "$app_yml")
+    
+    # Extract truststore password
+    KAFKA_SSL_TRUSTSTORE_PASSWORD=$(awk '
+        /^kafka:$/ { in_kafka=1 }
+        in_kafka && /^  ssl:$/ { in_ssl=1 }
+        in_ssl && /^    truststore:$/ { in_truststore=1; next }
+        in_truststore && /^      password:/ && !/^[[:space:]]*#/ {
+            sub(/^[[:space:]]*password:[[:space:]]*/, "")
+            sub(/[[:space:]]*#.*$/, "")
+            print
+            exit
+        }
+        in_truststore && /^    [^ ]/ { in_truststore=0 }
+    ' "$app_yml")
+    
+    # Set defaults if values are empty
+    KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-"localhost:9092"}
+    KAFKA_TOPIC=${KAFKA_TOPIC:-"wifi-scan-data"}
+    KAFKA_SSL_ENABLED=${KAFKA_SSL_ENABLED:-"false"}
+    
+    # Resolve relative paths to absolute paths
+    # If paths don't start with /, they are relative to project root
+    if [ -n "$KAFKA_SSL_KEYSTORE_LOCATION" ] && [[ ! "$KAFKA_SSL_KEYSTORE_LOCATION" = /* ]]; then
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local project_root="$(cd "$script_dir/../.." && pwd)"
+        KAFKA_SSL_KEYSTORE_LOCATION="$project_root/$KAFKA_SSL_KEYSTORE_LOCATION"
+    fi
+    
+    if [ -n "$KAFKA_SSL_TRUSTSTORE_LOCATION" ] && [[ ! "$KAFKA_SSL_TRUSTSTORE_LOCATION" = /* ]]; then
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local project_root="$(cd "$script_dir/../.." && pwd)"
+        KAFKA_SSL_TRUSTSTORE_LOCATION="$project_root/$KAFKA_SSL_TRUSTSTORE_LOCATION"
+    fi
+    
+    # Determine ports based on SSL configuration
+    if [ "$KAFKA_SSL_ENABLED" == "true" ]; then
+        KAFKA_SSL_PORT="9093"
+        KAFKA_PLAIN_PORT="9092"
+    else
+        KAFKA_SSL_PORT="9092"
+        KAFKA_PLAIN_PORT="9092"
+    fi
+    
+    # Allow environment variable override for remote servers
+    if [ -n "$KAFKA_BOOTSTRAP_SERVERS_ENV" ]; then
+        KAFKA_BOOTSTRAP_SERVERS="$KAFKA_BOOTSTRAP_SERVERS_ENV"
+        print_status "Using remote Kafka server: $KAFKA_BOOTSTRAP_SERVERS"
+    fi
+    
+    echo ""
+    print_success "Configuration loaded successfully!"
+    echo ""
+    print_status "📋 Configuration Summary:"
+    echo "  ┌─────────────────────────────────────────────────────────────┐"
+    echo "  │ Kafka Configuration                                        │"
+    echo "  ├─────────────────────────────────────────────────────────────┤"
+    echo "  │ Bootstrap Servers: $KAFKA_BOOTSTRAP_SERVERS"
+    printf "  │ %-20s: %-30s │\n" "Topic" "$KAFKA_TOPIC"
+    printf "  │ %-20s: %-30s │\n" "SSL Enabled" "$KAFKA_SSL_ENABLED"
+    printf "  │ %-20s: %-30s │\n" "SSL Port" "$KAFKA_SSL_PORT"
+    printf "  │ %-20s: %-30s │\n" "Plain Port" "$KAFKA_PLAIN_PORT"
+    echo "  └─────────────────────────────────────────────────────────────┘"
+    
+    if [ "$KAFKA_SSL_ENABLED" == "true" ]; then
+        echo ""
+        print_status "🔐 SSL Configuration Details:"
+        echo "  ┌─────────────────────────────────────────────────────────────┐"
+        printf "  │ %-20s: %-30s │\n" "Keystore Location" "$KAFKA_SSL_KEYSTORE_LOCATION"
+        printf "  │ %-20s: %-30s │\n" "Keystore Password" "$KAFKA_SSL_KEYSTORE_PASSWORD"
+        printf "  │ %-20s: %-30s │\n" "Truststore Location" "$KAFKA_SSL_TRUSTSTORE_LOCATION"
+        printf "  │ %-20s: %-30s │\n" "Truststore Password" "$KAFKA_SSL_TRUSTSTORE_PASSWORD"
+        echo "  └─────────────────────────────────────────────────────────────┘"
+        
+        # Validate SSL certificate files exist
+        echo ""
+        print_status "🔍 Validating SSL certificate files..."
+        if [ -f "$KAFKA_SSL_KEYSTORE_LOCATION" ]; then
+            print_success "✓ Keystore file exists: $KAFKA_SSL_KEYSTORE_LOCATION"
+        else
+            print_error "✗ Keystore file not found: $KAFKA_SSL_KEYSTORE_LOCATION"
+        fi
+        
+        if [ -f "$KAFKA_SSL_TRUSTSTORE_LOCATION" ]; then
+            print_success "✓ Truststore file exists: $KAFKA_SSL_TRUSTSTORE_LOCATION"
+        else
+            print_error "✗ Truststore file not found: $KAFKA_SSL_TRUSTSTORE_LOCATION"
+        fi
+    else
+        echo ""
+        print_status "🔓 Using plaintext connection (SSL disabled)"
+    fi
+    
+    echo ""
+}
+
+# Function to check if Kafka CLI tools are installed
+check_kafka_cli() {
+    if command -v kafka-console-producer &> /dev/null; then
+        KAFKA_CONSOLE_PRODUCER="kafka-console-producer"
+        KAFKA_CONSOLE_CONSUMER="kafka-console-consumer"
+        print_success "Kafka CLI tools found in PATH"
+        return 0
+    fi
+    
+    # Check common installation paths
+    local common_paths=(
+        "/usr/local/bin/kafka-console-producer"
+        "/opt/kafka/bin/kafka-console-producer"
+        "/usr/bin/kafka-console-producer"
+        "$HOME/kafka/bin/kafka-console-producer"
+    )
+    
+    for path in "${common_paths[@]}"; do
+        if [ -f "$path" ]; then
+            KAFKA_CONSOLE_PRODUCER="$path"
+            KAFKA_CONSOLE_CONSUMER="${path%producer}consumer"
+            print_success "Kafka CLI tools found at: $path"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
+# Function to install Kafka CLI tools
+install_kafka_cli() {
+    print_status "Kafka CLI tools not found. Installing..."
+    
+    local os=$(uname -s)
+    local arch=$(uname -m)
+    
+    case "$os" in
+        "Darwin")
+            if command -v brew &> /dev/null; then
+                print_status "Installing Kafka via Homebrew..."
+                brew install kafka
+                if check_kafka_cli; then
+                    print_success "Kafka CLI tools installed successfully via Homebrew"
+                    return 0
+                fi
+            fi
+            ;;
+        "Linux")
+            if command -v apt-get &> /dev/null; then
+                print_status "Installing Kafka via apt..."
+                sudo apt-get update
+                sudo apt-get install -y kafka
+                if check_kafka_cli; then
+                    print_success "Kafka CLI tools installed successfully via apt"
+                    return 0
+                fi
+            elif command -v yum &> /dev/null; then
+                print_status "Installing Kafka via yum..."
+                sudo yum install -y kafka
+                if check_kafka_cli; then
+                    print_success "Kafka CLI tools installed successfully via yum"
+                    return 0
+                fi
+            fi
+            ;;
+    esac
+    
+    # Fallback: Download and extract Kafka
+    print_status "Downloading Kafka binary distribution..."
+    local kafka_version="2.8.1"
+    local kafka_url="https://downloads.apache.org/kafka/${kafka_version}/kafka_2.13-${kafka_version}.tgz"
+    local temp_dir="/tmp/kafka-install"
+    
+    mkdir -p "$temp_dir"
+    cd "$temp_dir"
+    
+    if command -v curl &> /dev/null; then
+        curl -L "$kafka_url" -o "kafka.tgz"
+    elif command -v wget &> /dev/null; then
+        wget "$kafka_url" -O "kafka.tgz"
+    else
+        print_error "Neither curl nor wget found. Please install Kafka manually."
         return 1
     fi
     
-    print_success "Found application.yml at: $app_yml"
+    tar -xzf kafka.tgz
+    local kafka_dir=$(ls -d kafka_* | head -1)
     
-    # Parse Kafka configuration
-    KAFKA_BOOTSTRAP_SERVERS=$(parse_yaml_value "$app_yml" "kafka.bootstrap-servers" "localhost:9093")
-    KAFKA_TOPIC=$(parse_yaml_value "$app_yml" "kafka.topic.name" "wifi-scan-data")
-    KAFKA_SSL_ENABLED=$(parse_yaml_value "$app_yml" "kafka.ssl.enabled" "true")
-    KAFKA_SSL_KEYSTORE_LOCATION=$(parse_yaml_value "$app_yml" "kafka.ssl.keystore.location" "scripts/kafka/secrets/kafka.keystore.p12")
-    KAFKA_SSL_KEYSTORE_PASSWORD=$(parse_yaml_value "$app_yml" "kafka.ssl.keystore.password" "kafka123")
-    KAFKA_SSL_TRUSTSTORE_LOCATION=$(parse_yaml_value "$app_yml" "kafka.ssl.truststore.location" "scripts/kafka/secrets/kafka.truststore.p12")
-    KAFKA_SSL_TRUSTSTORE_PASSWORD=$(parse_yaml_value "$app_yml" "kafka.ssl.truststore.password" "kafka123")
+    # Add to PATH for this session
+    export PATH="$temp_dir/$kafka_dir/bin:$PATH"
     
-    # Extract port from bootstrap servers
-    if [[ "$KAFKA_BOOTSTRAP_SERVERS" =~ :([0-9]+)$ ]]; then
-        local port="${BASH_REMATCH[1]}"
-        if [ "$port" = "9093" ]; then
-            KAFKA_SSL_PORT=9093
-            KAFKA_PLAIN_PORT=9092
-        else
-            KAFKA_SSL_PORT="$port"
-            KAFKA_PLAIN_PORT="$port"
-        fi
+    if check_kafka_cli; then
+        print_success "Kafka CLI tools installed successfully from binary distribution"
+        print_warning "Kafka is installed in $temp_dir/$kafka_dir"
+        print_warning "Add this to your PATH: export PATH=\"$temp_dir/$kafka_dir/bin:\$PATH\""
+        return 0
     else
-        KAFKA_SSL_PORT=9093
-        KAFKA_PLAIN_PORT=9092
+        print_error "Failed to install Kafka CLI tools"
+        return 1
+    fi
+}
+
+# Function to ensure Kafka CLI tools are available
+ensure_kafka_cli() {
+    if check_kafka_cli; then
+        return 0
     fi
     
-    print_success "Configuration loaded from application.yml:"
-    print_status "  Bootstrap Servers: $KAFKA_BOOTSTRAP_SERVERS"
-    print_status "  Topic: $KAFKA_TOPIC"
-    print_status "  SSL Enabled: $KAFKA_SSL_ENABLED"
-    print_status "  SSL Port: $KAFKA_SSL_PORT"
+    print_warning "Kafka CLI tools not found. Attempting to install..."
     
-    return 0
+    if install_kafka_cli; then
+        return 0
+    else
+        print_error "Failed to install Kafka CLI tools automatically."
+        echo ""
+        echo "Please install Kafka CLI tools manually:"
+        echo "  macOS: brew install kafka"
+        echo "  Ubuntu/Debian: sudo apt-get install kafka"
+        echo "  CentOS/RHEL: sudo yum install kafka"
+        echo "  Or download from: https://kafka.apache.org/downloads"
+        echo ""
+        exit 1
+    fi
+}
+
+# Function to create SSL client properties file
+create_ssl_client_properties() {
+    if [ "$KAFKA_SSL_ENABLED" != "true" ]; then
+        return 0
+    fi
+    
+    # Redirect all output to stderr except the final file path
+    {
+        print_status "Creating SSL client properties..."
+        
+        local client_props_file="/tmp/kafka-ssl-client.properties"
+        
+        # Validate SSL certificate files exist
+        if [ ! -f "$KAFKA_SSL_KEYSTORE_LOCATION" ]; then
+            print_error "SSL keystore not found: $KAFKA_SSL_KEYSTORE_LOCATION"
+            return 1
+        fi
+        
+        if [ ! -f "$KAFKA_SSL_TRUSTSTORE_LOCATION" ]; then
+            print_error "SSL truststore not found: $KAFKA_SSL_TRUSTSTORE_LOCATION"
+            return 1
+        fi
+        
+        cat > "$client_props_file" << EOF
+security.protocol=SSL
+ssl.truststore.location=$KAFKA_SSL_TRUSTSTORE_LOCATION
+ssl.truststore.password=$KAFKA_SSL_TRUSTSTORE_PASSWORD
+ssl.truststore.type=PKCS12
+ssl.keystore.location=$KAFKA_SSL_KEYSTORE_LOCATION
+ssl.keystore.password=$KAFKA_SSL_KEYSTORE_PASSWORD
+ssl.keystore.type=PKCS12
+ssl.key.password=$KAFKA_SSL_KEYSTORE_PASSWORD
+EOF
+        
+        print_success "SSL client properties created"
+    } >&2
+    
+    # Only the file path goes to stdout
+    echo "/tmp/kafka-ssl-client.properties"
 }
 
 # Function to check prerequisites
 check_prerequisites() {
     print_status "Checking prerequisites..."
     
-    # Check if Kafka containers are running
-    if ! docker ps | grep -q "kafka"; then
-        print_error "Kafka container is not running. Please run ./start-local-kafka.sh first."
-        exit 1
-    fi
-    
     # Check if jq is available for JSON validation
     if ! command -v jq &> /dev/null; then
-        print_error "jq is required for JSON validation. Please install it: brew install jq"
+        print_error "jq is required for JSON validation. Please install it:"
+        echo "  macOS: brew install jq"
+        echo "  Ubuntu/Debian: sudo apt-get install jq"
+        echo "  CentOS/RHEL: sudo yum install jq"
         exit 1
     fi
     
+    # Ensure Kafka CLI tools are available
+    ensure_kafka_cli
+    
     print_success "Prerequisites verified!"
-}
-
-# Function to create SSL client properties from application.yml configuration
-create_ssl_client_properties() {
-    print_status "Creating SSL client properties from application.yml configuration..."
-    
-    # Map local paths to container paths
-    local container_keystore="/etc/kafka/secrets/kafka.keystore.p12"
-    local container_truststore="/etc/kafka/secrets/kafka.truststore.p12"
-    
-    CLIENT_PROPS_FILE="/tmp/kafka-ssl-client.properties"
-    cat > "$CLIENT_PROPS_FILE" << EOF
-security.protocol=SSL
-ssl.truststore.location=$container_truststore
-ssl.truststore.password=$KAFKA_SSL_TRUSTSTORE_PASSWORD
-ssl.truststore.type=PKCS12
-ssl.keystore.location=$container_keystore
-ssl.keystore.password=$KAFKA_SSL_KEYSTORE_PASSWORD
-ssl.keystore.type=PKCS12
-ssl.key.password=$KAFKA_SSL_KEYSTORE_PASSWORD
-EOF
-    
-    # Copy client properties to container
-    docker cp "$CLIENT_PROPS_FILE" kafka:/tmp/kafka-ssl-client.properties
-    
-    print_success "SSL client properties created with configuration from application.yml"
-    
-    # Cleanup local file
-    rm -f "$CLIENT_PROPS_FILE"
 }
 
 # Function to detect file format and parse messages
@@ -244,129 +521,84 @@ parse_message_file() {
         return 1
     fi
     
-    print_status "Parsing message file: $file_path"
+    # Try to detect file format by checking the file structure
+    local first_char=$(head -1 "$file_path" | tr -d ' \t\n\r' | cut -c1)
+    local line_count=$(wc -l < "$file_path" | tr -d ' ')
     
-    # Try to detect file format
-    local first_char=$(head -c 1 "$file_path")
-    
-    if [ "$first_char" = "[" ]; then
-        # JSON array format
-        print_status "Detected JSON array format"
-        local message_count=$(jq '. | length' "$file_path" 2>/dev/null)
-        if [ -z "$message_count" ] || [ "$message_count" = "null" ]; then
-            print_error "Invalid JSON array format in file"
-            return 1
-        fi
-        echo "array:$message_count"
-        return 0
-    elif [ "$first_char" = "{" ]; then
-        # Check if it's a single JSON object or JSONL
-        local line_count=$(grep -c "^{" "$file_path")
-        if [ "$line_count" -eq 1 ]; then
-            print_status "Detected single JSON object format"
-            # Validate JSON
-            if ! jq empty "$file_path" 2>/dev/null; then
-                print_error "Invalid JSON format in file"
-                return 1
-            fi
-            echo "single:1"
-            return 0
+    # Check if it's a JSON array (first char is [)
+    if [ "$first_char" == "[" ]; then
+        echo "array"
+    # Check if file has multiple lines starting with { (JSONL format)
+    elif [ "$line_count" -gt 1 ] && [ "$first_char" == "{" ]; then
+        # Verify second line also starts with { to confirm JSONL
+        local second_char=$(sed -n '2p' "$file_path" | tr -d ' \t\n\r' | cut -c1)
+        if [ "$second_char" == "{" ]; then
+            echo "jsonl"
         else
-            print_status "Detected JSONL (newline-delimited JSON) format"
-            echo "jsonl:$line_count"
-            return 0
+            echo "single"
         fi
+    # Single JSON object
+    elif [ "$first_char" == "{" ]; then
+        echo "single"
     else
-        print_error "Unknown file format. Expected JSON object, JSON array, or JSONL format."
-        return 1
+        # Default to single JSON object
+        echo "single"
     fi
 }
 
-# Function to verify topic exists
-verify_topic_exists() {
-    local topic_name="$1"
-    local use_ssl="$2"
+# Function to count messages in file
+count_messages_in_file() {
+    local file_path="$1"
+    local format_type="$2"
     
-    print_status "Verifying topic '$topic_name' exists..."
-    
-    local bootstrap_server
-    local additional_options=""
-    
-    if [ "$use_ssl" == "true" ]; then
-        bootstrap_server="localhost:$KAFKA_SSL_PORT"
-        additional_options="--command-config /tmp/kafka-ssl-client.properties"
-    else
-        bootstrap_server="localhost:$KAFKA_PLAIN_PORT"
-    fi
-    
-    # List topics and check if target topic exists
-    local existing_topics
-    if [ "$use_ssl" == "true" ]; then
-        existing_topics=$(docker exec kafka kafka-topics --bootstrap-server "$bootstrap_server" $additional_options --list 2>/dev/null || echo "")
-    else
-        existing_topics=$(docker exec kafka kafka-topics --bootstrap-server "$bootstrap_server" --list 2>/dev/null || echo "")
-    fi
-    
-    if ! echo "$existing_topics" | grep -q "^${topic_name}$"; then
-        print_warning "Topic '$topic_name' does not exist. Creating it..."
-        
-        # Create the topic
-        if [ "$use_ssl" == "true" ]; then
-            docker exec kafka kafka-topics \
-                --bootstrap-server "$bootstrap_server" \
-                $additional_options \
-                --create \
-                --topic "$topic_name" \
-                --partitions 3 \
-                --replication-factor 1
-        else
-            docker exec kafka kafka-topics \
-                --bootstrap-server "$bootstrap_server" \
-                --create \
-                --topic "$topic_name" \
-                --partitions 3 \
-                --replication-factor 1
-        fi
-        
-        print_success "Topic '$topic_name' created successfully!"
-    else
-        print_success "Topic '$topic_name' exists!"
-    fi
+    case "$format_type" in
+        "single")
+            echo "1"
+            ;;
+        "array")
+            jq length "$file_path"
+            ;;
+        "jsonl")
+            wc -l < "$file_path" | tr -d ' '
+            ;;
+        *)
+            echo "0"
+            ;;
+    esac
 }
 
-# Function to send messages from file
-send_messages_from_file() {
+# Function to send messages
+send_messages() {
     local file_path="$1"
     local topic_name="$2"
     local use_ssl="$3"
-    local interval="$4"
-    local repeat_count="$5"
+    local repeat_count="$4"
+    local interval="$5"
     
-    local format_info=$(parse_message_file "$file_path" 2>&1)
-    if [ $? -ne 0 ]; then
-        return 1
-    fi
+    print_status "Parsing message file: $file_path"
     
-    local format_type=$(echo "$format_info" | tail -1 | cut -d: -f1)
-    local messages_in_file=$(echo "$format_info" | tail -1 | cut -d: -f2)
+    local format_type=$(parse_message_file "$file_path")
+    local messages_in_file=$(count_messages_in_file "$file_path" "$format_type")
     local total_messages=$((messages_in_file * repeat_count))
     
-    print_status "Sending $messages_in_file message(s) from file, repeated $repeat_count time(s) = $total_messages total messages"
-    print_status "Sending to topic '$topic_name' with ${interval}s interval..."
+    print_status "File format: $format_type"
+    print_status "Messages in file: $messages_in_file"
+    print_status "Total messages to send: $total_messages"
     
-    local bootstrap_server
+    local bootstrap_server="$KAFKA_BOOTSTRAP_SERVERS"
     local additional_options=""
     
     if [ "$use_ssl" == "true" ]; then
-        bootstrap_server="localhost:$KAFKA_SSL_PORT"
-        additional_options="--producer.config /tmp/kafka-ssl-client.properties"
-        print_status "Using SSL connection on port $KAFKA_SSL_PORT"
+        local ssl_props_file=$(create_ssl_client_properties)
+        if [ $? -ne 0 ]; then
+            return 1
+        fi
+        additional_options="--producer.config $ssl_props_file"
+        print_status "Using SSL connection"
     else
-        bootstrap_server="localhost:$KAFKA_PLAIN_PORT"
-        print_status "Using plaintext connection on port $KAFKA_PLAIN_PORT"
+        print_status "Using plaintext connection"
     fi
     
-    # Send messages based on format type
     local message_number=0
     
     case "$format_type" in
@@ -378,16 +610,10 @@ send_messages_from_file() {
                 print_status "Sending message $message_number/$total_messages (iteration $repeat/$repeat_count)..."
                 print_status "Message preview: $(echo "$message" | jq -r '.client // .requestId // "N/A"' 2>/dev/null)"
                 
-                if [ "$use_ssl" == "true" ]; then
-                    echo "$message" | docker exec -i kafka kafka-console-producer \
-                        --bootstrap-server "$bootstrap_server" \
-                        --topic "$topic_name" \
-                        $additional_options
-                else
-                    echo "$message" | docker exec -i kafka kafka-console-producer \
-                        --bootstrap-server "$bootstrap_server" \
-                        --topic "$topic_name"
-                fi
+                echo "$message" | $KAFKA_CONSOLE_PRODUCER \
+                    --bootstrap-server "$bootstrap_server" \
+                    --topic "$topic_name" \
+                    $additional_options
                 
                 if [ $? -eq 0 ]; then
                     print_success "Message $message_number sent successfully!"
@@ -411,16 +637,10 @@ send_messages_from_file() {
                     local message=$(jq -c ".[$i]" "$file_path")
                     print_status "Message preview: $(echo "$message" | jq -r '.client // .requestId // "N/A"' 2>/dev/null)"
                     
-                    if [ "$use_ssl" == "true" ]; then
-                        echo "$message" | docker exec -i kafka kafka-console-producer \
-                            --bootstrap-server "$bootstrap_server" \
-                            --topic "$topic_name" \
-                            $additional_options
-                    else
-                        echo "$message" | docker exec -i kafka kafka-console-producer \
-                            --bootstrap-server "$bootstrap_server" \
-                            --topic "$topic_name"
-                    fi
+                    echo "$message" | $KAFKA_CONSOLE_PRODUCER \
+                        --bootstrap-server "$bootstrap_server" \
+                        --topic "$topic_name" \
+                        $additional_options
                     
                     if [ $? -eq 0 ]; then
                         print_success "Message $message_number sent successfully!"
@@ -454,16 +674,10 @@ send_messages_from_file() {
                     
                     print_status "Message preview: $(echo "$message" | jq -r '.client // .requestId // "N/A"' 2>/dev/null)"
                     
-                    if [ "$use_ssl" == "true" ]; then
-                        echo "$message" | docker exec -i kafka kafka-console-producer \
-                            --bootstrap-server "$bootstrap_server" \
-                            --topic "$topic_name" \
-                            $additional_options
-                    else
-                        echo "$message" | docker exec -i kafka kafka-console-producer \
-                            --bootstrap-server "$bootstrap_server" \
-                            --topic "$topic_name"
-                    fi
+                    echo "$message" | $KAFKA_CONSOLE_PRODUCER \
+                        --bootstrap-server "$bootstrap_server" \
+                        --topic "$topic_name" \
+                        $additional_options
                     
                     if [ $? -eq 0 ]; then
                         print_success "Message $message_number sent successfully!"
@@ -481,104 +695,73 @@ send_messages_from_file() {
             ;;
     esac
     
-    return 0
+    print_success "All messages sent successfully!"
 }
 
-# Function to show summary and next steps
-show_summary() {
-    local file_path="$1"
-    local topic_name="$2"
-    local use_ssl="$3"
-    local total_messages="$4"
-    local repeat_count="$5"
+# Function to verify message delivery (optional)
+verify_message_delivery() {
+    local topic_name="$1"
+    local use_ssl="$2"
     
-    echo ""
-    print_success "WiFi scan message sending completed!"
-    echo "Summary:"
-    echo "- Source File: $file_path"
-    echo "- Topic: $topic_name"
-    echo "- Messages sent: $total_messages (repeated $repeat_count time(s))"
-    echo "- SSL: $use_ssl"
-    echo ""
-    echo "Next steps:"
-    echo "1. Check service metrics: curl http://localhost:8080/frisco-location-wifi-scan-vmb-consumer/api/metrics/kafka"
-    echo "2. Monitor application logs for message processing"
+    print_status "Verifying message delivery..."
+    
+    local bootstrap_server="$KAFKA_BOOTSTRAP_SERVERS"
+    local additional_options=""
+    
     if [ "$use_ssl" == "true" ]; then
-        echo "3. Consume messages: ../setup/consume-test-messages.sh $topic_name --ssl"
-    else
-        echo "3. Consume messages: ../setup/consume-test-messages.sh $topic_name"
+        local ssl_props_file=$(create_ssl_client_properties)
+        if [ $? -ne 0 ]; then
+            return 1
+        fi
+        additional_options="--consumer.config $ssl_props_file"
     fi
-    echo ""
+    
+    # Consume one message to verify delivery
+    timeout 10s $KAFKA_CONSOLE_CONSUMER \
+        --bootstrap-server "$bootstrap_server" \
+        --topic "$topic_name" \
+        --from-beginning \
+        --max-messages 1 \
+        $additional_options &>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        print_success "Message delivery verified!"
+    else
+        print_warning "Could not verify message delivery (timeout or no messages)"
+    fi
 }
 
 # Main execution
 main() {
-    echo "=========================================="
-    echo "📄 WiFi Scan Message File Sender"
-    echo "=========================================="
-    echo ""
+    echo "======================================"
+    echo "WiFi Scan Message Sender"
+    echo "======================================"
     
-    # Load configuration from application.yml first
-    load_config_from_yml
-    
-    # Default values from loaded configuration
+    # Parse command line arguments
     local file_path=""
-    local topic_name="$KAFKA_TOPIC"
-    local use_ssl="$KAFKA_SSL_ENABLED"
-    local interval="$DEFAULT_INTERVAL"
-    local repeat_count=1
-    local config_override=false
+    local message_count=1
+    local interval=$DEFAULT_INTERVAL
+    local topic_override=""
     
-    # Parse command line arguments (can override application.yml values)
     while [[ $# -gt 0 ]]; do
         case $1 in
             --file)
                 file_path="$2"
-                if [ -z "$file_path" ]; then
-                    print_error "File path cannot be empty."
-                    exit 1
-                fi
                 shift 2
                 ;;
             --count)
-                repeat_count="$2"
-                if ! [[ "$repeat_count" =~ ^[0-9]+$ ]] || [ "$repeat_count" -lt 1 ]; then
-                    print_error "Invalid count: $repeat_count. Must be a positive integer."
-                    exit 1
-                fi
+                message_count="$2"
                 shift 2
                 ;;
             --interval)
                 interval="$2"
-                if ! [[ "$interval" =~ ^[0-9]+(\.[0-9]+)?$ ]] || (( $(echo "$interval <= 0" | bc -l) )); then
-                    print_error "Invalid interval: $interval. Must be a positive number."
-                    exit 1
-                fi
                 shift 2
                 ;;
             --topic)
-                topic_name="$2"
-                config_override=true
-                print_warning "Overriding topic from application.yml: $KAFKA_TOPIC -> $topic_name"
-                if [ -z "$topic_name" ]; then
-                    print_error "Topic name cannot be empty."
-                    exit 1
-                fi
+                topic_override="$2"
                 shift 2
                 ;;
-            --ssl)
-                use_ssl="true"
-                config_override=true
-                print_warning "Overriding SSL setting from application.yml: $KAFKA_SSL_ENABLED -> true"
-                shift
-                ;;
-            --no-ssl)
-                use_ssl="false"
-                config_override=true
-                print_warning "Overriding SSL setting from application.yml: $KAFKA_SSL_ENABLED -> false"
-                shift
-                ;;
-            --help|-h)
+            --help)
                 show_usage
                 exit 0
                 ;;
@@ -590,60 +773,39 @@ main() {
         esac
     done
     
-    # Validate required arguments
+    # Validate required parameters
     if [ -z "$file_path" ]; then
-        print_error "Missing required argument: --file"
-        echo ""
+        print_error "File path is required"
         show_usage
         exit 1
     fi
     
-    # Check if file exists
-    if [ ! -f "$file_path" ]; then
-        print_error "File not found: $file_path"
-        exit 1
+    # Load configuration
+    local app_yml=$(find_application_yml)
+    load_configuration "$app_yml"
+    
+    # Override topic if specified
+    if [ -n "$topic_override" ]; then
+        KAFKA_TOPIC="$topic_override"
+        print_warning "Topic overridden to: $KAFKA_TOPIC"
     fi
     
-    echo ""
-    print_success "Configuration Summary:"
-    echo "┌─────────────────────────────────────────┐"
-    echo "│ Source: application.yml                 │"
-    echo "├─────────────────────────────────────────┤"
-    echo "│ Bootstrap Servers: $KAFKA_BOOTSTRAP_SERVERS"
-    echo "│ Topic: $topic_name"
-    echo "│ Message File: $file_path"
-    echo "│ Repeat Count: $repeat_count"
-    echo "│ Interval: ${interval}s"
-    echo "│ SSL Enabled: $use_ssl"
-    if [ "$config_override" = true ]; then
-        echo "│ ⚠️  Command-line overrides applied"
-    fi
-    echo "└─────────────────────────────────────────┘"
-    echo ""
+    # Use SSL configuration from application.yml
+    local use_ssl="$KAFKA_SSL_ENABLED"
     
+    # Check prerequisites
     check_prerequisites
     
-    # Create SSL client properties if SSL is enabled
-    if [ "$use_ssl" == "true" ]; then
-        create_ssl_client_properties
-    fi
+    # Send messages
+    send_messages "$file_path" "$KAFKA_TOPIC" "$use_ssl" "$message_count" "$interval"
     
-    verify_topic_exists "$topic_name" "$use_ssl"
+    # Optional verification
+    verify_message_delivery "$KAFKA_TOPIC" "$use_ssl"
     
-    send_messages_from_file "$file_path" "$topic_name" "$use_ssl" "$interval" "$repeat_count"
-    
-    if [ $? -eq 0 ]; then
-        # Get message count for summary after successful send
-        local format_info=$(parse_message_file "$file_path" 2>/dev/null)
-        local messages_in_file=$(echo "$format_info" | tail -1 | cut -d: -f2)
-        local total_messages=$((messages_in_file * repeat_count))
-        show_summary "$file_path" "$topic_name" "$use_ssl" "$total_messages" "$repeat_count"
-    else
-        print_error "Failed to send messages from file"
-        exit 1
-    fi
+    echo "======================================"
+    print_success "Script completed successfully!"
+    echo "======================================"
 }
 
 # Run main function
 main "$@"
-
