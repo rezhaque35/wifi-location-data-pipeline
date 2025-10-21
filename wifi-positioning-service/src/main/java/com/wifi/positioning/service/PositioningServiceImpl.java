@@ -359,6 +359,8 @@ public class PositioningServiceImpl implements PositioningService {
         if (partialInfo != null && !request.calculationDetail()) {
             logger.info("{}", entries(Map.of("calculationInfo", toLogDataMap(partialInfo))));
         }
+
+        logger.error("{}", entries(Map.of("request", toLogDataMap(request))));
     }
 
     private Map<String, Object> toLogDataMap(WifiPositioningRequest request) {
@@ -548,6 +550,9 @@ public class PositioningServiceImpl implements PositioningService {
 
         // No selection context or algorithm selection for error scenarios
         CalculationInfo.SelectionContextInfo selectionContext =
+                (wifiAPData.validAccessPoints() == null || wifiAPData.validAccessPoints().isEmpty()) ?
+                new CalculationInfo.SelectionContextInfo("NO_VALID_AP", "NO_VALID_AP", "NO_VALID_AP", "NO_VALID_AP") :
+                
                 new CalculationInfo.SelectionContextInfo(null, null, null, null);
 
         List<CalculationInfo.AlgorithmSelectionInfo> algorithmSelection = List.of();
