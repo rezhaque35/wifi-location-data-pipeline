@@ -136,10 +136,9 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
   public Optional<WifiAccessPoint> findByMacAddress(String macAddress) {
     validateMacAddress(macAddress);
 
-    logger.debug("Querying access point by partition key (MAC address): {}", macAddress);
     try {
       WifiAccessPoint result = retrieveSingleAccessPoint(macAddress);
-      return handleSingleResult(result, macAddress);
+      return handleSingleResult(result);
     } catch (Exception e) {
       logger.error("Error retrieving access point by MAC address: {}", macAddress, e);
       throw new RuntimeException("Failed to retrieve access point", e);
@@ -149,15 +148,19 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
   @Override
   public Map<String, WifiAccessPoint> findByMacAddresses(Set<String> macAddresses) {
     if (isEmptyOrNull(macAddresses)) {
-      logger.debug("No MAC addresses provided for batch lookup");
       return Collections.emptyMap();
     }
 
-    logger.debug("Performing batch lookup for {} MAC addresses", macAddresses.size());
     try {
       return orchestrateBatchRetrieval(macAddresses);
+    } catch (DynamoDBThrottlingException e) {
+      logger.error(
+          "DynamoDB throughput limit reached: {} keys unprocessed after {} retries",
+          e.getUnprocessedKeys().size(),
+          e.getAttemptedRetries());
+      throw e;
     } catch (Exception e) {
-      logger.error("Error in batch retrieval of access points", e);
+      logger.error("Unexpected error in batch retrieval of access points", e);
       throw new RuntimeException("Failed to retrieve access points in batch", e);
     }
   }
@@ -170,23 +173,33 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
    * methods that handle individual concerns.
    *
    * <p>Process Flow: 1. Partition MAC addresses into DynamoDB batch size limits 2. Process each
-   * batch independently 3. Aggregate results from all batches 4. Return consolidated result map
+   * batch independently using functional style 3. Aggregate results from all batches 4. Track
+   * performance metrics 5. Return consolidated result map
    *
    * @param macAddresses Set of MAC addresses to retrieve
    * @return Map of MAC addresses to matching access points
+   * @throws DynamoDBThrottlingException if any batch has unprocessed keys after max retries
    */
   private Map<String, WifiAccessPoint> orchestrateBatchRetrieval(Set<String> macAddresses) {
-    Map<String, WifiAccessPoint> consolidatedResults = new HashMap<>();
-    List<List<String>> batches = partitionIntoBatches(macAddresses);
+    long startTime = System.nanoTime();
+    int requestedCount = macAddresses.size();
 
+    Map<String, WifiAccessPoint> consolidatedResults =
+        partitionIntoBatches(macAddresses).stream()
+            .map(this::processSingleBatch)
+            .flatMap(map -> map.entrySet().stream())
+            .collect(
+                HashMap::new,
+                (map, entry) -> map.put(entry.getKey(), entry.getValue()),
+                HashMap::putAll);
 
-    for (List<String> batch : batches) {
-      Map<String, WifiAccessPoint> batchResults = processSingleBatch(batch);
-      consolidatedResults.putAll(batchResults);
-    }
-
+    long durationMs = (System.nanoTime() - startTime) / NANOS_TO_MILLIS;
     logger.info(
-        "Successfully retrieved {} access points in batch operation", consolidatedResults.size());
+        "Batch retrieval completed: requested={}, found={}, duration={}ms",
+        requestedCount,
+        consolidatedResults.size(),
+        durationMs);
+
     return consolidatedResults;
   }
 
@@ -195,31 +208,48 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
    * coordinates the execution and retry logic while delegating the actual DynamoDB operations to
    * implementation-layer methods.
    *
-   * <p>Retry Strategy: 1. Execute initial batch request 2. Check for unprocessed keys 3. Retry with
-   * exponential backoff (handled by AWS SDK) 4. Continue until success or max retries reached
+   * <p>Retry Strategy: 1. Execute initial batch request with all keys 2. Accumulate successful
+   * results 3. Identify unprocessed keys (throttled by DynamoDB) 4. Retry with ONLY unprocessed
+   * keys 5. Continue until all keys processed or max retries reached 6. Throw exception if keys
+   * remain unprocessed after max retries
+   *
+   * <p>Important: This method only retries keys that DynamoDB explicitly returns as "unprocessed"
+   * due to throughput limits. Keys that don't exist in the database are not retried.
    *
    * @param macAddressBatch List of MAC addresses to process
    * @return Map of MAC addresses to matching access points
+   * @throws DynamoDBThrottlingException if keys remain unprocessed after max retries
    */
   private Map<String, WifiAccessPoint> processSingleBatch(List<String> macAddressBatch) {
-    Map<String, WifiAccessPoint> batchResults = new HashMap<>();
-    BatchGetItemEnhancedRequest batchRequest = buildBatchRequest(macAddressBatch);
-
+    Map<String, WifiAccessPoint> accumulatedResults = new HashMap<>();
+    List<String> remainingKeys = new ArrayList<>(macAddressBatch);
     int retryCount = 0;
-    boolean hasUnprocessedKeys;
 
-    do {
-      BatchOperationResult operationResult = executeBatchOperation(batchRequest);
-      batchResults.putAll(operationResult.results());
-      hasUnprocessedKeys = operationResult.hasUnprocessedKeys();
+    while (!remainingKeys.isEmpty() && retryCount <= MAX_BATCH_RETRIES) {
+      BatchGetItemEnhancedRequest batchRequest = buildBatchRequest(remainingKeys);
+      BatchOperationResult result = executeBatchOperation(batchRequest);
 
+      accumulatedResults.putAll(result.results());
+      remainingKeys = result.unprocessedKeys();
       retryCount++;
-      handleRetryLogging(hasUnprocessedKeys, retryCount);
 
-    } while (hasUnprocessedKeys && retryCount <= MAX_BATCH_RETRIES);
+      if (!remainingKeys.isEmpty()) {
+        logger.warn(
+            "Attempt {}: {} keys remain unprocessed due to throughput limits",
+            retryCount, remainingKeys.size());
+      }
+    }
 
-    handleFinalRetryResult(hasUnprocessedKeys);
-    return batchResults;
+    if (!remainingKeys.isEmpty()) {
+      throw new DynamoDBThrottlingException(
+          "Failed to process keys after "
+              + MAX_BATCH_RETRIES
+              + " retries due to DynamoDB throughput limits",
+          new HashSet<>(remainingKeys),
+          MAX_BATCH_RETRIES);
+    }
+
+    return accumulatedResults;
   }
 
   // === IMPLEMENTATION LAYER ===
@@ -257,17 +287,10 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
    * Handles the result of a single access point retrieval operation.
    *
    * @param result Retrieved access point (may be null)
-   * @param macAddress MAC address used for lookup (for logging)
    * @return Optional containing the result
    */
-  private Optional<WifiAccessPoint> handleSingleResult(WifiAccessPoint result, String macAddress) {
-    if (result == null) {
-      logger.info("No access point found for MAC address: {}", macAddress);
-      return Optional.empty();
-    }
-
-    logger.info("Successfully retrieved access point for MAC address: {}", macAddress);
-    return Optional.of(result);
+  private Optional<WifiAccessPoint> handleSingleResult(WifiAccessPoint result) {
+    return Optional.ofNullable(result);
   }
 
   /**
@@ -295,55 +318,32 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
    * Executes a single DynamoDB batch operation and processes the results.
    *
    * <p>Processing Logic: 1. Execute BatchGetItem request 2. Extract results for our table 3. Map
-   * each result to MAC address key 4. Check for unprocessed keys
+   * each result to MAC address key 4. Extract unprocessed keys (throttled keys only)
+   *
+   * <p>Unprocessed keys are those that DynamoDB could not process due to throughput limits. These
+   * are distinct from keys that don't exist in the database (which simply don't appear in results).
    *
    * @param batchRequest Configured batch request
-   * @return BatchOperationResult containing results and unprocessed key status
+   * @return BatchOperationResult containing results and list of unprocessed MAC addresses
    */
   private BatchOperationResult executeBatchOperation(BatchGetItemEnhancedRequest batchRequest) {
     Map<String, WifiAccessPoint> results = new HashMap<>();
-    boolean hasUnprocessedKeys = false;
+    List<String> unprocessedMacAddresses = new ArrayList<>();
 
     BatchGetResultPageIterable resultPages = enhancedClient.batchGetItem(batchRequest);
 
     for (BatchGetResultPage page : resultPages) {
-      List<WifiAccessPoint> pageResults = page.resultsForTable(accessPointTable);
+      // Extract successful results using functional style
+      page.resultsForTable(accessPointTable)
+          .forEach(ap -> results.put(ap.getMacAddress(), ap));
 
-      // Since table only has partition key, each MAC address maps to exactly one entry
-      for (WifiAccessPoint ap : pageResults) {
-        results.put(ap.getMacAddress(), ap);
-      }
-
-      hasUnprocessedKeys = !page.unprocessedKeysForTable(accessPointTable).isEmpty();
+      // Extract unprocessed keys (throttled keys only)
+      page.unprocessedKeysForTable(accessPointTable).stream()
+          .map(key -> key.partitionKeyValue().s())
+          .forEach(unprocessedMacAddresses::add);
     }
 
-    return new BatchOperationResult(results, hasUnprocessedKeys);
-  }
-
-  /**
-   * Handles logging for retry attempts based on unprocessed key status.
-   *
-   * @param hasUnprocessedKeys Whether there are unprocessed keys
-   * @param retryCount Current retry attempt number
-   */
-  private void handleRetryLogging(boolean hasUnprocessedKeys, int retryCount) {
-    if (hasUnprocessedKeys) {
-      logger.warn(
-          "Batch operation has unprocessed keys after attempt {}. "
-              + "Some access points may not be returned.",
-          retryCount);
-    }
-  }
-
-  /**
-   * Handles final logging after all retry attempts are exhausted.
-   *
-   * @param hasUnprocessedKeys Whether there are still unprocessed keys
-   */
-  private void handleFinalRetryResult(boolean hasUnprocessedKeys) {
-    if (hasUnprocessedKeys) {
-      logger.warn("Failed to process all keys after {} retries.", MAX_BATCH_RETRIES);
-    }
+    return new BatchOperationResult(results, unprocessedMacAddresses);
   }
 
   // === UTILITY LAYER ===
@@ -361,54 +361,41 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
   /**
    * Partitions a set of MAC addresses into batches respecting DynamoDB size limits.
    *
-   * <p>Partitioning Algorithm: - Convert Set to List for indexed access - Create sublists of
-   * maximum size MAX_BATCH_SIZE - Ensure no batch exceeds DynamoDB limits
+   * <p>Partitioning Algorithm using functional style: - Convert Set to immutable List - Use
+   * IntStream to generate batch indices - Map each index to a sublist of appropriate size - Collect
+   * into list of batches
    *
    * <p>Mathematical Formula: number_of_batches = ⌈total_items / MAX_BATCH_SIZE⌉
    *
    * <p>Where ⌈⌉ represents the ceiling function.
    *
+   * <p>Time Complexity: O(n) where n is the number of items Space Complexity: O(1) additional space
+   * (sublists are views, not copies)
+   *
    * @param macAddresses Set of MAC addresses to partition
    * @return List of batches, each containing at most MAX_BATCH_SIZE items
    */
   private List<List<String>> partitionIntoBatches(Set<String> macAddresses) {
-    return batchItems(new ArrayList<>(macAddresses), MAX_BATCH_SIZE);
-  }
+    List<String> macList = List.copyOf(macAddresses);
+    int totalBatches = (macList.size() + MAX_BATCH_SIZE - 1) / MAX_BATCH_SIZE;
 
-  /**
-   * Generic utility method to split a list into batches of specified size.
-   *
-   * <p>Algorithm: 1. Iterate through list with step size equal to batch size 2. Create sublist from
-   * current position to min(current + batchSize, listSize) 3. Add sublist to result collection
-   *
-   * <p>Time Complexity: O(n) where n is the number of items Space Complexity: O(1) additional space
-   * (sublists are views, not copies)
-   *
-   * @param items List of items to split
-   * @param batchSize Maximum size of each batch
-   * @param <T> Type of items in the list
-   * @return List of batches
-   */
-  private <T> List<List<T>> batchItems(List<T> items, int batchSize) {
-    List<List<T>> batches = new ArrayList<>();
-
-    for (int i = 0; i < items.size(); i += batchSize) {
-      int endIndex = Math.min(i + batchSize, items.size());
-      batches.add(items.subList(i, endIndex));
-    }
-
-    return batches;
+    return java.util.stream.IntStream.range(0, totalBatches)
+        .mapToObj(
+            i ->
+                macList.subList(
+                    i * MAX_BATCH_SIZE, Math.min((i + 1) * MAX_BATCH_SIZE, macList.size())))
+        .toList();
   }
 
   /**
    * Record representing the result of a batch operation. Encapsulates both the successful results
-   * and the status of unprocessed keys.
+   * and the list of unprocessed keys that need to be retried.
    *
    * @param results Map of MAC addresses to retrieved access points
-   * @param hasUnprocessedKeys Whether the operation had unprocessed keys
+   * @param unprocessedKeys List of MAC addresses that were not processed due to throttling
    */
   private record BatchOperationResult(
-      Map<String, WifiAccessPoint> results, boolean hasUnprocessedKeys) {}
+      Map<String, WifiAccessPoint> results, List<String> unprocessedKeys) {}
 
   // === HEALTH CHECK METHODS ===
 
@@ -436,8 +423,6 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
   @Override
   public HealthCheckResult validateTableHealth()
       throws ResourceNotFoundException, DynamoDbException, Exception {
-    logger.debug("Starting table health validation for: {}", tableName);
-
     long startTime = System.nanoTime();
 
     try {
@@ -447,13 +432,6 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
       long responseTimeMs = calculateResponseTime(startTime);
       boolean isHealthy = evaluateHealthStatus(responseTimeMs);
       String statusMessage = determineStatusMessage(isHealthy);
-
-      logger.debug(
-          "Table health check completed - Table: {}, Response time: {}ms, Healthy: {}, Item count: {}",
-          tableName,
-          responseTimeMs,
-          isHealthy,
-          itemCount);
 
       return new HealthCheckResult(isHealthy, responseTimeMs, tableName, itemCount, statusMessage);
 
@@ -487,14 +465,9 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
   @Override
   public long getApproximateItemCount()
       throws ResourceNotFoundException, DynamoDbException, Exception {
-    logger.debug("Retrieving approximate item count for table: {}", tableName);
-
     try {
       DescribeTableEnhancedResponse response = accessPointTable.describeTable();
-      long itemCount = response.table().itemCount();
-
-      logger.debug("Retrieved approximate item count: {} for table: {}", itemCount, tableName);
-      return itemCount;
+      return response.table().itemCount();
 
     } catch (ResourceNotFoundException e) {
       logger.error("Table not found when retrieving item count: {}", tableName);

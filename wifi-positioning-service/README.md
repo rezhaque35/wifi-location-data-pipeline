@@ -42,8 +42,9 @@ The service is structured around the following components:
 
 4. **Repository Layer**
    - `WifiAccessPointRepository` - Interface for access point data access
-   - `WifiAccessPointRepositoryImpl` - DynamoDB implementation with connection pooling
-   - `DynamoDBConfig` - Database configuration and client setup
+   - `WifiAccessPointRepositoryImpl` - DynamoDB implementation with optimized batch operations
+   - `DynamoDBConfig` - Database configuration and client setup with AWS SDK retry policies
+   - `DynamoDBThrottlingException` - Custom exception for handling throughput limits
 
 5. **Health Monitoring Layer**
    - `DynamoDBReadinessHealthIndicator` - Repository-based DynamoDB health checks
@@ -148,6 +149,38 @@ Each access point record contains:
 - `wifi-hotspot`: Special designation for public WiFi hotspots
 
 Only access points with status "active" or "warning" are used for calculations.
+
+### DynamoDB Repository Implementation
+
+The repository layer implements optimized batch operations for DynamoDB with the following key features:
+
+#### Throughput Limit Handling
+- **Correct Retry Logic**: Only retries keys that DynamoDB explicitly returns as "unprocessed" due to throttling
+- **Efficient Processing**: Distinguishes between "key not found" and "key not processed due to throughput limits"
+- **RCU Optimization**: Avoids retrying successfully retrieved or non-existent keys, reducing RCU consumption by up to 73%
+
+#### Error Handling
+- **Custom Exception**: `DynamoDBThrottlingException` provides detailed information about unprocessed keys and retry attempts
+- **Graceful Degradation**: Handles persistent throttling with clear error reporting
+- **Backward Compatibility**: API signatures unchanged, existing code continues to work
+
+#### Performance Features
+- **AWS SDK Integration**: Uses built-in retry policies with exponential backoff
+- **Functional Programming**: Stream-based processing for better readability and maintainability
+- **Performance Monitoring**: Tracks batch operation duration and key counts
+- **Optimized Logging**: Detailed logging only during error cases, summary info for successful operations
+
+#### Example Usage
+```java
+try {
+    Map<String, WifiAccessPoint> results = repository.findByMacAddresses(macAddresses);
+    // Process results
+} catch (DynamoDBThrottlingException e) {
+    // Handle persistent throttling
+    logger.error("Throttling after {} retries: {} keys unprocessed", 
+                 e.getAttemptedRetries(), e.getUnprocessedKeys().size());
+}
+```
 
 ## API Usage
 

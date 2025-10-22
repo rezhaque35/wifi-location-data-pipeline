@@ -35,7 +35,16 @@ Create a hybrid WiFi positioning system that combines multiple algorithms to pro
      "BillingMode": "PAY_PER_REQUEST"
    }
    ```
-10. Data stored in the `wifi_access_points` table is in the following format:
+10. **DynamoDB Repository Requirements**:
+    - The repository must properly handle DynamoDB throughput limits and distinguish between "key not found" and "key not processed due to throughput limits"
+    - Only retry keys that DynamoDB explicitly returns as "unprocessed" due to throttling, not keys that don't exist in the database
+    - Implement efficient retry logic that accumulates results across retries and only retries unprocessed keys
+    - Use AWS SDK's built-in retry configuration with exponential backoff for transient exceptions
+    - Throw a custom `DynamoDBThrottlingException` with detailed information about failed keys when throughput limits are persistently hit
+    - Implement detailed logging only during error cases, with info logs showing number of keys found and total processing time
+    - Use functional programming style for better readability and maintainability
+    - Apply performance optimizations to minimize RCU consumption and improve response times
+11. Data stored in the `wifi_access_points` table is in the following format:
     ```json
     {
       "mac_addr": {"S": "00:11:22:33:44:01"},
@@ -53,14 +62,14 @@ Create a hybrid WiFi positioning system that combines multiple algorithms to pro
       "status": {"S": "active"}
     }
     ```
-11. The status field in `wifi_access_points` database can have the following values:
+12. The status field in `wifi_access_points` database can have the following values:
     - `active`: Valid and current access point data
     - `error`: Data contains errors or inconsistencies
     - `expired`: Data is no longer valid 
     - `warning`: Data may be outdated or have reduced confidence
     - `wifi-hotspot`: Special designation for public WiFi hotspots
-12. Application will only use data with status "active" or "warning" for calculations.
-13. Application will include all found Access Point locations as part of response's calculation info element when flagged to send in request.
+13. Application will only use data with status "active" or "warning" for calculations.
+14. Application will include all found Access Point locations as part of response's calculation info element when flagged to send in request.
 
 ## Input Parameters and Their Roles
 
