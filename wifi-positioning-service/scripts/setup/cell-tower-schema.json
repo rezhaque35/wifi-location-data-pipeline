@@ -1,0 +1,26 @@
+{
+  "TableName": "wifi-cell-tower-location",
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "cellId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "cellType",
+      "AttributeType": "S"
+    }
+  ],
+  "KeySchema": [
+    {
+      "AttributeName": "cellId",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "cellType",
+      "KeyType": "RANGE"
+    }
+  ],
+  "BillingMode": "PAY_PER_REQUEST"
+}
+
+

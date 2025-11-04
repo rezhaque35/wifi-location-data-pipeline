@@ -1,0 +1,38 @@
+{
+  "testName": "Test cell tower filtering with all APs within range",
+  "description": "Verify that all APs within cell tower effective range are kept",
+  "request": {
+    "wifiScanResults": [
+      {"macAddress": "00:11:22:33:44:02", "signalStrength": -62.3, "frequency": 5180, "ssid": "DualAP_Test"},
+      {"macAddress": "00:11:22:33:44:03", "signalStrength": -65.0, "frequency": 2462, "ssid": "TriAP_Test"},
+      {"macAddress": "00:11:22:33:44:04", "signalStrength": -71.2, "frequency": 5240, "ssid": "MultiAP_Test"}
+    ],
+    "cellInfo": [
+      {"id": 1002, "cellType": "LTE", "signalStrength": -80}
+    ],
+    "client": "test-client",
+    "requestId": "test-request-cell-tower-in-range",
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
+  },
+  "expected": {
+    "result": "SUCCESS",
+    "wifiPosition": {
+      "latitude": 37.7751,
+      "longitude": -122.4196,
+      "accuracy": {"min": 50.0, "max": 75.0},
+      "confidence": {"min": 0.35, "max": 0.65},
+      "methodsUsed": ["weighted_centroid", "rssiratio"]
+    },
+    "calculationInfo": {
+      "accessPointSummary": {
+        "total": 3,
+        "known": 3,
+        "used": 3
+      },
+      "statusCounts": {
+        "USED": 3
+      }
+    }
+  }
+}

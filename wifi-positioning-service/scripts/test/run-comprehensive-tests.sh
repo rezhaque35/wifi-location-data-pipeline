@@ -331,12 +331,12 @@ validate_expected_access_points() {
                 local ap_status=$(echo "$cleaned_response" | jq -r --arg mac "$mac" '.calculationInfo.accessPoints[] | select(.bssid == $mac) | .status' 2>/dev/null || echo "")
                 
                 # If filtering is not allowed, all APs should be used
-                if [[ "$allow_filtering" == "false" ]] && [[ "$ap_usage" != "used" ]]; then
+                if [[ "$allow_filtering" == "false" ]] && [[ "$ap_usage" != "USED" ]]; then
                     validation_errors+=("Requested AP $mac was not used in calculation (usage: $ap_usage, status: $ap_status)")
                 fi
                 
                 # Validate logical consistency: filtered APs should have non-active status
-                if [[ "$ap_usage" == "filtered" ]] && [[ "$ap_status" == "active" ]]; then
+                if [[ "$ap_usage" == DISCARDED* ]] && [[ "$ap_status" == "active" ]]; then
                     validation_errors+=("AP $mac has inconsistent status: usage=filtered but status=active")
                 fi
             fi
@@ -359,7 +359,7 @@ validate_expected_access_points() {
     fi
     
     # Validate that accessPointSummary.used matches the number of APs with usage="used"
-    local used_count=$(echo "$cleaned_response" | jq -r '.calculationInfo.accessPoints[] | select(.usage == "used") | .bssid' 2>/dev/null | wc -l | tr -d ' ')
+    local used_count=$(echo "$cleaned_response" | jq -r '.calculationInfo.accessPoints[] | select(.usage == "USED") | .bssid' 2>/dev/null | wc -l | tr -d ' ')
     local summary_used=$(echo "$cleaned_response" | jq -r '.calculationInfo.accessPointSummary.used' 2>/dev/null || echo "")
     if [[ "$summary_used" != "$used_count" ]]; then
         validation_errors+=("accessPointSummary.used ($summary_used) does not match actual used AP count ($used_count)")
@@ -371,7 +371,7 @@ validate_expected_access_points() {
     fi
     
     # Validate that filtered + used counts add up correctly
-    local filtered_count=$(echo "$cleaned_response" | jq -r '.calculationInfo.accessPoints[] | select(.usage == "filtered") | .bssid' 2>/dev/null | wc -l | tr -d ' ')
+    local filtered_count=$(echo "$cleaned_response" | jq -r '.calculationInfo.accessPoints[] | select(.usage | startswith("DISCARDED_")) | .bssid' 2>/dev/null | wc -l | tr -d ' ')
     local total_processed=$((used_count + filtered_count))
     if [[ "$total_processed" != "$request_count" ]]; then
         validation_errors+=("Usage counts don't add up: used($used_count) + filtered($filtered_count) = $total_processed, but requested $request_count")
@@ -457,7 +457,7 @@ validate_response() {
             if [[ -n "$request_payload" ]]; then
                 # Check if this is a filtering test (based on request ID)
                 local allow_filtering="false"
-                if echo "$request_payload" | grep -q "status-filtering\|error-handling\|data-quality"; then
+                if echo "$request_payload" | grep -q "status-filtering\|error-handling\|data-quality\|cell-tower\|centroid-filtering"; then
                     allow_filtering="true"
                 fi
                 
@@ -1138,6 +1138,12 @@ run_test '{
     "calculationDetail": true
 }' "SUCCESS" 5 80 0.40 0.60 "weighted_centroid rssiratio" false true
 
+echo -e "\n${BLUE}SECTION 8: DATA-DRIVEN FILTERING TESTS${NC}"
+echo -e "${BLUE}====================================================${NC}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$SCRIPT_DIR/run-data-driven-tests.sh"
+DATA_DRIVEN_EXIT=$?
+
 # Print test summary
 echo -e "\n${CYAN}====================================================${NC}"
 echo -e "${CYAN}                TEST SUMMARY${NC}"
@@ -1149,4 +1155,11 @@ if [ "$TOTAL_TESTS" -gt 0 ]; then
     SUCCESS_RATE=$((PASSED_TESTS * 100 / TOTAL_TESTS))
     echo -e "Success Rate: ${YELLOW}${SUCCESS_RATE}%${NC}"
 fi
+
+# Include data-driven test results in overall exit code
+if [ "$DATA_DRIVEN_EXIT" -ne 0 ]; then
+    echo -e "${RED}Data-driven filtering tests failed${NC}"
+    exit 1
+fi
+
 echo -e "${CYAN}====================================================${NC}" 

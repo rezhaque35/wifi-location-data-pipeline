@@ -1,5 +1,7 @@
 package com.wifi.positioning.controller;
 
+import java.util.concurrent.CompletableFuture;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -42,27 +44,29 @@ public class PositioningController {
   @PostMapping(value = "/position", produces = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
       summary = "Calculate position",
-      description = "Calculate position based on WiFi scan results")
-  public ResponseEntity<WifiPositioningResponse> calculatePosition(
+      description = "Calculate position based on WiFi scan results asynchronously")
+  public CompletableFuture<ResponseEntity<WifiPositioningResponse>> calculatePosition(
       @Valid @RequestBody WifiPositioningRequest request) {
-    try {
-      WifiPositioningResponse response = positioningService.calculatePosition(request);
+    
+    // Spring MVC natively handles CompletableFuture return type
+    // The request thread is freed immediately while async operations proceed
+    return positioningService.calculatePosition(request)
+        .thenApply(response -> {
+          // Determine HTTP status code based on response result
+          HttpStatus httpStatus = determineHttpStatus(response);
 
-      // Determine HTTP status code based on response result
-      HttpStatus httpStatus = determineHttpStatus(response);
-
-      return ResponseEntity.status(httpStatus)
-          .contentType(MediaType.APPLICATION_JSON)
-          .body(response);
-
-    } catch (Exception e) {
-      // Handle any other unexpected exceptions
-      WifiPositioningResponse errorResponse =
-          WifiPositioningResponse.error(e.getMessage(), request);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .contentType(MediaType.APPLICATION_JSON)
-          .body(errorResponse);
-    }
+          return ResponseEntity.status(httpStatus)
+              .contentType(MediaType.APPLICATION_JSON)
+              .body(response);
+        })
+        .exceptionally(e -> {
+          // Handle any unexpected exceptions
+          WifiPositioningResponse errorResponse =
+              WifiPositioningResponse.error(e.getMessage(), request);
+          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+              .contentType(MediaType.APPLICATION_JSON)
+              .body(errorResponse);
+        });
   }
 
   /**

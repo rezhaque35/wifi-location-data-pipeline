@@ -11,19 +11,30 @@ if [ -z "$CONTAINER_ID" ]; then
 else
     echo "Found DynamoDB Local container: $CONTAINER_ID"
     
-    # Step 2: Delete the table if it exists
+    # Step 2: Delete the tables if they exist
     echo "Deleting wifi_access_points table..."
     aws dynamodb delete-table \
         --table-name wifi_access_points \
         --endpoint-url http://localhost:8000 \
         --profile dynamodb-local 2>/dev/null || echo "Table does not exist or already deleted"
     
-    # Step 3: Wait for table to be deleted
-    echo "Waiting for table deletion to complete..."
+    echo "Deleting wifi-cell-tower-location table..."
+    aws dynamodb delete-table \
+        --table-name wifi-cell-tower-location \
+        --endpoint-url http://localhost:8000 \
+        --profile dynamodb-local 2>/dev/null || echo "Table does not exist or already deleted"
+    
+    # Step 3: Wait for tables to be deleted
+    echo "Waiting for table deletions to complete..."
     aws dynamodb wait table-not-exists \
         --table-name wifi_access_points \
         --endpoint-url http://localhost:8000 \
-        --profile dynamodb-local 2>/dev/null || echo "Table deletion completed"
+        --profile dynamodb-local 2>/dev/null || echo "WiFi access points table deletion completed"
+    
+    aws dynamodb wait table-not-exists \
+        --table-name wifi-cell-tower-location \
+        --endpoint-url http://localhost:8000 \
+        --profile dynamodb-local 2>/dev/null || echo "Cell tower table deletion completed"
     
     # Step 4: Stop the DynamoDB Local container
     echo "Stopping DynamoDB Local container..."

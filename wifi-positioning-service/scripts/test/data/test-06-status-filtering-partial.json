@@ -1,0 +1,39 @@
+{
+  "testName": "Test status filtering with partial valid statuses",
+  "description": "Verify that only valid status APs are used when some have invalid status",
+  "request": {
+    "wifiScanResults": [
+      {"macAddress": "00:11:22:33:44:41", "signalStrength": -70.0, "frequency": 2437, "ssid": "StatusTest_41"},
+      {"macAddress": "00:11:22:33:44:43", "signalStrength": -70.0, "frequency": 2437, "ssid": "StatusTest_43"},
+      {"macAddress": "00:11:22:33:44:44", "signalStrength": -70.0, "frequency": 2437, "ssid": "StatusTest_44"}
+    ],
+    "cellInfo": [
+      {"id": 1041, "cellType": "LTE", "signalStrength": -80}
+    ],
+    "client": "test-client",
+    "requestId": "test-request-status-partial",
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
+  },
+  "expected": {
+    "result": "SUCCESS",
+    "wifiPosition": {
+      "latitude": 37.7820,
+      "longitude": -122.4260,
+      "accuracy": {"min": 10.0, "max": 30.0},
+      "confidence": {"min": 0.3, "max": 0.95},
+      "methodsUsed": ["proximity"]
+    },
+    "calculationInfo": {
+      "accessPointSummary": {
+        "total": 3,
+        "known": 3,
+        "used": 1
+      },
+      "statusCounts": {
+        "USED": 1,
+        "DISCARDED_STATUS": 2
+      }
+    }
+  }
+}

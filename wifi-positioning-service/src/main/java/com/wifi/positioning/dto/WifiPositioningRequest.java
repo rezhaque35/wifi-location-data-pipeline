@@ -28,6 +28,14 @@ public record WifiPositioningRequest(
         String application,
 
         /**
+         * Optional cell tower information for validating WiFi access point locations.
+         * When provided, APs outside cell tower range will be filtered out.
+         */
+        @Size(max = 10, message = "Maximum 10 cell towers allowed")
+        @Valid
+        List<CellInfo> cellInfo,
+
+        /**
          * When set to true, detailed calculation information will be included in the response. This
          * includes the selection context and algorithm selection reasoning.
          */
@@ -55,6 +63,7 @@ public record WifiPositioningRequest(
         map.put("application", application);
         map.put("calculationDetail", calculationDetail);
         map.put("wifiScanResultsCount", wifiScanResults != null ? wifiScanResults.size() : 0);
+        map.put("cellInfoCount", cellInfo != null ? cellInfo.size() : 0);
         
         // Include summarized scan results (MAC addresses and signal strengths)
         if (wifiScanResults != null && !wifiScanResults.isEmpty()) {
@@ -67,6 +76,14 @@ public record WifiPositioningRequest(
                 })
                 .toList();
             map.put("wifiScanResults", scanResultsSummary);
+        }
+        
+        // Include cell tower information summary
+        if (cellInfo != null && !cellInfo.isEmpty()) {
+            List<Map<String, Object>> cellInfoSummary = cellInfo.stream()
+                .map(CellInfo::toMap)
+                .toList();
+            map.put("cellInfo", cellInfoSummary);
         }
         
         return map;

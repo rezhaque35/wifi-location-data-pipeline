@@ -3,9 +3,13 @@
 # Comprehensive cleanup script for DynamoDB Local environment
 # 
 # This script provides different levels of cleanup for the DynamoDB Local environment:
-# - basic: Delete table only (keeps container running for faster re-setup)
-# - full:  Delete table and stop container (default - most common use case)
-# - reset: Complete cleanup (table, container, image, credentials)
+# - basic: Delete tables only (keeps container running for faster re-setup)
+# - full:  Delete tables and stop container (default - most common use case)
+# - reset: Complete cleanup (tables, container, image, credentials)
+#
+# This script deletes both:
+# - wifi_access_points table (WiFi access points)
+# - wifi-cell-tower-location table (Cell tower locations)
 #
 # Usage: ./cleanup-full.sh [basic|full|reset]
 # Default: full (if no argument provided)
@@ -36,7 +40,7 @@ check_dynamodb_running() {
 # 2. Waits for deletion to complete
 # 3. Provides status feedback
 # Note: 2>/dev/null suppresses error messages for non-existent tables
-delete_table() {
+delete_wifi_table() {
     echo "Deleting wifi_access_points table..."
     aws dynamodb delete-table \
         --table-name wifi_access_points \
@@ -44,16 +48,49 @@ delete_table() {
         --profile dynamodb-local 2>/dev/null
     
     if [ $? -eq 0 ]; then
-        echo "✓ Table deletion initiated"
-        echo "Waiting for table deletion to complete..."
+        echo "✓ WiFi table deletion initiated"
+        echo "Waiting for WiFi table deletion to complete..."
         aws dynamodb wait table-not-exists \
             --table-name wifi_access_points \
             --endpoint-url http://localhost:8000 \
             --profile dynamodb-local 2>/dev/null
-        echo "✓ Table deleted successfully"
+        echo "✓ WiFi table deleted successfully"
     else
-        echo "ℹ Table does not exist or already deleted"
+        echo "ℹ WiFi table does not exist or already deleted"
     fi
+}
+
+# Function to delete the cell tower table
+# This function:
+# 1. Attempts to delete the table using AWS CLI
+# 2. Waits for deletion to complete
+# 3. Provides status feedback
+# Note: 2>/dev/null suppresses error messages for non-existent tables
+delete_cell_tower_table() {
+    echo "Deleting wifi-cell-tower-location table..."
+    aws dynamodb delete-table \
+        --table-name wifi-cell-tower-location \
+        --endpoint-url http://localhost:8000 \
+        --profile dynamodb-local 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        echo "✓ Cell tower table deletion initiated"
+        echo "Waiting for cell tower table deletion to complete..."
+        aws dynamodb wait table-not-exists \
+            --table-name wifi-cell-tower-location \
+            --endpoint-url http://localhost:8000 \
+            --profile dynamodb-local 2>/dev/null
+        echo "✓ Cell tower table deleted successfully"
+    else
+        echo "ℹ Cell tower table does not exist or already deleted"
+    fi
+}
+
+# Function to delete all tables
+# This function deletes both WiFi access points and cell tower tables
+delete_all_tables() {
+    delete_wifi_table
+    delete_cell_tower_table
 }
 
 # Function to stop and remove the DynamoDB Local container
@@ -120,16 +157,16 @@ case $CLEANUP_LEVEL in
         echo "Performing basic cleanup (table deletion only)..."
         echo "Note: Container will remain running for faster re-setup"
         if check_dynamodb_running; then
-            delete_table
+            delete_all_tables
         else
-            echo "Cannot delete table - DynamoDB Local is not running"
+            echo "Cannot delete tables - DynamoDB Local is not running"
         fi
         ;;
     "full")
-        echo "Performing full cleanup (table + container)..."
+        echo "Performing full cleanup (tables + container)..."
         echo "Note: This is the default behavior - most common use case"
         if check_dynamodb_running; then
-            delete_table
+            delete_all_tables
             stop_container
         else
             echo "DynamoDB Local is not running, skipping table deletion"
@@ -137,10 +174,10 @@ case $CLEANUP_LEVEL in
         fi
         ;;
     "reset")
-        echo "Performing complete reset (table + container + image + credentials)..."
+        echo "Performing complete reset (tables + container + image + credentials)..."
         echo "Note: This will require re-downloading the Docker image on next setup"
         if check_dynamodb_running; then
-            delete_table
+            delete_all_tables
             stop_container
         else
             echo "DynamoDB Local is not running, skipping table deletion"
@@ -154,9 +191,9 @@ case $CLEANUP_LEVEL in
         echo "Usage: ./cleanup-full.sh [basic|full|reset]"
         echo ""
         echo "Cleanup levels:"
-        echo "  basic  - Delete table only (keeps container running for faster re-setup)"
-        echo "  full   - Delete table and stop container (DEFAULT - most common use case)"
-        echo "  reset  - Complete cleanup (table, container, image, credentials)"
+        echo "  basic  - Delete tables only (keeps container running for faster re-setup)"
+        echo "  full   - Delete tables and stop container (DEFAULT - most common use case)"
+        echo "  reset  - Complete cleanup (tables, container, image, credentials)"
         echo ""
         echo "Examples:"
         echo "  ./cleanup-full.sh        # Uses default (full)"

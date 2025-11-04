@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -59,7 +60,7 @@ class GlobalExceptionHandlerTest {
 
     when(exception.getBindingResult()).thenReturn(bindingResult);
     when(bindingResult.getAllErrors())
-        .thenReturn(java.util.Arrays.asList(fieldError1, fieldError2));
+        .thenReturn(Arrays.asList(fieldError1, fieldError2));
     when(bindingResult.getTarget()).thenReturn(null);
     when(webRequest.getDescription(false)).thenReturn("uri=/v1/wifi/position");
 
@@ -119,7 +120,7 @@ class GlobalExceptionHandlerTest {
         new WifiScanResult("AA:BB:CC:DD:EE:FF", -50.0, 2400, "TestSSID", 100, 20);
     WifiPositioningRequest request =
         new WifiPositioningRequest(
-            List.of(scanResult), "test-client", "test-request-id-123", "test-app", null);
+            List.of(scanResult), "test-client", "test-request-id-123", "test-app", null, null);
 
     MethodArgumentNotValidException exception = mock(MethodArgumentNotValidException.class);
     BindingResult bindingResult = mock(BindingResult.class);
@@ -194,6 +195,7 @@ class GlobalExceptionHandlerTest {
             "mobile-app-client",
             "req-456-789",
             "location-tracker",
+            null,
             null);
 
     MethodArgumentNotValidException exception = mock(MethodArgumentNotValidException.class);
@@ -205,7 +207,7 @@ class GlobalExceptionHandlerTest {
 
     when(exception.getBindingResult()).thenReturn(bindingResult);
     when(bindingResult.getAllErrors())
-        .thenReturn(java.util.Arrays.asList(fieldError1, fieldError2));
+        .thenReturn(Arrays.asList(fieldError1, fieldError2));
     when(bindingResult.getTarget()).thenReturn(request);
     when(webRequest.getDescription(false)).thenReturn("uri=/v1/wifi/position");
 

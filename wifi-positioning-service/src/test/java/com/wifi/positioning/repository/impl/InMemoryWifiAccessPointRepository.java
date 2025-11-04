@@ -1,6 +1,7 @@
 package com.wifi.positioning.repository.impl;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -26,23 +27,24 @@ public class InMemoryWifiAccessPointRepository
   // Map of MAC address to access point (single entry per MAC since only partition key exists)
   private final Map<String, WifiAccessPoint> dataStore = new ConcurrentHashMap<>();
 
-  @Override
-  public Optional<WifiAccessPoint> findByMacAddress(String macAddress) {
-    WifiAccessPoint accessPoint = dataStore.get(macAddress);
-    return Optional.ofNullable(accessPoint);
-  }
-
   /**
    * Find multiple access points by their MAC addresses in a single batch operation. This in-memory
    * implementation maps each MAC address to its corresponding access point.
    *
-   * @param macAddresses Set of MAC addresses to look up
+   * @param macAddresses Set of MAC addresses to look up (must not exceed 100 items)
    * @return Map of MAC addresses to matching access points
+   * @throws IllegalArgumentException if macAddresses size exceeds maximum batch size
    */
-  @Override
   public Map<String, WifiAccessPoint> findByMacAddresses(Set<String> macAddresses) {
     if (macAddresses == null || macAddresses.isEmpty()) {
       return Collections.emptyMap();
+    }
+
+    if (macAddresses.size() > 100) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Request size exceeds maximum batch size: requested=%d, max=%d",
+              macAddresses.size(), 100));
     }
 
     Map<String, WifiAccessPoint> result = new HashMap<>();
@@ -56,6 +58,18 @@ public class InMemoryWifiAccessPointRepository
     }
 
     return result;
+  }
+
+  /**
+   * Async version of findByMacAddresses that returns a CompletableFuture.
+   * For in-memory implementation, this simply wraps the synchronous call.
+   *
+   * @param macAddresses Set of MAC addresses to look up
+   * @return CompletableFuture containing map of MAC addresses to matching access points
+   */
+  @Override
+  public CompletableFuture<Map<String, WifiAccessPoint>> findByMacAddressesAsync(Set<String> macAddresses) {
+    return CompletableFuture.completedFuture(findByMacAddresses(macAddresses));
   }
 
   /**

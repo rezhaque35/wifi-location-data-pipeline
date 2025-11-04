@@ -1,8 +1,16 @@
 package com.wifi.positioning.algorithm;
 
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +22,8 @@ import com.wifi.positioning.algorithm.selection.SelectionContext;
 import com.wifi.positioning.algorithm.selection.SelectionContextBuilder;
 import com.wifi.positioning.dto.Position;
 import com.wifi.positioning.dto.WifiAccessPoint;
+import com.wifi.positioning.dto.WifiAccessPoints;
+import com.wifi.positioning.dto.WifiAPData;
 import com.wifi.positioning.dto.WifiScanResult;
 
 import jakarta.annotation.PreDestroy;
@@ -33,6 +43,35 @@ import jakarta.annotation.PreDestroy;
 public class WifiPositioningCalculator {
 
   private static final Logger logger = LoggerFactory.getLogger(WifiPositioningCalculator.class);
+
+  // ===== LOG MESSAGE CONSTANTS =====
+
+  private static final String LOG_INITIALIZED = "Initialized WifiPositioningCalculator with thread pool size: {}";
+  private static final String LOG_ERROR_NO_ALGORITHMS_SELECTED = "Failure: No algorithms selected for positioning. Context: {}";
+  private static final String LOG_ERROR_NO_POSITIONS_CALCULATED = "Failure: No positions calculated from {} selected algorithms";
+  private static final String LOG_ERROR_POSITION_COMBINER_NULL = "Failure: Position combiner returned null for {} positions";
+  private static final String LOG_WARN_ALGORITHM_FAILED = "Algorithm {} failed during execution: {}";
+  private static final String LOG_WARN_ALGORITHM_TIMEOUT = "Algorithm execution timed out after {} seconds";
+  private static final String LOG_WARN_ALGORITHM_INTERRUPTED = "Algorithm execution was interrupted";
+  private static final String LOG_WARN_ALGORITHM_EXCEPTION = "Algorithm execution failed with exception: {}";
+  private static final String LOG_ERROR_UNEXPECTED_ALGORITHM_ERROR = "Unexpected error during algorithm execution: {}";
+  private static final String LOG_INFO_SHUTTING_DOWN = "Shutting down WifiPositioningCalculator executor service";
+  private static final String LOG_WARN_EXECUTOR_NOT_TERMINATED = "Executor did not terminate gracefully, forcing shutdown";
+  private static final String LOG_ERROR_EXECUTOR_SHUTDOWN_FAILED = "Executor did not terminate after forced shutdown";
+  private static final String LOG_WARN_EXECUTOR_SHUTDOWN_INTERRUPTED = "Interrupted while waiting for executor shutdown";
+  private static final String INFO_SELECTION_CONTEXT = "Selection Context:\n";
+  private static final String INFO_AP_COUNT = "  AP Count: ";
+  private static final String INFO_SIGNAL_QUALITY = "  Signal Quality: ";
+  private static final String INFO_SIGNAL_DISTRIBUTION = "  Signal Distribution: ";
+  private static final String INFO_GEOMETRIC_QUALITY = "  Geometric Quality: ";
+  private static final String INFO_ALGORITHM_WEIGHTS = "Algorithm Weights:\n";
+  private static final String INFO_ALGORITHM_SELECTION_REASONS = "Algorithm Selection Reasons:\n";
+  private static final String INFO_ALGORITHM_NAME_FORMAT = "  %s (weight: %.2f)\n";
+  private static final String INFO_REASON_PREFIX = "    - ";
+  private static final String INFO_NEWLINE = "\n";
+  private static final String INFO_ALGORITHM_COLON = ":\n";
+  private static final String UNKNOWN_ALGORITHM_NAME = "unknown";
+  private static final String ALGORITHM_NAME_SEPARATOR = "  ";
 
   /**
    * Timeout for individual algorithm execution in seconds. Rationale: 5 seconds allows sufficient
@@ -64,18 +103,15 @@ public class WifiPositioningCalculator {
    */
   private static final int PROCESSOR_DIVISOR = 2;
 
-  private final List<PositioningAlgorithm> algorithms;
   private final AlgorithmSelector algorithmSelector;
   private final SelectionContextBuilder contextBuilder;
   private final PositionCombiner positionCombiner;
   private final ExecutorService executorService;
 
   public WifiPositioningCalculator(
-      List<PositioningAlgorithm> algorithms,
       AlgorithmSelector algorithmSelector,
       SelectionContextBuilder contextBuilder,
       PositionCombiner positionCombiner) {
-    this.algorithms = algorithms;
     this.algorithmSelector = algorithmSelector;
     this.contextBuilder = contextBuilder;
     this.positionCombiner = positionCombiner;
@@ -88,7 +124,7 @@ public class WifiPositioningCalculator {
             MIN_THREAD_POOL_SIZE, Runtime.getRuntime().availableProcessors() / PROCESSOR_DIVISOR);
     this.executorService = Executors.newFixedThreadPool(threadPoolSize);
 
-    logger.info("Initialized WifiPositioningCalculator with thread pool size: {}", threadPoolSize);
+    logger.info(LOG_INITIALIZED, threadPoolSize);
   }
 
   /**
@@ -100,7 +136,8 @@ public class WifiPositioningCalculator {
    *         If position calculation fails, returns a PositioningResult with null position but includes
    *         available context, algorithm selection, and error information for debugging.
    */
-  public PositioningResult calculatePosition(com.wifi.positioning.dto.WifiAPData wifiAPData) {
+  public PositioningResult calculatePosition(WifiAccessPoints wifiAccessPoints) {
+  WifiAPData wifiAPData = wifiAccessPoints.toWifiAPData();    
     // Extract pre-filtered data from the DTO
     List<WifiScanResult> validScans = wifiAPData.validScans();
     List<WifiAccessPoint> validAccessPoints = wifiAPData.validAccessPoints();
@@ -119,7 +156,7 @@ public class WifiPositioningCalculator {
 
     // Return partial result if no algorithms were selected
     if (weightedAlgorithms.isEmpty()) {
-      logger.error("Failure: No algorithms selected for positioning. Context: {}", context);
+      logger.error(LOG_ERROR_NO_ALGORITHMS_SELECTED, context);
       return new PositioningResult(null, weightedAlgorithms, selectionReasons, context);
     }
 
@@ -129,7 +166,7 @@ public class WifiPositioningCalculator {
 
     // Return partial result if no positions were calculated
     if (positions.isEmpty()) {
-      logger.error("Failure: No positions calculated from {} selected algorithms", weightedAlgorithms.size());
+      logger.error(LOG_ERROR_NO_POSITIONS_CALCULATED, weightedAlgorithms.size());
       return new PositioningResult(null, weightedAlgorithms, selectionReasons, context);
     }
 
@@ -138,7 +175,7 @@ public class WifiPositioningCalculator {
 
     // Return partial result if position combining failed
     if (combinedPosition == null) {
-      logger.error("Failure: Position combiner returned null for {} positions", positions.size());
+      logger.error(LOG_ERROR_POSITION_COMBINER_NULL, positions.size());
       return new PositioningResult(null, weightedAlgorithms, selectionReasons, context);
     }
 
@@ -236,7 +273,7 @@ public class WifiPositioningCalculator {
       }
       return null;
     } catch (Exception e) {
-      logger.warn("Algorithm {} failed during execution: {}", algorithm.getName(), e.getMessage());
+      logger.warn(LOG_WARN_ALGORITHM_FAILED, algorithm.getName(), e.getMessage());
       return null;
     }
   }
@@ -270,22 +307,21 @@ public class WifiPositioningCalculator {
     try {
       return future.get(ALGORITHM_EXECUTION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     } catch (TimeoutException e) {
-      logger.warn(
-          "Algorithm execution timed out after {} seconds", ALGORITHM_EXECUTION_TIMEOUT_SECONDS);
+      logger.warn(LOG_WARN_ALGORITHM_TIMEOUT, ALGORITHM_EXECUTION_TIMEOUT_SECONDS);
       future.cancel(true); // Interrupt the algorithm if possible
       return null;
     } catch (InterruptedException e) {
-      logger.warn("Algorithm execution was interrupted");
+      logger.warn(LOG_WARN_ALGORITHM_INTERRUPTED);
       Thread.currentThread().interrupt(); // Preserve interrupt status
       return null;
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
       logger.error(
-          "Algorithm execution failed with exception: {}",
+          LOG_WARN_ALGORITHM_EXCEPTION,
           cause != null ? cause.getMessage() : e.getMessage());
       return null;
     } catch (Exception e) {
-      logger.error("Unexpected error during algorithm execution: {}", e.getMessage());
+      logger.error(LOG_ERROR_UNEXPECTED_ALGORITHM_ERROR, e.getMessage());
       return null;
     }
   }
@@ -306,21 +342,21 @@ public class WifiPositioningCalculator {
    */
   @PreDestroy
   public void cleanup() {
-    logger.info("Shutting down WifiPositioningCalculator executor service");
+    logger.info(LOG_INFO_SHUTTING_DOWN);
     executorService.shutdown();
     try {
       if (!executorService.awaitTermination(EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-        logger.warn("Executor did not terminate gracefully, forcing shutdown");
+        logger.warn(LOG_WARN_EXECUTOR_NOT_TERMINATED);
         executorService.shutdownNow();
 
         // Wait a bit more for tasks to respond to being cancelled
         if (!executorService.awaitTermination(
             EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-          logger.error("Executor did not terminate after forced shutdown");
+          logger.error(LOG_ERROR_EXECUTOR_SHUTDOWN_FAILED);
         }
       }
     } catch (InterruptedException e) {
-      logger.warn("Interrupted while waiting for executor shutdown");
+      logger.warn(LOG_WARN_EXECUTOR_SHUTDOWN_INTERRUPTED);
       executorService.shutdownNow();
       Thread.currentThread().interrupt();
     }
@@ -362,38 +398,38 @@ public class WifiPositioningCalculator {
 
       // Add selection context information if available
       if (selectionContext != null) {
-        info.append("Selection Context:\n");
-        info.append("  AP Count: ").append(selectionContext.getApCountFactor()).append("\n");
-        info.append("  Signal Quality: ").append(selectionContext.getSignalQuality()).append("\n");
-        info.append("  Signal Distribution: ")
+        info.append(INFO_SELECTION_CONTEXT);
+        info.append(INFO_AP_COUNT).append(selectionContext.getApCountFactor()).append(INFO_NEWLINE);
+        info.append(INFO_SIGNAL_QUALITY).append(selectionContext.getSignalQuality()).append(INFO_NEWLINE);
+        info.append(INFO_SIGNAL_DISTRIBUTION)
             .append(selectionContext.getSignalDistribution())
-            .append("\n");
-        info.append("  Geometric Quality: ")
+            .append(INFO_NEWLINE);
+        info.append(INFO_GEOMETRIC_QUALITY)
             .append(selectionContext.getGeometricQuality())
-            .append("\n");
+            .append(INFO_NEWLINE);
         // Note: Collinearity is now directly handled by the GeometricQualityFactor.COLLINEAR value
-        info.append("\n");
+        info.append(INFO_NEWLINE);
       }
 
       // Add algorithm weights information
       if (algorithmWeights != null && !algorithmWeights.isEmpty()) {
-        info.append("Algorithm Weights:\n");
+        info.append(INFO_ALGORITHM_WEIGHTS);
         algorithmWeights.forEach(
             (algorithm, weight) -> {
               info.append(
                   String.format(
-                      "  %s (weight: %.2f)\n", algorithm.getName().toLowerCase(), weight));
+                      INFO_ALGORITHM_NAME_FORMAT, algorithm.getName().toLowerCase(), weight));
             });
-        info.append("\n");
+        info.append(INFO_NEWLINE);
       }
 
       // Add algorithm selection reasons if available
       if (selectionReasons != null && !selectionReasons.isEmpty()) {
-        info.append("Algorithm Selection Reasons:\n");
+        info.append(INFO_ALGORITHM_SELECTION_REASONS);
         selectionReasons.forEach(
             (algorithm, reasons) -> {
-              info.append("  ").append(algorithm.getName()).append(":\n");
-              reasons.forEach(reason -> info.append("    - ").append(reason).append("\n"));
+              info.append(ALGORITHM_NAME_SEPARATOR).append(algorithm.getName()).append(INFO_ALGORITHM_COLON);
+              reasons.forEach(reason -> info.append(INFO_REASON_PREFIX).append(reason).append(INFO_NEWLINE));
             });
       }
 
@@ -410,7 +446,7 @@ public class WifiPositioningCalculator {
           .map(
               algorithm -> {
                 String name = algorithm.getName();
-                return name != null ? name.toLowerCase().replaceAll("\\s+", "") : "unknown";
+                return name != null ? name.toLowerCase().replaceAll("\\s+", "") : UNKNOWN_ALGORITHM_NAME;
               })
           .collect(Collectors.toList());
     }

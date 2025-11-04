@@ -15,6 +15,7 @@ aws:
     endpoint: http://localhost:8000
     region: us-east-1
     table-name: wifi_access_points
+    cell-tower-table-name: wifi-cell-tower-location
 
 # Default logging configuration
 logging:

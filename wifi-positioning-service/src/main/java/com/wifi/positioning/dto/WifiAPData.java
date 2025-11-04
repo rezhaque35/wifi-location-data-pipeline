@@ -10,14 +10,15 @@ import java.util.stream.Collectors;
  * Contains scan results and access points that have been looked up and filtered.
  * 
  * <p>This record encapsulates the result of data preparation before position calculation,
- * including validation status, error messages, and pre-filtered valid scans that match
- * known access points.
+ * including validation status, error messages, pre-filtered valid scans that match
+ * known access points, and detailed filtering information with usage tracking.
  */
 public record WifiAPData(
     List<WifiScanResult> scanResults,
     List<WifiAccessPoint> knownAccessPoints,
     List<WifiAccessPoint> validAccessPoints,
     List<WifiScanResult> validScans,
+    WifiAccessPoints wifiAccessPoints,
     boolean isViable,
     String errorMessage) {
   
@@ -28,12 +29,14 @@ public record WifiAPData(
    * @param scanResults Original WiFi scan results from the client
    * @param knownAccessPoints All access points found in the database
    * @param validAccessPoints Access points with valid status (active or warning)
+   * @param wifiAccessPoints WifiAccessPoints with detailed filtering and usage tracking
    * @return A viable WifiAPData instance with pre-filtered valid scans
    */
   public static WifiAPData viable(
       List<WifiScanResult> scanResults,
       List<WifiAccessPoint> knownAccessPoints,
-      List<WifiAccessPoint> validAccessPoints) {
+      List<WifiAccessPoint> validAccessPoints,
+      WifiAccessPoints wifiAccessPoints) {
     
     List<WifiScanResult> validScans = filterValidScans(scanResults, validAccessPoints);
     
@@ -42,28 +45,32 @@ public record WifiAPData(
         knownAccessPoints, 
         validAccessPoints, 
         validScans,
+        wifiAccessPoints,
         true, 
         null);
   }
   
   /**
    * Creates a non-viable WifiAPData with an error message.
-   * Preserves scan results and known access points for diagnostic purposes.
+   * Preserves scan results, known access points, and WifiAccessPoints for diagnostic purposes.
    *
    * @param scanResults Original WiFi scan results from the client (may be null)
    * @param knownAccessPoints Access points found in database (may be null)
+   * @param wifiAccessPoints WifiAccessPoints with detailed filtering information (may be null)
    * @param errorMessage The error message explaining why the data is not viable
    * @return A non-viable WifiAPData instance
    */
   public static WifiAPData notViable(
       List<WifiScanResult> scanResults,
       List<WifiAccessPoint> knownAccessPoints,
+      WifiAccessPoints wifiAccessPoints,
       String errorMessage) {
     return new WifiAPData(
         scanResults, 
         knownAccessPoints, 
         null, 
         Collections.emptyList(),
+        wifiAccessPoints,
         false, 
         errorMessage);
   }

@@ -1,0 +1,62 @@
+{
+  "testName": "Test top 20 signal filtering with 30 APs",
+  "description": "Verify that only top 20 strongest signals are processed when 30 APs are provided",
+  "request": {
+    "wifiScanResults": [
+      {"macAddress": "00:11:22:33:44:02", "signalStrength": -62.3, "frequency": 5180, "ssid": "DualAP_Test"},
+      {"macAddress": "00:11:22:33:44:03", "signalStrength": -65.0, "frequency": 2462, "ssid": "TriAP_Test"},
+      {"macAddress": "00:11:22:33:44:04", "signalStrength": -68.0, "frequency": 5240, "ssid": "MultiAP_Test"},
+      {"macAddress": "00:11:22:33:44:05", "signalStrength": -85.5, "frequency": 2412, "ssid": "WeakSignal_Test"},
+      {"macAddress": "00:11:22:33:44:06", "signalStrength": -70.0, "frequency": 2437, "ssid": "Collinear_Test_06"},
+      {"macAddress": "00:11:22:33:44:07", "signalStrength": -68.0, "frequency": 2437, "ssid": "Collinear_Test_07"},
+      {"macAddress": "00:11:22:33:44:08", "signalStrength": -66.0, "frequency": 2437, "ssid": "Collinear_Test_08"},
+      {"macAddress": "00:11:22:33:44:09", "signalStrength": -82.0, "frequency": 2437, "ssid": "Collinear_Test_09"},
+      {"macAddress": "00:11:22:33:44:10", "signalStrength": -83.0, "frequency": 2437, "ssid": "Collinear_Test_10"},
+      {"macAddress": "00:11:22:33:44:11", "signalStrength": -65.0, "frequency": 5320, "ssid": "HighDensity_Test_11"},
+      {"macAddress": "00:11:22:33:44:12", "signalStrength": -63.5, "frequency": 5320, "ssid": "HighDensity_Test_12"},
+      {"macAddress": "00:11:22:33:44:13", "signalStrength": -62.0, "frequency": 5320, "ssid": "HighDensity_Test_13"},
+      {"macAddress": "00:11:22:33:44:14", "signalStrength": -60.5, "frequency": 5320, "ssid": "HighDensity_Test_14"},
+      {"macAddress": "00:11:22:33:44:15", "signalStrength": -84.0, "frequency": 5320, "ssid": "HighDensity_Test_15"},
+      {"macAddress": "00:11:22:33:44:16", "signalStrength": -60.0, "frequency": 2412, "ssid": "MixedSignal_Test_16"},
+      {"macAddress": "00:11:22:33:44:17", "signalStrength": -65.0, "frequency": 2417, "ssid": "MixedSignal_Test_17"},
+      {"macAddress": "00:11:22:33:44:18", "signalStrength": -70.0, "frequency": 2422, "ssid": "MixedSignal_Test_18"},
+      {"macAddress": "00:11:22:33:44:19", "signalStrength": -75.0, "frequency": 2437, "ssid": "MixedSignal_Test_19"},
+      {"macAddress": "00:11:22:33:44:20", "signalStrength": -80.0, "frequency": 2437, "ssid": "MixedSignal_Test_20"},
+      {"macAddress": "00:11:22:33:44:21", "signalStrength": -70.0, "frequency": 5500, "ssid": "TimeSeries_Test"},
+      {"macAddress": "00:11:22:33:44:22", "signalStrength": -72.0, "frequency": 5500, "ssid": "TimeSeries_Test"},
+      {"macAddress": "00:11:22:33:44:26", "signalStrength": -50.0, "frequency": 2462, "ssid": "PathLoss_Test_26"},
+      {"macAddress": "00:11:22:33:44:27", "signalStrength": -53.0, "frequency": 2462, "ssid": "PathLoss_Test_27"},
+      {"macAddress": "00:11:22:33:44:31", "signalStrength": -68.0, "frequency": 5500, "ssid": "StableSignal_Test"},
+      {"macAddress": "00:11:22:33:44:32", "signalStrength": -68.0, "frequency": 5500, "ssid": "StableSignal_Test"},
+      {"macAddress": "00:11:22:33:44:41", "signalStrength": -70.0, "frequency": 2437, "ssid": "StatusTest_41"},
+      {"macAddress": "00:11:22:33:44:01", "signalStrength": -80.0, "frequency": 2437, "ssid": "SingleAP_Test"},
+      {"macAddress": "00:11:22:33:44:36", "signalStrength": -99.9, "frequency": 2412, "ssid": "ErrorCase_invalid_coordinates"},
+      {"macAddress": "AA:BB:CC:11:22:33", "signalStrength": -100.0, "frequency": 2412, "ssid": "Weak_Test_01"},
+      {"macAddress": "AA:BB:CC:11:22:34", "signalStrength": -99.9, "frequency": 2412, "ssid": "Weak_Test_02"}
+    ],
+    "client": "test-client",
+    "requestId": "test-request-top20-30aps",
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
+  },
+  "expected": {
+    "result": "SUCCESS",
+    "wifiPosition": {
+      "latitude": 37.7784,
+      "longitude": -122.4222,
+      "accuracy": {"min": 40.0, "max": 80.0},
+      "confidence": {"min": 0.35, "max": 0.65},
+      "methodsUsed": ["weighted_centroid", "maximum_likelihood"]
+    },
+    "calculationInfo": {
+      "accessPointSummary": {
+        "total": 30,
+        "known": 20,
+        "used": 20
+      },
+      "statusCounts": {
+        "USED": 20
+      }
+    }
+  }
+}

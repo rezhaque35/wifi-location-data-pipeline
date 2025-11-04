@@ -5,8 +5,10 @@ import com.wifi.positioning.algorithm.selection.factor.GeometricQualityFactor;
 import com.wifi.positioning.algorithm.selection.factor.SignalDistributionFactor;
 import com.wifi.positioning.algorithm.selection.factor.SignalQualityFactor;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Holds context information about the current positioning scenario. This context is shared between
@@ -18,6 +20,8 @@ import lombok.Data;
  * AP arrangement and GDOP, including detection of collinear arrangements
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class SelectionContext {
   /**

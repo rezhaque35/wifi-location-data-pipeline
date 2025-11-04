@@ -1,0 +1,69 @@
+{
+  "testName": "Test cell tower filtering with outliers",
+  "description": "Verify that APs outside cell tower effective range are filtered out while in-range APs are kept",
+  "request": {
+    "wifiScanResults": [
+      {
+        "macAddress": "00:11:22:33:44:02",
+        "signalStrength": -62.3,
+        "frequency": 5180,
+        "ssid": "DualAP_Test"
+      },
+      {
+        "macAddress": "00:11:22:33:44:03",
+        "signalStrength": -65.0,
+        "frequency": 2462,
+        "ssid": "TriAP_Test"
+      },
+      {
+        "macAddress": "00:11:22:33:44:01",
+        "signalStrength": -80.0,
+        "frequency": 2437,
+        "ssid": "SingleAP_Test"
+      },
+      {
+        "macAddress": "00:11:22:33:44:05",
+        "signalStrength": -85.5,
+        "frequency": 2412,
+        "ssid": "WeakSignal_Test"
+      },
+      {
+        "macAddress": "00:11:22:33:44:36",
+        "signalStrength": -99.9,
+        "frequency": 2412,
+        "ssid": "ErrorCase_invalid_coordinates"
+      }
+    ],
+    "cellInfo": [
+      {
+        "id": 1002,
+        "cellType": "LTE",
+        "signalStrength": -80
+      }
+    ],
+    "client": "test-client",
+    "requestId": "test-request-cell-tower-outliers",
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
+  },
+  "expected": {
+    "result": "SUCCESS",
+    "wifiPosition": {
+      "latitude": 37.7750,
+      "longitude": -122.4195,
+      "accuracy": {"min": 50.0, "max": 90.0},
+      "confidence": {"min": 0.35, "max": 0.65},
+      "methodsUsed": ["weighted_centroid", "maximum_likelihood"]
+    },
+    "calculationInfo": {
+      "accessPointSummary": {
+        "total": 5,
+        "known": 5,
+        "used": 4
+      },
+      "statusCounts": {
+        "USED": 4
+      }
+    }
+  }
+}

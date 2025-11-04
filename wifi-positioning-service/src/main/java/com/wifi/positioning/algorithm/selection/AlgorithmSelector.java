@@ -1,6 +1,7 @@
 package com.wifi.positioning.algorithm.selection;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -238,7 +239,7 @@ public class AlgorithmSelector {
      * @return A new SelectedAlgorithms instance with filtered algorithms
      */
     public SelectedAlgorithms copyWithFilter(
-        java.util.function.Predicate<PositioningAlgorithmType> filter, String reasonForExclusion) {
+        Predicate<PositioningAlgorithmType> filter, String reasonForExclusion) {
 
       // Create a copy of the eligible algorithm types that pass the filter
       Set<PositioningAlgorithmType> filteredTypes =

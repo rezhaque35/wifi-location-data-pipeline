@@ -8,6 +8,7 @@ import com.wifi.positioning.algorithm.selection.factor.SignalDistributionFactor;
 import com.wifi.positioning.algorithm.selection.factor.SignalQualityFactor;
 import com.wifi.positioning.dto.Position;
 import com.wifi.positioning.dto.WifiAccessPoint;
+import com.wifi.positioning.dto.WifiAccessPoints;
 import com.wifi.positioning.dto.WifiScanResult;
 
 /**
@@ -17,7 +18,22 @@ import com.wifi.positioning.dto.WifiScanResult;
  */
 public interface PositioningAlgorithm {
   /**
+   * Calculates the position based on the provided WiFi access points collection.
+   * This is the preferred method that provides access to filtered AP data with usage metadata.
+   *
+   * @param wifiAccessPoints WifiAccessPoints collection with filtered and categorized APs
+   * @return The calculated position
+   */
+  default Position calculatePosition(WifiAccessPoints wifiAccessPoints) {
+    return calculatePosition(
+        wifiAccessPoints.getUsedScanResults(),
+        wifiAccessPoints.getUsedAccessPoints()
+    );
+  }
+
+  /**
    * Calculates the position based on the provided WiFi scan results and known access points.
+   * This method is kept for backward compatibility.
    *
    * @param wifiScan List of WiFi scan results
    * @param knownAPs List of known WiFi access points

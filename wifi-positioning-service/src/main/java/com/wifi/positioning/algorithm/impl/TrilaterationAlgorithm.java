@@ -1,5 +1,6 @@
 package com.wifi.positioning.algorithm.impl;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -507,7 +508,7 @@ public class TrilaterationAlgorithm implements PositioningAlgorithm {
       List<WifiScanResult> validScans, Map<String, WifiAccessPoint> apMap) {
     WifiScanResult strongestSignalScan =
         validScans.stream()
-            .max(java.util.Comparator.comparingDouble(WifiScanResult::signalStrength))
+            .max(Comparator.comparingDouble(WifiScanResult::signalStrength))
             .orElse(validScans.get(0));
 
     WifiAccessPoint refAP = apMap.get(strongestSignalScan.macAddress());

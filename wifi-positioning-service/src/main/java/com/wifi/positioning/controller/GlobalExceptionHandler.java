@@ -26,6 +26,11 @@ public class GlobalExceptionHandler {
 
   private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
   private static final String UNKNOWN_VALUE = "UNKNOWN";
+  private static final String VALIDATION_FAILED_PREFIX = "Validation failed: ";
+  private static final String VALIDATION_ERROR_SEPARATOR = " - ";
+  private static final String VALIDATION_ERROR_SUFFIX = "; ";
+  private static final String UNEXPECTED_ERROR_PREFIX = "An unexpected error occurred: ";
+  private static final String URI_PREFIX = "uri=";
 
   public static ResponseEntity<WifiPositioningResponse> errorResponseEntity(
       String message, HttpStatus status) {
@@ -58,8 +63,8 @@ public class GlobalExceptionHandler {
     String client = extractClient(ex);
 
     // Create a validation error message combining all field errors
-    StringBuilder errorMsg = new StringBuilder("Validation failed: ");
-    errors.forEach((field, msg) -> errorMsg.append(field).append(" - ").append(msg).append("; "));
+    StringBuilder errorMsg = new StringBuilder(VALIDATION_FAILED_PREFIX);
+    errors.forEach((field, msg) -> errorMsg.append(field).append(VALIDATION_ERROR_SEPARATOR).append(msg).append(VALIDATION_ERROR_SUFFIX));
 
     // Comprehensive logging for Splunk
     logValidationFailure(requestId, client, errors, webRequest);
@@ -121,7 +126,7 @@ public class GlobalExceptionHandler {
             .collect(Collectors.joining(", "));
 
     String requestPath =
-        webRequest.getDescription(false).replace("uri=", ""); // Remove "uri=" prefix
+        webRequest.getDescription(false).replace(URI_PREFIX, ""); // Remove "uri=" prefix
 
     logger.error(
         "Validation failure - HTTP_STATUS=400 REQUEST_ID='{}' CLIENT='{}' PATH='{}' VALIDATION_ERRORS=[{}]",
@@ -136,6 +141,6 @@ public class GlobalExceptionHandler {
   public ResponseEntity<WifiPositioningResponse> handleGlobalException(
       Exception ex, WebRequest request) {
     return errorResponseEntity(
-        "An unexpected error occurred: " + ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        UNEXPECTED_ERROR_PREFIX + ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
   }
 }

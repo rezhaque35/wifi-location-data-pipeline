@@ -1,8 +1,8 @@
 package com.wifi.positioning.repository;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import com.wifi.positioning.dto.WifiAccessPoint;
 
@@ -12,26 +12,22 @@ import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 /**
  * Repository interface for accessing WiFi access point data. Includes methods necessary for
  * efficient position calculation and health monitoring.
+ * 
+ * All data access methods return CompletableFuture for non-blocking I/O operations.
  */
 public interface WifiAccessPointRepository {
 
   /**
-   * Find an access point by its MAC address. This is the primary method used by the positioning
-   * service.
+   * Asynchronously find multiple access points by their MAC addresses in a single batch operation.
    *
-   * @param macAddress MAC address of the access point
-   * @return Optional containing the access point if found, empty otherwise
-   */
-  Optional<WifiAccessPoint> findByMacAddress(String macAddress);
-
-  /**
-   * Find multiple access points by their MAC addresses in a single batch operation. This method
-   * optimizes DynamoDB access by reducing the number of API calls.
+   * <p>This method uses non-blocking I/O to retrieve access points for the provided MAC addresses.
+   * The CompletableFuture completes when the DynamoDB operation finishes.
    *
-   * @param macAddresses Set of MAC addresses to look up
-   * @return Map of MAC addresses to matching access points
+   * @param macAddresses Set of MAC addresses to look up (must not exceed 100 items)
+   * @return CompletableFuture containing a Map of MAC addresses to matching access points
+   * @throws IllegalArgumentException if macAddresses size exceeds maximum batch size
    */
-  Map<String, WifiAccessPoint> findByMacAddresses(Set<String> macAddresses);
+  CompletableFuture<Map<String, WifiAccessPoint>> findByMacAddressesAsync(Set<String> macAddresses);
 
   /**
    * Validates table accessibility and measures response time for health checks. This method

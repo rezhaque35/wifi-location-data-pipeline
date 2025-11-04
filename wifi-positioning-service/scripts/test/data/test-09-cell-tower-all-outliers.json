@@ -1,0 +1,25 @@
+{
+  "testName": "Test cell tower filtering with all APs outside range",
+  "description": "Verify that request fails when all APs are outside cell tower effective range",
+  "request": {
+    "wifiScanResults": [
+      {"macAddress": "AA:BB:CC:TEST:02:01", "signalStrength": -65.0, "frequency": 5180, "ssid": "Outlier_Test_02_01"},
+      {"macAddress": "AA:BB:CC:TEST:02:02", "signalStrength": -67.0, "frequency": 2462, "ssid": "Outlier_Test_02_02"},
+      {"macAddress": "AA:BB:CC:TEST:02:03", "signalStrength": -69.0, "frequency": 2437, "ssid": "Outlier_Test_02_03"}
+    ],
+    "cellInfo": [{
+      "id": 1002,
+      "cellType": "LTE",
+      "signalStrength": -80
+    }],
+    "client": "test-client",
+    "requestId": "test-request-cell-tower-all-outliers",
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
+  },
+  "expected": {
+    "result": "ERROR",
+    "wifiPosition": null,
+    "calculationInfo": null
+  }
+}

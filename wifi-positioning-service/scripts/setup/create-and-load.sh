@@ -29,7 +29,19 @@ aws dynamodb wait table-exists \
     --profile dynamodb-local
 
 # Load the test data
-echo "Loading test data..."
+echo "Loading WiFi access point test data..."
 source wifi-positioning-test-data.sh
+
+# Create cell tower table
+echo "Creating cell tower table..."
+./create-cell-tower-table.sh
+
+# Load cell tower test data
+echo "Loading cell tower test data..."
+source cell-tower-test-data.sh
+
+# Load extended WiFi access point test data (outlier APs)
+echo "Loading extended WiFi access point test data (outlier APs)..."
+source extended-wifi-positioning-test-data.sh
 
 echo "Setup complete!" 

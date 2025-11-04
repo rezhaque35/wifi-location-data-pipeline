@@ -56,8 +56,9 @@ docker run -d -p 8000:8000 amazon/dynamodb-local
 echo "Waiting for DynamoDB Local to start..."
 sleep 5
 
-# Step 7: Create the wifi_access_points table
-echo "Creating wifi_access_points table..."
+# Step 7: Create tables and load test data
+echo "Creating tables and loading test data..."
+echo "This will create both wifi_access_points and wifi-cell-tower-location tables"
 cd "$(dirname "$0")"  # Change to script directory
 ./create-and-load.sh
 

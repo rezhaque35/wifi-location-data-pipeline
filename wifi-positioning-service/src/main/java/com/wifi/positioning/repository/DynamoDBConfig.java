@@ -9,9 +9,9 @@ import org.springframework.context.annotation.Profile;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedAsyncClient;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 
 @Configuration
 public class DynamoDBConfig {
@@ -24,14 +24,11 @@ public class DynamoDBConfig {
 
   @Bean
   @Profile("local")
-  public DynamoDbClient localDynamoDbClient() {
+  public DynamoDbAsyncClient localDynamoDbAsyncClient() {
     // For local development with DynamoDB local
-    return DynamoDbClient.builder()
+    return DynamoDbAsyncClient.builder()
         .endpointOverride(URI.create(dynamoDbEndpoint))
         .region(Region.of(region))
-        // For local DynamoDB, we need to disable CBOR protocol
-        .dualstackEnabled(false)
-        // Use static credentials for local development
         .credentialsProvider(
             StaticCredentialsProvider.create(AwsBasicCredentials.create("dummy", "dummy")))
         .build();
@@ -39,21 +36,20 @@ public class DynamoDBConfig {
 
   @Bean
   @Profile("!local")
-  public DynamoDbClient awsDynamoDbClient() {
+  public DynamoDbAsyncClient awsDynamoDbAsyncClient() {
     // For AWS environments - uses the default credential provider chain
-    // which will use the EKS pod's IAM role
     if (dynamoDbEndpoint != null && !dynamoDbEndpoint.isEmpty()) {
-      return DynamoDbClient.builder()
+      return DynamoDbAsyncClient.builder()
           .endpointOverride(URI.create(dynamoDbEndpoint))
           .region(Region.of(region))
           .build();
     } else {
-      return DynamoDbClient.builder().region(Region.of(region)).build();
+      return DynamoDbAsyncClient.builder().region(Region.of(region)).build();
     }
   }
 
   @Bean
-  public DynamoDbEnhancedClient dynamoDbEnhancedClient(DynamoDbClient dynamoDbClient) {
-    return DynamoDbEnhancedClient.builder().dynamoDbClient(dynamoDbClient).build();
+  public DynamoDbEnhancedAsyncClient dynamoDbEnhancedAsyncClient(DynamoDbAsyncClient asyncClient) {
+    return DynamoDbEnhancedAsyncClient.builder().dynamoDbClient(asyncClient).build();
   }
 }
