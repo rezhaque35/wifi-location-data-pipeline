@@ -3,6 +3,7 @@ package com.wifi.positioning.dto;
 import com.wifi.positioning.dto.calculation.AccessPointInfo;
 import com.wifi.positioning.dto.calculation.AccessPointSummary;
 import com.wifi.positioning.dto.calculation.AlgorithmSelectionInfo;
+import com.wifi.positioning.dto.calculation.CellTowerInfo;
 import com.wifi.positioning.dto.calculation.SelectionContextInfo;
 
 import java.util.Collections;
@@ -12,13 +13,14 @@ import java.util.Map;
 
 /**
  * Structured calculation information for WiFi positioning responses.
- * Contains detailed information about access points, algorithm selection, and calculation context.
+ * Contains detailed information about access points, algorithm selection, calculation context, and cell tower reference.
  */
 public record CalculationInfo(
     List<AccessPointInfo> accessPoints,
     AccessPointSummary accessPointSummary,
     SelectionContextInfo selectionContext,
-    List<AlgorithmSelectionInfo> algorithmSelection
+    List<AlgorithmSelectionInfo> algorithmSelection,
+    CellTowerInfo cellTowerInfo
 ) {
 
     /**
@@ -37,6 +39,7 @@ public record CalculationInfo(
         map.put("algorithmSelection", algorithmSelection != null 
             ? algorithmSelection.stream().map(AlgorithmSelectionInfo::toMap).toList()
             : Collections.emptyList());
+        map.put("cellTowerInfo", cellTowerInfo != null ? cellTowerInfo.toMap() : Collections.emptyMap());
         return map;
     }
 }

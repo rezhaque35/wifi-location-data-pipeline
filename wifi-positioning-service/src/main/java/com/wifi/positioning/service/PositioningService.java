@@ -16,12 +16,14 @@ import com.wifi.positioning.algorithm.WifiPositioningCalculator;
 import com.wifi.positioning.algorithm.selection.SelectionContext;
 import com.wifi.positioning.dto.CalculationInfo;
 import com.wifi.positioning.dto.CellInfo;
+import com.wifi.positioning.dto.CellTower;
 import com.wifi.positioning.dto.WifiAccessPoints;
 import com.wifi.positioning.dto.WifiPositioningRequest;
 import com.wifi.positioning.dto.WifiPositioningResponse;
 import com.wifi.positioning.dto.WifiPositioningResponse.WifiPosition;
 import com.wifi.positioning.dto.WifiScanResult;
 import com.wifi.positioning.dto.calculation.AlgorithmSelectionInfo;
+import com.wifi.positioning.dto.calculation.CellTowerInfo;
 import com.wifi.positioning.dto.calculation.SelectionContextInfo;
 import com.wifi.positioning.repository.CellTowerRepository;
 import com.wifi.positioning.repository.WifiAccessPointRepository;
@@ -513,8 +515,9 @@ public class PositioningService {
         var selectionContext = buildSelectionContextInfo(positioningResult.selectionContext());
         var algorithmSelection = buildAlgorithmSelectionInfo(
                 positioningResult.algorithmWeights(), positioningResult.selectionReasons());
+        var cellTowerInfo = buildCellTowerInfo(wifiAccessPoints.getReferenceCell());
         
-        return new CalculationInfo(accessPoints, accessPointSummary, selectionContext, algorithmSelection);
+        return new CalculationInfo(accessPoints, accessPointSummary, selectionContext, algorithmSelection, cellTowerInfo);
     }
 
     /**
@@ -527,12 +530,13 @@ public class PositioningService {
         // Build components from WifiAccessPoints
         var accessPoints = wifiAccessPoints.getAccessPointInfos();
         var accessPointSummary = wifiAccessPoints.calculateAccessPointSummary();
+        var cellTowerInfo = buildCellTowerInfo(wifiAccessPoints.getReferenceCell());
         
         // No selection context or algorithm selection for error scenarios
         var selectionContext =
                 new SelectionContextInfo(NO_VALID_AP, NO_VALID_AP, NO_VALID_AP, NO_VALID_AP);
         
-        return new CalculationInfo(accessPoints, accessPointSummary, selectionContext, List.of());
+        return new CalculationInfo(accessPoints, accessPointSummary, selectionContext, List.of(), cellTowerInfo);
     }
 
 
@@ -582,5 +586,26 @@ public class PositioningService {
                                         algorithm.getName(), selected, reasons, weight);
                             })
                             .toList();
+    }
+
+    /**
+     * Builds cell tower information from CellTower reference.
+     * Extracts relevant cell tower location and range data for calculation details.
+     *
+     * @param cellTower the cell tower reference if available
+     * @return cell tower information, or null if cell tower is not available
+     */
+    private CellTowerInfo buildCellTowerInfo(CellTower cellTower) {
+        if (cellTower == null) {
+            return null;
+        }
+
+        return new CellTowerInfo(
+                cellTower.getId(),
+                cellTower.getCellType(),
+                cellTower.getLatitude(),
+                cellTower.getLongitude(),
+                cellTower.getRange()
+        );
     }
 }
