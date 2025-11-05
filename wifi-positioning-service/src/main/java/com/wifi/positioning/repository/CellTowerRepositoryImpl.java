@@ -78,6 +78,8 @@ public class CellTowerRepositoryImpl implements CellTowerRepository {
             return CompletableFuture.completedFuture(Optional.empty());
         }
         
+        var startTimeNanos = System.nanoTime();
+        
         // Select cell with strongest signal (highest value, closest to 0)
         var bestCell = cellInfoList.stream()
             .max(Comparator.comparing(
@@ -85,13 +87,20 @@ public class CellTowerRepositoryImpl implements CellTowerRepository {
             ))
             .orElse(cellInfoList.get(0));
         
-        log.info("Selected cell tower ID {} (type: {}) with signal strength {} dBm from {} available cells (async)",
+        log.info("CellTowerRepository.findBestCellAsync [SELECTION] candidateCells={} selectedCellId={} cellType={} signalStrengthDbm={}",
+            cellInfoList.size(),
             bestCell.id(), 
             bestCell.cellType(),
-            bestCell.signalStrength() != null ? bestCell.signalStrength() : "unknown",
-            cellInfoList.size());
+            bestCell.signalStrength() != null ? bestCell.signalStrength() : "unknown");
         
-        return findByIdAsync(bestCell.id(), bestCell.cellType());
+        return findByIdAsync(bestCell.id(), bestCell.cellType())
+            .thenApply(result -> {
+                var durationMs = (System.nanoTime() - startTimeNanos) / 1_000_000L;
+                var status = result.isPresent() ? "SUCCESS" : "NOT_FOUND";
+                log.info("CellTowerRepository.findBestCellAsync [COMPLETE] [{}] totalDurationMs={} candidateCells={} selectedCellId={}",
+                    status, durationMs, cellInfoList.size(), bestCell.id());
+                return result;
+            });
     }
     
     /**
@@ -112,11 +121,15 @@ public class CellTowerRepositoryImpl implements CellTowerRepository {
         
         var normalizedCellType = cellType.trim().toUpperCase();
         var cacheKey = new CellTowerCacheKey(cellId, normalizedCellType);
+        var startTimeNanos = System.nanoTime();
         
         // Check cache first (thread-safe, fast)
         var cached = cache.get(cacheKey);
         if (cached != null) {
             updateAccessOrder(cacheKey);
+            var cacheHitTimeMs = (System.nanoTime() - startTimeNanos) / 1_000_000L;
+            log.info("CellTowerRepository.findByIdAsync [CACHE_HIT] cellId={} cellType={} responseTimeMs={} cacheSize={}", 
+                cellId, normalizedCellType, cacheHitTimeMs, cache.size());
             return CompletableFuture.completedFuture(cached);
         }
         
@@ -133,20 +146,28 @@ public class CellTowerRepositoryImpl implements CellTowerRepository {
                 // Cache the result (including misses) with LRU eviction
                 putInCache(cacheKey, optionalResult);
                 
-                if (result != null) {
-                    log.info("Found cell tower (async): cellId={}, cellType={}, lat={}, lon={}, range={}", 
-                        cellId, normalizedCellType, result.getLatitude(), result.getLongitude(), result.getRange());
-                }
+                logDbQueryPerformance(startTimeNanos);
                 
                 return optionalResult;
             })
             .exceptionally(e -> {
-                log.error("Error querying cell tower from DynamoDB (async): cellId={}, cellType={}", 
-                    cellId, normalizedCellType, e);
+                var durationMs = (System.nanoTime() - startTimeNanos) / 1_000_000L;
+                log.error("CellTowerRepository.findByIdAsync [DB_ERROR] cellId={} cellType={} responseTimeMs={} error={}", 
+                    cellId, normalizedCellType, durationMs, e.getMessage(), e);
                 return Optional.empty();
             });
     }
     
+    /**
+     * Logs performance metrics for database query operations.
+     * 
+     * @param startTimeNanos start time in nanoseconds
+     */
+    private void logDbQueryPerformance(long startTimeNanos) {
+        var durationMs = (System.nanoTime() - startTimeNanos) / 1_000_000L;
+        log.info("CellTowerRepository.findByIdAsync [DB_QUERY] responseTimeMs={}", durationMs);
+    }
+
     /**
      * Updates access order for LRU tracking (thread-safe).
      */

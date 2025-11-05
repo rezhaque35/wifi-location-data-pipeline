@@ -8,7 +8,7 @@ import com.wifi.positioning.dto.calculation.LocationInfo;
 import com.wifi.positioning.dto.calculation.StatusCount;
 import com.wifi.positioning.util.GeographicCentroidCalculator;
 import lombok.Builder;
-import lombok.Singular;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -122,6 +122,7 @@ public class WifiAccessPoints {
      *   <li>Local outlier filtering (LOF)</li>
      * </ol>
      */
+    @Slf4j
     public static class FilteringBuilder {
         private List<WifiScanResult> scanResults;
         private List<CellInfo> cellInfoList;
@@ -173,17 +174,33 @@ public class WifiAccessPoints {
          * @return CompletableFuture that completes with WifiAccessPoints (may be non-viable with error)
          */
         public CompletableFuture<WifiAccessPoints> buildWithFiltering() {
+            var pipelineStartNanos = System.nanoTime();
             var topSignals = filterTopStrongestSignals();
             
-            // Execute cell tower and AP lookups in parallel using native async DynamoDB client
-            // Both operations return CompletableFuture immediately (non-blocking)
+            // Execute cell tower and AP lookups in parallel
+            var cellTowerStartNanos = System.nanoTime();
             CompletableFuture<CellTower> cellTowerFuture = lookupCellTowerAsync();
+            
+            var apLookupStartNanos = System.nanoTime();
             CompletableFuture<Map<String, WifiAccessPoint>> apFuture = lookupAPLocations(topSignals);
             
-            // Compose both futures without blocking - apply filtering when both complete
+            // Compose futures without blocking - apply filtering when both complete
             return cellTowerFuture.thenCombine(apFuture, 
-                (cellTower, apLocations) -> buildWithFiltering(topSignals, apLocations, cellTower)
+                (cellTower, apLocations) -> {
+                    logParallelLookupsPerformance(cellTowerStartNanos, apLookupStartNanos);
+                    return buildWithFiltering(topSignals, apLocations, cellTower);
+                }
             );
+        }
+        
+        /**
+         * Logs performance metrics for parallel cell tower and AP lookups.
+         */
+        private void logParallelLookupsPerformance(long cellTowerStartNanos, long apLookupStartNanos) {
+            long cellTowerDurationMs = (System.nanoTime() - cellTowerStartNanos) / 1_000_000L;
+            long apLookupDurationMs = (System.nanoTime() - apLookupStartNanos) / 1_000_000L;
+            log.info("[DB lookups completed in] cellTowerDurationMs={} apLookupDurationMs={}",
+                cellTowerDurationMs, apLookupDurationMs);
         }
         
         
@@ -262,25 +279,51 @@ public class WifiAccessPoints {
         
 
         private WifiAccessPoints buildWithFiltering(List<WifiScanResult> topSignals, Map<String, WifiAccessPoint> apLocations, CellTower cellTower) {
+            var logger = org.slf4j.LoggerFactory.getLogger(WifiAccessPoints.class);
+            var filterStartNanos = System.nanoTime();
             
             WifiAccessPoints accessPoints = buildFromLookupResult(topSignals, apLocations);
-
+            logger.info("WifiAccessPoints.buildWithFiltering [STAGE:LOOKUP] validApCount={} discardedApCount={}", 
+                accessPoints.getValidAccessPoints().size(),
+                accessPoints.getDiscardedAccessPoints().values().stream().mapToInt(List::size).sum());
 
             if (!accessPoints.isViable()) {
+                logger.warn("WifiAccessPoints.buildWithFiltering [STAGE:LOOKUP] [FAILED] error={}", accessPoints.getErrorMessage());
                 return accessPoints;
             }
 
+            var statusFilterStartNanos = System.nanoTime();
             accessPoints = accessPoints.filterByStatus();
+            var statusFilterDurationMs = (System.nanoTime() - statusFilterStartNanos) / 1_000_000L;
+            
+            logger.info("WifiAccessPoints.buildWithFiltering [STAGE:STATUS_FILTER] durationMs={} validApCount={} discardedApCount={}", 
+                statusFilterDurationMs,
+                accessPoints.getValidAccessPoints().size(),
+                accessPoints.getDiscardedAccessPoints().values().stream().mapToInt(List::size).sum());
             
             if (!accessPoints.isViable()) {
+                logger.warn("WifiAccessPoints.buildWithFiltering [STAGE:STATUS_FILTER] [FAILED] error={}", accessPoints.getErrorMessage());
                 return accessPoints;
             }
             
+            var cellFilterStartNanos = System.nanoTime();
             accessPoints = applyGlobalOutlierFiltering(accessPoints, cellTower);
+            var cellFilterDurationMs = (System.nanoTime() - cellFilterStartNanos) / 1_000_000L;
+            
+            logger.info("WifiAccessPoints.buildWithFiltering [STAGE:CELL_FILTER] durationMs={} cellTowerId={} validApCount={} discardedApCount={}", 
+                cellFilterDurationMs,
+                cellTower != null ? cellTower.getId() : "N/A",
+                accessPoints.getValidAccessPoints().size(),
+                accessPoints.getDiscardedAccessPoints().values().stream().mapToInt(List::size).sum());
             
             if (!accessPoints.isViable()) {
+                logger.warn("WifiAccessPoints.buildWithFiltering [STAGE:CELL_FILTER] [FAILED] error={}", accessPoints.getErrorMessage());
                 return accessPoints;
             }
+            
+            var totalFilterDurationMs = (System.nanoTime() - filterStartNanos) / 1_000_000L;
+            logger.info("WifiAccessPoints.buildWithFiltering [FILTERING_COMPLETE] totalDurationMs={} stagesCount=3 validApCount={}", 
+                totalFilterDurationMs, accessPoints.getValidAccessPoints().size());
             
             return accessPoints;
         }

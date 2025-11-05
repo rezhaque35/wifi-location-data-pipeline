@@ -109,8 +109,6 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
 
   private static final String LOG_INITIALIZED = "Initialized WifiAccessPointRepository with async table: {}";
   private static final String LOG_ERROR_REQUEST_SIZE_EXCEEDS = "Request size exceeds maximum batch size: requested=%d, max=%d";
-  private static final String LOG_INFO_BATCH_RETRIEVAL_COMPLETED = "Async batch retrieval completed: requested={}, found={}, duration={}ms";
-  private static final String LOG_ERROR_UNEXPECTED_BATCH_RETRIEVAL = "Unexpected error in async batch retrieval of access points";
   private static final String LOG_ERROR_FAILED_RETRIEVE_BATCH = "Failed to retrieve access points in batch (async)";
   private static final String LOG_ERROR_BATCH_UNPROCESSED_KEYS = "DynamoDB batch request failed with %d unprocessed keys after SDK retries exhausted. "
       + "This indicates persistent throughput capacity issues. "
@@ -143,6 +141,7 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
   @Override
   public CompletableFuture<Map<String, WifiAccessPoint>> findByMacAddressesAsync(Set<String> macAddresses) {
     if (isEmptyOrNull(macAddresses)) {
+      logger.debug("WifiAccessPointRepository.findByMacAddressesAsync [EMPTY_REQUEST] requestedMacCount=0");
       return CompletableFuture.completedFuture(Collections.emptyMap());
     }
 
@@ -151,7 +150,8 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
           String.format(
               LOG_ERROR_REQUEST_SIZE_EXCEEDS,
               macAddresses.size(), MAX_BATCH_SIZE);
-      logger.error(errorMessage);
+      logger.error("WifiAccessPointRepository.findByMacAddressesAsync [INVALID_REQUEST] {} requestedMacCount={} maxBatchSize={}", 
+          errorMessage, macAddresses.size(), MAX_BATCH_SIZE);
       return CompletableFuture.failedFuture(new IllegalArgumentException(errorMessage));
     }
 
@@ -159,24 +159,48 @@ public class WifiAccessPointRepositoryImpl implements WifiAccessPointRepository 
     
     return queryDBAsync(macAddresses)
         .thenApply(results -> {
-          var durationMs = (System.nanoTime() - startTime) / NANOS_TO_MILLIS;
-          
-          logger.info(
-              LOG_INFO_BATCH_RETRIEVAL_COMPLETED,
-              macAddresses.size(),
-              results.size(),
-              durationMs);
-          
+          logBatchRetrievalSuccess(macAddresses.size(), results.size(), startTime);
           return results;
         })
         .exceptionally(e -> {
-          logger.error(LOG_ERROR_UNEXPECTED_BATCH_RETRIEVAL, e);
+          logBatchRetrievalError(macAddresses.size(), startTime, e);
           // Preserve the original exception if it's already a RuntimeException with a meaningful message
           if (e instanceof RuntimeException && e.getMessage() != null && !e.getMessage().isEmpty()) {
             throw (RuntimeException) e;
           }
           throw new RuntimeException(LOG_ERROR_FAILED_RETRIEVE_BATCH, e);
         });
+  }
+
+  /**
+   * Logs performance metrics for successful batch retrieval.
+   * 
+   * @param requestedMacCount number of MAC addresses requested
+   * @param foundCount number of MAC addresses found
+   * @param startTime start time in nanoseconds
+   */
+  private void logBatchRetrievalSuccess(int requestedMacCount, int foundCount, long startTime) {
+    var durationMs = (System.nanoTime() - startTime) / NANOS_TO_MILLIS;
+    var hitRate = requestedMacCount == 0 ? 0.0 : (double) foundCount / requestedMacCount * 100;
+    
+    logger.info("WifiAccessPointRepository.findByMacAddressesAsync [DB_QUERY] [SUCCESS] requestedMacCount={} foundCount={} hitRatePercent={} responseTimeMs={}",
+        requestedMacCount,
+        foundCount,
+        String.format("%.2f", hitRate),
+        durationMs);
+  }
+
+  /**
+   * Logs performance metrics for batch retrieval errors.
+   * 
+   * @param requestedMacCount number of MAC addresses requested
+   * @param startTime start time in nanoseconds
+   * @param exception the exception that occurred
+   */
+  private void logBatchRetrievalError(int requestedMacCount, long startTime, Throwable exception) {
+    var durationMs = (System.nanoTime() - startTime) / NANOS_TO_MILLIS;
+    logger.error("WifiAccessPointRepository.findByMacAddressesAsync [DB_ERROR] requestedMacCount={} responseTimeMs={} error={}",
+        requestedMacCount, durationMs, exception.getMessage(), exception);
   }
 
   // === IMPLEMENTATION LAYER ===
