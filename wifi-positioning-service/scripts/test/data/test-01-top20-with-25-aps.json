@@ -50,7 +50,8 @@
         "used": 20
       },
       "statusCounts": {
-        "USED": 20
+        "USED": 20,
+        "DISCARDED_WEAK_SIGNAL": 5
       }
     }
   }

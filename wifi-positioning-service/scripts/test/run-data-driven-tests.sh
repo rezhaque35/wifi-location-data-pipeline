@@ -20,6 +20,32 @@ FAILED_TESTS=0
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATA_DIR="$SCRIPT_DIR/data"
 
+# Initialize verbose flag and test file filter
+VERBOSE=false
+TEST_FILE_FILTER=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --verbose|-v)
+            VERBOSE=true
+            shift
+            ;;
+        --file|-f)
+            TEST_FILE_FILTER="$2"
+            shift
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--verbose|-v] [--file|-f <test-file-name>]"
+            echo "  --verbose, -v: Print request and response for each test"
+            echo "  --file, -f: Run only the specified test file (e.g., test-01-top20-with-25-aps.json)"
+            exit 1
+            ;;
+    esac
+done
+
 # Check if jq is installed
 if ! command -v jq &> /dev/null; then
   echo "jq is not installed. Please install it with:"
@@ -172,7 +198,7 @@ validate_ap_summary() {
     fi
 }
 
-# Function to validate status counts
+# Function to validate status counts (bidirectional validation)
 validate_status_counts() {
     local response=$1
     local expected_status_counts_json=$2
@@ -183,7 +209,7 @@ validate_status_counts() {
     # Get actual status counts from response
     local actual_status_counts=$(echo "$cleaned_response" | jq -r '.calculationInfo.accessPointSummary.statusCounts // []' 2>/dev/null || echo "[]")
     
-    # Check each expected status count using process substitution to avoid subshell issues
+    # Check 1: All expected statuses are present with correct counts
     while IFS=':' read -r status expected_count; do
         if [[ -z "$status" ]] || [[ -z "$expected_count" ]]; then
             continue
@@ -195,6 +221,30 @@ validate_status_counts() {
             validation_errors+=("statusCounts.$status mismatch: expected $expected_count, got $actual_count")
         fi
     done < <(echo "$expected_status_counts_json" | jq -r 'to_entries[] | "\(.key):\(.value)"' 2>/dev/null)
+    
+    # Check 2: No unexpected statuses in response (get count of expected vs actual)
+    local expected_status_count=$(echo "$expected_status_counts_json" | jq -r 'keys | length' 2>/dev/null || echo "0")
+    local actual_status_count=$(echo "$actual_status_counts" | jq -r 'length' 2>/dev/null || echo "0")
+    
+    if [[ "$actual_status_count" != "$expected_status_count" ]]; then
+        # Find which statuses are unexpected
+        local temp_file=$(mktemp)
+        echo "$actual_status_counts" | jq -r '.[] | "\(.status):\(.count)"' 2>/dev/null > "$temp_file"
+        
+        while IFS=':' read -r status actual_count; do
+            if [[ -z "$status" ]] || [[ -z "$actual_count" ]]; then
+                continue
+            fi
+            
+            local is_expected=$(echo "$expected_status_counts_json" | jq -r "has(\"$status\")" 2>/dev/null || echo "false")
+            
+            if [[ "$is_expected" == "false" ]]; then
+                validation_errors+=("statusCounts.$status unexpected: got $actual_count, but not specified in expected")
+            fi
+        done < "$temp_file"
+        
+        rm -f "$temp_file"
+    fi
     
     if [ ${#validation_errors[@]} -eq 0 ]; then
         return 0
@@ -267,11 +317,20 @@ run_data_driven_test() {
     
     # Extract expected values
     local expected_result=$(echo "$expected_json" | jq -r '.result // "SUCCESS"' 2>/dev/null)
+    local expected_message=$(echo "$expected_json" | jq -r '.message // ""' 2>/dev/null)
     
     # Validate result
     local actual_result=$(echo "$response" | tr -d '\000-\037' | jq -r '.result // ""' 2>/dev/null || echo "")
     if [[ "$actual_result" != "$expected_result" ]]; then
         validation_errors+=("Result mismatch: expected $expected_result, got $actual_result")
+    fi
+    
+    # Validate error message if specified
+    if [[ -n "$expected_message" ]] && [[ "$expected_message" != "null" ]]; then
+        local actual_message=$(echo "$response" | tr -d '\000-\037' | jq -r '.message // ""' 2>/dev/null || echo "")
+        if [[ "$actual_message" != "$expected_message" ]]; then
+            validation_errors+=("Message mismatch: expected '$expected_message', got '$actual_message'")
+        fi
     fi
     
     # If SUCCESS, validate other fields
@@ -349,6 +408,16 @@ run_data_driven_test() {
     fi
     
     # Report results
+    if [ "$VERBOSE" == "true" ]; then
+        echo "----------------------------------------"
+        echo "Request Payload:"
+        echo "$request_payload" | jq '.' 2>/dev/null || echo "$request_payload"
+        echo
+        echo "Response:"
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        echo "----------------------------------------"
+    fi
+    
     if [ ${#validation_errors[@]} -eq 0 ]; then
         echo -e "${GREEN}✓ Test Passed${NC}"
         ((PASSED_TESTS++))
@@ -374,7 +443,19 @@ if [[ ! -d "$DATA_DIR" ]]; then
 fi
 
 # Find all test JSON files and sort them
+if [[ -n "$TEST_FILE_FILTER" ]]; then
+    # Run specific test file
+    if [[ -f "$DATA_DIR/$TEST_FILE_FILTER" ]]; then
+        test_files="$DATA_DIR/$TEST_FILE_FILTER"
+        echo -e "${YELLOW}Running single test file: $TEST_FILE_FILTER${NC}"
+    else
+        echo -e "${RED}Error: Test file not found: $DATA_DIR/$TEST_FILE_FILTER${NC}"
+        exit 1
+    fi
+else
+    # Run all test files
 test_files=$(find "$DATA_DIR" -name "test-*.json" | sort)
+fi
 
 if [[ -z "$test_files" ]]; then
     echo -e "${YELLOW}No test files found in $DATA_DIR${NC}"

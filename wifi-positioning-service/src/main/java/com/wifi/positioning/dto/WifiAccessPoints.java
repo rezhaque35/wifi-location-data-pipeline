@@ -630,13 +630,14 @@ public class WifiAccessPoints {
     /**
      * Returns list of AccessPointInfo for all top 20 strongest signals (valid + discarded).
      * Does NOT include weak signals that were filtered out before lookup.
+     * Includes detailed discard reasons for discarded APs.
      * 
      * @return list of AccessPointInfo for calculation info
      */
     public List<AccessPointInfo> getAccessPointInfos() {
         List<AccessPointInfo> result = new ArrayList<>();
         
-        // Add valid access points (USED)
+        // Add valid access points (USED) - no discard reason
         validAccessPoints.forEach(pair -> result.add(new AccessPointInfo(
             pair.wifiAccessPoint().getMacAddress(),
             new LocationInfo(
@@ -647,10 +648,12 @@ public class WifiAccessPoints {
             pair.wifiAccessPoint().getStatus() != null 
                 ? pair.wifiAccessPoint().getStatus() 
                 : UNKNOWN_VALUE,
-            UsageStatus.USED.name()  // All valid APs are USED
+            UsageStatus.USED.name(),  // All valid APs are USED
+            null  // No discard reason for used APs
         )));
         
         // Add discarded access points (from top 20, but discarded for various reasons)
+        // Include the detailed discard reason for diagnostics
         discardedAccessPoints.forEach((status, list) -> 
             list.stream()
                 .filter(discarded -> discarded.wifiAccessPoint() != null)
@@ -660,7 +663,8 @@ public class WifiAccessPoints {
                         ap.getMacAddress(),
                         new LocationInfo(ap.getLatitude(), ap.getLongitude(), ap.getAltitude()),
                         ap.getStatus() != null ? ap.getStatus() : UNKNOWN_VALUE,
-                        status.name()  // Use map key as the usage status
+                        status.name(),  // Use map key as the usage status
+                        discarded.discardReason()  // Include detailed discard reason
                     ));
                 })
         );

@@ -1,6 +1,6 @@
 {
   "testName": "Test cell tower filtering with outliers",
-  "description": "Verify that APs outside cell tower effective range are filtered out while in-range APs are kept",
+  "description": "Verify that APs outside cell tower effective range (1500m = 1000m cell + 500m WiFi) are filtered out. AP 36 is ~2000m from cell tower 1002, so it should be discarded as DISCARDED_CELL_RANGE",
   "request": {
     "wifiScanResults": [
       {
@@ -62,7 +62,8 @@
         "used": 4
       },
       "statusCounts": {
-        "USED": 4
+        "USED": 4,
+        "DISCARDED_CELL_RANGE": 1
       }
     }
   }

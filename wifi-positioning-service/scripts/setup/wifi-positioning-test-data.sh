@@ -336,10 +336,10 @@ done
 # Test Case 36-40: Error Cases and Edge Scenarios
 for i in {36..40}; do
     case $((i-35)) in
-        1)  # Invalid coordinates
-            lat="91.0000"
-            lon="-182.0000"
-            status="error"
+        1)  # Cell tower outlier - 2000m north of cell tower 1002 (outside 1500m effective range)
+            lat="37.79305"
+            lon="-122.41955"
+            status="active"
             ;;
         2)  # Expired TTL
             lat="37.7810"
