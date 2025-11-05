@@ -1,6 +1,6 @@
 {
   "testName": "Test combined filtering: top-20 + status + cell tower",
-  "description": "Verify that all three filtering mechanisms work together correctly",
+  "description": "Verify that all three filtering mechanisms work together correctly (weak signal, invalid status, and cell tower range)",
   "request": {
     "wifiScanResults": [
       {"macAddress": "00:11:22:33:44:02", "signalStrength": -62.3, "frequency": 5180, "ssid": "DualAP_Test"},
@@ -24,8 +24,12 @@
       {"macAddress": "00:11:22:33:44:31", "signalStrength": -68.0, "frequency": 5500, "ssid": "StableSignal_Test"},
       {"macAddress": "00:11:22:33:44:32", "signalStrength": -68.0, "frequency": 5500, "ssid": "StableSignal_Test"},
       {"macAddress": "00:11:22:33:44:41", "signalStrength": -70.0, "frequency": 2437, "ssid": "StatusTest_41"},
+      {"macAddress": "00:11:22:33:44:43", "signalStrength": -69.0, "frequency": 2437, "ssid": "StatusTest_43"},
+      {"macAddress": "00:11:22:33:44:44", "signalStrength": -67.0, "frequency": 2437, "ssid": "StatusTest_44"},
+      {"macAddress": "00:11:22:33:44:36", "signalStrength": -64.0, "frequency": 2412, "ssid": "ErrorCase_36"},
       {"macAddress": "AA:BB:CC:11:22:33", "signalStrength": -80.0, "frequency": 2437, "ssid": "Weak_Test_01"},
-      {"macAddress": "AA:BB:CC:11:22:34", "signalStrength": -81.0, "frequency": 2412, "ssid": "Weak_Test_02"}
+      {"macAddress": "AA:BB:CC:11:22:34", "signalStrength": -81.0, "frequency": 2412, "ssid": "Weak_Test_02"},
+      {"macAddress": "AA:BB:CC:11:22:35", "signalStrength": -82.0, "frequency": 2412, "ssid": "Weak_Test_03"}
     ],
     "cellInfo": [
       {"id": 1002, "cellType": "LTE", "signalStrength": -80}
@@ -38,21 +42,23 @@
   "expected": {
     "result": "SUCCESS",
     "wifiPosition": {
-      "latitude": 37.7784,
-      "longitude": -122.4222,
+      "latitude": 37.7781,
+      "longitude": -122.4219,
       "accuracy": {"min": 40.0, "max": 80.0},
       "confidence": {"min": 0.35, "max": 0.65},
       "methodsUsed": ["weighted_centroid", "maximum_likelihood"]
     },
     "calculationInfo": {
       "accessPointSummary": {
-        "total": 23,
+        "total": 27,
         "known": 20,
-        "used": 20
+        "used": 17
       },
       "statusCounts": {
-        "USED": 20,
-        "DISCARDED_WEAK_SIGNAL": 3
+        "USED": 17,
+        "DISCARDED_WEAK_SIGNAL": 7,
+        "DISCARDED_STATUS": 2,
+        "DISCARDED_CELL_RANGE": 1
       }
     }
   }

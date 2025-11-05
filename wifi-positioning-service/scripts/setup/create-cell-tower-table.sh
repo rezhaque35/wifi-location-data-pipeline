@@ -31,3 +31,4 @@ aws dynamodb wait table-exists \
 echo "Cell tower table created successfully!"
 
 
+

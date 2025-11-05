@@ -13,6 +13,24 @@ TOTAL_TESTS=0
 PASSED_TESTS=0
 FAILED_TESTS=0
 
+# Initialize verbose flag
+VERBOSE=false
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --verbose|-v)
+            VERBOSE=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--verbose|-v]"
+            exit 1
+            ;;
+    esac
+done
+
 # Check if jq is installed
 if ! command -v jq &> /dev/null; then
   echo "jq is not installed. Please install it with:"
@@ -1141,7 +1159,11 @@ run_test '{
 echo -e "\n${BLUE}SECTION 8: DATA-DRIVEN FILTERING TESTS${NC}"
 echo -e "${BLUE}====================================================${NC}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ "$VERBOSE" == "true" ]; then
+    "$SCRIPT_DIR/run-data-driven-tests.sh" --verbose
+else
 "$SCRIPT_DIR/run-data-driven-tests.sh"
+fi
 DATA_DRIVEN_EXIT=$?
 
 # Print test summary

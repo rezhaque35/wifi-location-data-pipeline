@@ -1,0 +1,39 @@
+{
+  "testName": "Test with 2 APs after status filtering",
+  "description": "Verify that positioning works with 2 APs using RSSI Ratio and Weighted Centroid methods",
+  "request": {
+    "wifiScanResults": [
+      {"macAddress": "00:11:22:33:44:43", "signalStrength": -68.0, "frequency": 2437, "ssid": "StatusTest_43"},
+      {"macAddress": "00:11:22:33:44:44", "signalStrength": -67.0, "frequency": 2437, "ssid": "StatusTest_44"},
+      {"macAddress": "00:11:22:33:44:45", "signalStrength": -66.0, "frequency": 2437, "ssid": "StatusTest_45"},
+      {"macAddress": "00:11:22:33:44:41", "signalStrength": -65.0, "frequency": 2437, "ssid": "StatusTest_41"},
+      {"macAddress": "00:11:22:33:44:42", "signalStrength": -64.0, "frequency": 2437, "ssid": "StatusTest_42"}
+    ],
+    "client": "test-client",
+    "requestId": "test-request-two-aps",
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
+  },
+  "expected": {
+    "result": "SUCCESS",
+    "wifiPosition": {
+      "latitude": 37.7820,
+      "longitude": -122.4260,
+      "accuracy": {"min": 40.0, "max": 70.0},
+      "confidence": {"min": 0.35, "max": 0.50},
+      "methodsUsed": ["rssiratio", "weighted_centroid"]
+    },
+    "calculationInfo": {
+      "accessPointSummary": {
+        "total": 5,
+        "known": 5,
+        "used": 2
+      },
+      "statusCounts": {
+        "USED": 2,
+        "DISCARDED_STATUS": 3
+      }
+    }
+  }
+}
+

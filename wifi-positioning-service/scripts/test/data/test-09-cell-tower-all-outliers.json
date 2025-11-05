@@ -3,9 +3,9 @@
   "description": "Verify that request fails when all APs are outside cell tower effective range",
   "request": {
     "wifiScanResults": [
-      {"macAddress": "AA:BB:CC:TEST:02:01", "signalStrength": -65.0, "frequency": 5180, "ssid": "Outlier_Test_02_01"},
-      {"macAddress": "AA:BB:CC:TEST:02:02", "signalStrength": -67.0, "frequency": 2462, "ssid": "Outlier_Test_02_02"},
-      {"macAddress": "AA:BB:CC:TEST:02:03", "signalStrength": -69.0, "frequency": 2437, "ssid": "Outlier_Test_02_03"}
+      {"macAddress": "AA:BB:CC:02:00:01", "signalStrength": -65.0, "frequency": 5180, "ssid": "Outlier_Test_02_01"},
+      {"macAddress": "AA:BB:CC:02:00:02", "signalStrength": -67.0, "frequency": 2462, "ssid": "Outlier_Test_02_02"},
+      {"macAddress": "AA:BB:CC:02:00:03", "signalStrength": -69.0, "frequency": 2437, "ssid": "Outlier_Test_02_03"}
     ],
     "cellInfo": [{
       "id": 1002,
@@ -19,6 +19,7 @@
   },
   "expected": {
     "result": "ERROR",
+    "message": "No access points remaining after global outlier filtering",
     "wifiPosition": null,
     "calculationInfo": null
   }

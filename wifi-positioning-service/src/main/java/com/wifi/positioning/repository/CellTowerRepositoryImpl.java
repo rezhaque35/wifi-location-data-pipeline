@@ -3,6 +3,7 @@ package com.wifi.positioning.repository;
 
 import com.wifi.positioning.dto.CellInfo;
 import com.wifi.positioning.dto.CellTower;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,9 +39,9 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  */
 @Repository
 @Profile("!test") // Only active when not in test profile
+@Slf4j
 public class CellTowerRepositoryImpl implements CellTowerRepository {
     
-    private static final Logger log = LoggerFactory.getLogger(CellTowerRepositoryImpl.class);
     private static final int CACHE_SIZE = 1000;
     private static final long LATENCY_THRESHOLD_MS = 1_000L;
     
@@ -86,21 +87,9 @@ public class CellTowerRepositoryImpl implements CellTowerRepository {
                 cell -> cell.signalStrength() != null ? cell.signalStrength() : Integer.MIN_VALUE
             ))
             .orElse(cellInfoList.get(0));
+
         
-        log.info("CellTowerRepository.findBestCellAsync [SELECTION] candidateCells={} selectedCellId={} cellType={} signalStrengthDbm={}",
-            cellInfoList.size(),
-            bestCell.id(), 
-            bestCell.cellType(),
-            bestCell.signalStrength() != null ? bestCell.signalStrength() : "unknown");
-        
-        return findByIdAsync(bestCell.id(), bestCell.cellType())
-            .thenApply(result -> {
-                var durationMs = (System.nanoTime() - startTimeNanos) / 1_000_000L;
-                var status = result.isPresent() ? "SUCCESS" : "NOT_FOUND";
-                log.info("CellTowerRepository.findBestCellAsync [COMPLETE] [{}] totalDurationMs={} candidateCells={} selectedCellId={}",
-                    status, durationMs, cellInfoList.size(), bestCell.id());
-                return result;
-            });
+        return findByIdAsync(bestCell.id(), bestCell.cellType());
     }
     
     /**
@@ -115,7 +104,6 @@ public class CellTowerRepositoryImpl implements CellTowerRepository {
     @Override
     public CompletableFuture<Optional<CellTower>> findByIdAsync(Long cellId, String cellType) {
         if (cellId == null || cellType == null) {
-            log.warn("Null cellId or cellType provided for async lookup: cellId={}, cellType={}", cellId, cellType);
             return CompletableFuture.completedFuture(Optional.empty());
         }
         
@@ -188,8 +176,6 @@ public class CellTowerRepositoryImpl implements CellTowerRepository {
             var oldest = accessOrder.pollFirst();
             if (oldest != null) {
                 cache.remove(oldest);
-                log.debug("LRU cache evicting eldest entry: cellId={}, cellType={}", 
-                    oldest.cellId(), oldest.cellType());
             }
         }
     }

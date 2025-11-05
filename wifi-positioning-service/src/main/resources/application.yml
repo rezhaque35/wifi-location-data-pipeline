@@ -21,7 +21,7 @@ aws:
 logging:
   level:
     root: INFO
-    com.wifi.positioning: DEBUG
+    com.wifi.positioning: INFO
     org.springframework: INFO
 
 # Actuator Configuration

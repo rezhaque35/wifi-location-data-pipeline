@@ -301,8 +301,9 @@ run_data_driven_test() {
     local description=$(echo "$test_json" | jq -r '.description // ""' 2>/dev/null)
     local request_payload=$(echo "$test_json" | jq -c '.request' 2>/dev/null)
     local expected_json=$(echo "$test_json" | jq -c '.expected' 2>/dev/null)
+    local file_name=$(basename "$test_file")
     
-    echo -e "\n${BLUE}Running: $test_name${NC}"
+    echo -e "\n${BLUE}Running: $test_name [${file_name}]${NC}"
     if [[ -n "$description" ]]; then
         echo -e "${YELLOW}  $description${NC}"
     fi

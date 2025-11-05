@@ -1,0 +1,45 @@
+{
+  "testName": "Test combined status + cell tower filtering (both effective)",
+  "description": "Verify that status and cell tower filtering both work when APs have invalid status AND are outside cell range",
+  "request": {
+    "wifiScanResults": [
+      {"macAddress": "00:11:22:33:44:02", "signalStrength": -62.0, "frequency": 5180, "ssid": "DualAP_Test"},
+      {"macAddress": "00:11:22:33:44:03", "signalStrength": -64.0, "frequency": 2462, "ssid": "TriAP_Test"},
+      {"macAddress": "00:11:22:33:44:04", "signalStrength": -66.0, "frequency": 5240, "ssid": "MultiAP_Test"},
+      {"macAddress": "00:11:22:33:44:41", "signalStrength": -68.0, "frequency": 2437, "ssid": "StatusTest_41"},
+      {"macAddress": "00:11:22:33:44:43", "signalStrength": -67.0, "frequency": 2437, "ssid": "StatusTest_43"},
+      {"macAddress": "00:11:22:33:44:44", "signalStrength": -65.0, "frequency": 2437, "ssid": "StatusTest_44"},
+      {"macAddress": "00:11:22:33:44:36", "signalStrength": -63.0, "frequency": 2412, "ssid": "ErrorCase_36"}
+    ],
+    "cellInfo": [
+      {"id": 1002, "cellType": "LTE", "signalStrength": -80}
+    ],
+    "client": "test-client",
+    "requestId": "test-request-combined-status-cell-effective",
+    "application": "wifi-positioning-test-suite",
+    "calculationDetail": true
+  },
+  "expected": {
+    "result": "SUCCESS",
+    "wifiPosition": {
+      "latitude": 37.7763,
+      "longitude": -122.4207,
+      "accuracy": {"min": 40.0, "max": 80.0},
+      "confidence": {"min": 0.30, "max": 0.60},
+      "methodsUsed": ["weighted_centroid", "maximum_likelihood"]
+    },
+    "calculationInfo": {
+      "accessPointSummary": {
+        "total": 7,
+        "known": 7,
+        "used": 4
+      },
+      "statusCounts": {
+        "USED": 4,
+        "DISCARDED_STATUS": 2,
+        "DISCARDED_CELL_RANGE": 1
+      }
+    }
+  }
+}
+
