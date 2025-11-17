@@ -1,0 +1,249 @@
+spring:
+  application:
+    name: frisco-wifi-access-point-localization
+  
+  # Jackson JSON Processing Configuration
+  # Controls how JSON serialization/deserialization works throughout the application
+  # Used by ObjectMapper for SQS message parsing, WiFi data processing, and Firehose output
+  jackson:
+    # Exclude null fields from JSON output to reduce payload size
+    # Important for Firehose efficiency and S3 storage optimization
+    default-property-inclusion: non_null
+    
+    # JSON Serialization Settings (Java objects → JSON)
+    serialization:
+      # Use ISO-8601 format instead of timestamps for better readability and debugging
+      # Example: "2024-01-15T10:30:00Z" instead of 1705312200000
+      write-dates-as-timestamps: false
+      # Allow serialization of empty objects without throwing exceptions
+      # Prevents errors when processing incomplete WiFi scan data
+      fail-on-empty-beans: false
+    
+    # JSON Deserialization Settings (JSON → Java objects)
+    deserialization:
+      # Ignore unknown JSON properties during parsing
+      # Makes the service robust when processing varied WiFi scan data formats
+      # Prevents parsing failures due to schema evolution or vendor-specific fields
+      fail-on-unknown-properties: false
+  
+  task:
+    execution:
+      pool:
+        core-size: 10
+        max-size: 10
+        queue-capacity: 100
+        keep-alive: 60s
+
+# Server Configuration
+server:
+  port: 8081
+  shutdown: graceful
+  
+# Management and Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env,loggers
+      base-path: /
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: sqsConnectivity
+          show-details: always
+        liveness:
+          include: sqsActivityReporting,memoryUsageReporting
+          show-details: always
+    metrics:
+      enabled: true
+
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+    sqs-message-processing:
+      message-timeout-threshold: 5  # 5 minutes - reports IDLE_TIMEOUT status for monitoring
+      processing-rate-threshold: 0.1  # Minimum processing rate threshold for monitoring (messages per minute)
+
+# Enhanced Health Indicator Configuration
+health:
+  indicator:
+    # General health indicator settings
+    timeout-seconds: 5
+    memory-threshold-percentage: 90
+    retry-attempts: 3
+    enable-caching: true
+    cache-ttl-seconds: 30
+
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.wifi.measurements.transformer: DEBUG
+    software.amazon.awssdk: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+# AWS Configuration (LocalStack for local development)
+aws:
+  region: us-east-1
+  endpoint-url: http://localhost:4566
+  credentials:
+    access-key: test
+    secret-key: test
+  s3:
+    use-path-style: true
+    skip-credentials-validation: true
+    skip-metadata-api-check: true
+    skip-requesting-account-id: true
+  dynamodb:
+    endpoint: http://localhost:4566  # LocalStack endpoint for DynamoDB
+    region: us-east-1
+    table-name: wifi_access_points
+    write-batch-size: 25
+  athena:
+    endpoint: http://localhost:4566  # LocalStack endpoint for Athena
+    region: us-east-1
+    database: wifi_measurements_db
+    output-location: s3://athena-query-results/wifi-ap-localization/
+    result-bucket: athena-query-results
+    result-prefix: wifi-ap-localization/
+    query-timeout-seconds: 30
+    result-fetch-timeout-seconds: 60
+    max-results-per-query: 1000
+    lookback-days: 30
+    # enable-result-cleanup: true  # Default is true (cleanup enabled) - set to false to disable cleanup
+
+# SQS Configuration
+sqs:
+  # Direct queue URL (for LocalStack development)
+  queue-url: http://localhost:4566/000000000000/wifi-ap-localization-work
+  # Queue name (for AWS production - when queue-url is not provided)
+  queue-name: wifi-ap-localization-work
+  max-messages: 10
+  wait-time-seconds: 20
+  visibility-timeout-seconds: 300
+  max-concurrent-batches: 5
+  max-retries: 3
+
+# S3 Configuration
+s3:
+  region: us-east-1
+  bucket-name: ingested-wifiscan-data
+  max-file-size: 157286400
+  connection-timeout-seconds: 30
+  read-timeout-seconds: 60
+
+
+# Processing Configuration
+processing:
+  thread-pool-size: 10
+  batch-write-size: 1000
+  max-memory-threshold: 3221225472
+  deduplication-window-seconds: 5
+  enable-data-sanitization: true
+  max-retry-attempts: 3
+  retry-base-delay-millis: 1000
+
+# WiFi Access Point Localization Configuration
+wifi:
+
+  outlier:
+    global:
+      
+      # MAD (Median Absolute Deviation) multiplier for outlier threshold calculation
+      # Higher values result in more permissive outlier detection (fewer outliers)
+      # Lower values result in stricter outlier detection (more outliers)
+      # Default: 3.0 (standard statistical practice for robust outlier detection)
+      mad-multiplier: 3.0
+      
+      # Use weighted centroid calculation based on measurement quality
+      # CONNECTED measurements (quality_weight=2.0) get twice the influence of SCAN measurements (quality_weight=1.0)
+      # This aligns with the framework requirement that CONNECTED measurements are more trustworthy
+      # 
+      # Scenarios to disable (set to false):
+      # - Testing/validation of weighting strategy
+      # - Legacy system compatibility during migration
+      # - Debugging centroid calculation issues
+      # - When CONNECTED measurements are systematically biased
+      # - Edge cases with very few CONNECTED measurements
+      # 
+      # Default: true (enable quality-weighted centroid calculation)
+      use-weighted-centroid: true
+      
+      # Smart auto-detection thresholds for weighted centroid calculation
+      # The system will automatically disable weighting if CONNECTED measurements are too few
+      # 
+      # Minimum percentage of CONNECTED measurements required to enable weighting
+      # If CONNECTED measurements are less than this percentage, unweighted centroid is used
+      # Default: 0.1 (10% minimum)
+      min-connected-percentage: 0.1
+      
+      # Minimum absolute count of CONNECTED measurements required to enable weighting
+      # If CONNECTED measurements are fewer than this count, unweighted centroid is used
+      # Default: 2 (at least 2 CONNECTED measurements)
+      min-connected-count: 2
+      
+      # Minimum sample size aligned with bootstrap requirements
+      # Below this threshold, global outlier detection is skipped entirely
+      # Default: 20 (ensures statistical reliability)
+      min-sample-size: 20
+    
+    local:
+      
+      # Minimum measurements required for any local outlier detection
+      # Below this threshold, outlier detection is skipped entirely
+      # Default: 5 (ensures basic statistical validity)
+      min-measurements-for-detection: 5
+
+      # LOF (Local Outlier Factor) algorithm configuration
+      lof:
+        # Minimum number of measurements for LOF calculation
+        # Higher values provide more stable results but require more computation
+        # Default: 20
+        min-measurements: 15
+
+        # Minimum number of neighbors for LOF calculation
+        # Higher values provide more stable results but require more computation
+        # Default: 5 (balanced between stability and performance)
+        min-neighbors: 5
+        
+        # Maximum number of neighbors to consider for LOF calculation
+        # Prevents excessive computation with large datasets
+        # Default: 15 (reasonable upper bound)
+        max-neighbors: 15
+        
+        # LOF threshold for outlier classification
+        # Values above this threshold are considered outliers
+        # Higher values = fewer outliers detected
+        # Default: 1.7 (standard statistical practice)
+        outlier-threshold: 1.7
+      
+      # Statistical Anomaly Detection algorithm configuration
+      statistical:
+        # Mahalanobis distance threshold for outlier detection
+        # Values above this threshold are considered outliers
+        # Higher values = fewer outliers detected
+        # Default: 3.0 (3-sigma rule for normal distribution)
+        mahalanobis-threshold: 3.0
+        
+        # Number of representative samples to maintain for virtual neighbor calculations
+        # Balances computational efficiency with detection accuracy
+        # Default: 50 (sufficient for statistical validity)
+        representative-sample-size: 50
+        
+        # Spatial boundary threshold for outlier detection
+        # Used in conjunction with Mahalanobis distance
+        # Default: 0.95 (95% confidence interval)
+        spatial-boundary-threshold: 0.95
+        
+        # Maximum number of virtual neighbors for representative sample calculations
+        # Prevents excessive computation in dense measurement areas
+        # Default: 30 (reasonable upper bound)
+        max-virtual-neighbors: 30 

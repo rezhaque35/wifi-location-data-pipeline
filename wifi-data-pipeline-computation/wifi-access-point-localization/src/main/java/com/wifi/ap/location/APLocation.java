@@ -1,9 +1,15 @@
-package com.wifi.ap.location.estimation;
+package com.wifi.ap.location;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.wifi.ap.location.estimation.state.APState;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.*;
 
 import java.util.Set;
@@ -18,7 +24,13 @@ import java.util.Set;
 @AllArgsConstructor
 @Builder
 @DynamoDbBean
-public class WifiAccessPointLocation {
+public class APLocation {
+  private static final Logger logger = LoggerFactory.getLogger(APLocation.class);
+  
+  /** ObjectMapper for JSON serialization/deserialization of APState */
+  private static final ObjectMapper objectMapper = new ObjectMapper()
+      .registerModule(new JavaTimeModule());
+  
   /** Status constants for access point operational states */
   public static final String STATUS_ACTIVE = "active";
 
@@ -50,6 +62,10 @@ public class WifiAccessPointLocation {
   private String vendor;
   private String status;
   private String geohash;
+  private String stateJson;
+  
+  // Field for APState object (not persisted directly, used for caching)
+  private APState apState;
 
   @DynamoDbPartitionKey
   @DynamoDbAttribute("mac_addr")
@@ -57,124 +73,72 @@ public class WifiAccessPointLocation {
     return macAddress;
   }
 
-  public void setMacAddress(String macAddress) {
-    this.macAddress = macAddress;
-  }
-
-  @DynamoDbAttribute("version")
+    @DynamoDbAttribute("version")
   public String getVersion() {
     return version;
   }
 
-  public void setVersion(String version) {
-    this.version = version;
-  }
-
-  @DynamoDbSecondaryPartitionKey(indexNames = "GeohashIndex")
+    @DynamoDbSecondaryPartitionKey(indexNames = "GeohashIndex")
   @DynamoDbSecondarySortKey(indexNames = "SSIDIndex")
   @DynamoDbAttribute("geohash")
   public String getGeohash() {
     return geohash;
   }
 
-  public void setGeohash(String geohash) {
-    this.geohash = geohash;
-  }
-
-  @DynamoDbSecondaryPartitionKey(indexNames = "SSIDIndex")
+    @DynamoDbSecondaryPartitionKey(indexNames = "SSIDIndex")
   @DynamoDbSecondarySortKey(indexNames = "GeohashIndex")
   @DynamoDbAttribute("ssid")
   public String getSsid() {
     return ssid;
   }
 
-  public void setSsid(String ssid) {
-    this.ssid = ssid;
-  }
-
-  @DynamoDbSecondaryPartitionKey(indexNames = "StatusIndex")
+    @DynamoDbSecondaryPartitionKey(indexNames = "StatusIndex")
   @DynamoDbAttribute("status")
   public String getStatus() {
     return status;
   }
 
-  public void setStatus(String status) {
-    this.status = status;
-  }
-
-  @DynamoDbAttribute("latitude")
+    @DynamoDbAttribute("latitude")
   public Double getLatitude() {
     return latitude;
   }
 
-  public void setLatitude(Double latitude) {
-    this.latitude = latitude;
-  }
-
-  @DynamoDbAttribute("longitude")
+    @DynamoDbAttribute("longitude")
   public Double getLongitude() {
     return longitude;
   }
 
-  public void setLongitude(Double longitude) {
-    this.longitude = longitude;
-  }
-
-  @DynamoDbAttribute("altitude")
+    @DynamoDbAttribute("altitude")
   public Double getAltitude() {
     return altitude;
   }
 
-  public void setAltitude(Double altitude) {
-    this.altitude = altitude;
-  }
-
-  @DynamoDbAttribute("horizontal_accuracy")
+    @DynamoDbAttribute("horizontal_accuracy")
   public Double getHorizontalAccuracy() {
     return horizontalAccuracy;
   }
 
-  public void setHorizontalAccuracy(Double horizontalAccuracy) {
-    this.horizontalAccuracy = horizontalAccuracy;
-  }
-
-  @DynamoDbAttribute("vertical_accuracy")
+    @DynamoDbAttribute("vertical_accuracy")
   public Double getVerticalAccuracy() {
     return verticalAccuracy;
   }
 
-  public void setVerticalAccuracy(Double verticalAccuracy) {
-    this.verticalAccuracy = verticalAccuracy;
-  }
-
-  @DynamoDbAttribute("confidence")
+    @DynamoDbAttribute("confidence")
   public Double getConfidence() {
     return confidence;
   }
 
-  public void setConfidence(Double confidence) {
-    this.confidence = confidence;
-  }
-
-  @DynamoDbAttribute("frequency")
+    @DynamoDbAttribute("frequency")
   public Integer getFrequency() {
     return frequency;
   }
 
-  public void setFrequency(Integer frequency) {
-    this.frequency = frequency;
-  }
-
-  @DynamoDbAttribute("vendor")
+    @DynamoDbAttribute("vendor")
   public String getVendor() {
     return vendor;
   }
 
-  public void setVendor(String vendor) {
-    this.vendor = vendor;
-  }
-
-  /**
+    /**
    * Checks if this access point is a WiFi hotspot.
    *
    * @return true if this is a hotspot, false otherwise
@@ -182,4 +146,62 @@ public class WifiAccessPointLocation {
   public boolean isHotspot() {
     return STATUS_WIFI_HOTSPOT.equals(status);
   }
+
+  @DynamoDbAttribute("state")
+  public String getStateJson() {
+    // If apState is set but stateJson is null, serialize it
+    if (apState != null && stateJson == null) {
+      try {
+        stateJson = objectMapper.writeValueAsString(apState);
+      } catch (JsonProcessingException e) {
+        logger.error("Failed to serialize APState to JSON for macAddress: {}", macAddress, e);
+        return null;
+      }
+    }
+    return stateJson;
+  }
+
+  public void setStateJson(String stateJson) {
+    this.stateJson = stateJson;
+    // Clear the transient apState so it will be deserialized fresh next time
+    this.apState = null;
+  }
+
+  /**
+   * Gets the APState object, deserializing from JSON if necessary.
+   * 
+   * @return APState object or null if no state is stored or deserialization fails
+   */
+  public APState getApState() {
+    if (apState == null && stateJson != null && !stateJson.trim().isEmpty()) {
+      try {
+        apState = objectMapper.readValue(stateJson, APState.class);
+      } catch (JsonProcessingException e) {
+        logger.error("Failed to deserialize APState from JSON for macAddress: {}", macAddress, e);
+        return null;
+      }
+    }
+    return apState;
+  }
+
+  /**
+   * Sets the APState object and clears the JSON cache.
+   * The JSON will be serialized when needed (on getStateJson() or DynamoDB save).
+   * 
+   * @param apState APState object to set
+   */
+  public void setApState(APState apState) {
+    this.apState = apState;
+    // Clear the JSON cache so it will be serialized fresh next time
+    this.stateJson = null;
+  }
+
+  public Location getLocation() {
+    return Location.of(latitude, longitude);
+  }
+  public void setLocation(Location location) {
+    this.latitude = location.latitude();
+    this.longitude = location.longitude();
+  }
+
 }

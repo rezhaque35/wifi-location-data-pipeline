@@ -1,0 +1,1794 @@
+{
+"osVersion":
+"14:samsung/a53xsqw/a53x:14/UP1A.231005.007/A536VSQSADXC1:user/release-keys",
+"model": "SM-A536V",
+"device": "a53x",
+"manufacturer": "samsung",
+"osName": "Android",
+"sdkInt": "34",
+"appNameVersion": "com.verizon.wifiloc.app/0.1.0.10000",
+"dataVersion": "15",
+"wifiConnectedEvents": [
+{
+"timestamp": 1731091615562,
+"eventId": "9a930a02-f0cc-4e6d-9b95-c18b4d5a542a",
+"eventType": "CONNECTED",
+
+
+"isCaptive": false,
+"returnedIP": "NOT RETRIEVABLE",
+"wifiConnectedInfo": {
+"bssid": "b8:f8:53:c0:1e:ff",
+"ssid": "Sweethome",
+"numOfScanResults": 19,
+"linkSpeed": 351,
+"frequency": 5660,
+"rssi": -58,
+"capabilities": "[WPA2-PSK-CCMP][RSN-PSK-CCMP][ESS][WPS]",
+"centerFreq0": 5690,
+"centerFreq1": 0,
+"channelWidth": 2,
+"operatorFriendlyName": "",
+"venueName": "",
+"is80211mcResponder": false,
+"isPasspointNetwork": false
+},
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091614415,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+}
+},
+{
+"timestamp": 1731091615132,
+"eventId": "027c1515-b418-4c6e-94a6-0fc03a0c7ae7",
+"eventType": "CONNECTED",
+
+
+"isCaptive": false,
+"returnedIP": "NOT RETRIEVABLE",
+"wifiConnectedInfo": {
+"bssid": "b8:f8:53:c0:1e:ff",
+"ssid": "Sweethome",
+"numOfScanResults": 19,
+"linkSpeed": 351,
+"frequency": 5660,
+"rssi": -58,
+"capabilities": "[WPA2-PSK-CCMP][RSN-PSK-CCMP][ESS][WPS]",
+"centerFreq0": 5690,
+"centerFreq1": 0,
+"channelWidth": 2,
+"operatorFriendlyName": "",
+"venueName": "",
+"is80211mcResponder": false,
+"isPasspointNetwork": false
+},
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091617999,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+}
+},
+{
+"timestamp": 1731091615936,
+"eventId": "0cd9b9c9-9ed6-4b63-9d93-cf3eb6d0688f",
+"eventType": "CONNECTED",
+
+
+"isCaptive": false,
+"returnedIP": "NOT RETRIEVABLE",
+"wifiConnectedInfo": {
+"bssid": "b8:f8:53:c0:1e:ff",
+"ssid": "Sweethome",
+"numOfScanResults": 19,
+"linkSpeed": 351,
+"frequency": 5660,
+"rssi": -58,
+"capabilities": "[WPA2-PSK-CCMP][RSN-PSK-CCMP][ESS][WPS]",
+"centerFreq0": 5690,
+"centerFreq1": 0,
+"channelWidth": 2,
+"operatorFriendlyName": "",
+"venueName": "",
+"is80211mcResponder": false,
+"isPasspointNetwork": false
+},
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091614415,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+}
+},
+{
+"timestamp": 1731091635514,
+"eventId": "26b9a88e-bc93-4e9a-8887-ddb4f696c117",
+"eventType": "CONNECTED",
+
+
+"isCaptive": false,
+"returnedIP": "NOT RETRIEVABLE",
+"wifiConnectedInfo": {
+"bssid": "b8:f8:53:c0:1e:ff",
+"ssid": "Sweethome",
+"numOfScanResults": 19,
+"linkSpeed": 433,
+"frequency": 5660,
+"rssi": -68,
+"capabilities": "[WPA2-PSK-CCMP][RSN-PSK-CCMP][ESS][WPS]",
+"centerFreq0": 5690,
+"centerFreq1": 0,
+"channelWidth": 2,
+"operatorFriendlyName": "",
+"venueName": "",
+"is80211mcResponder": false,
+"isPasspointNetwork": false
+},
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091617999,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+}
+},
+{
+"timestamp": 1731091635767,
+"eventId": "c9b8acfc-a439-4944-9019-4deb95afaae5",
+"eventType": "CONNECTED",
+
+
+"isCaptive": false,
+"returnedIP": "NOT RETRIEVABLE",
+"wifiConnectedInfo": {
+"bssid": "b8:f8:53:c0:1e:ff",
+"ssid": "Sweethome",
+"numOfScanResults": 19,
+"linkSpeed": 433,
+"frequency": 5660,
+"rssi": -68,
+"capabilities": "[WPA2-PSK-CCMP][RSN-PSK-CCMP][ESS][WPS]",
+"centerFreq0": 5690,
+"centerFreq1": 0,
+"channelWidth": 2,
+"operatorFriendlyName": "",
+"venueName": "",
+"is80211mcResponder": false,
+"isPasspointNetwork": false
+},
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091636173,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+}
+},
+{
+"timestamp": 1731091647151,
+"eventId": "00670391-80f9-45d6-b5ed-acc0efa812f1",
+"eventType": "CONNECTED",
+"did": "BjoAd37PDs07tMcI3B6vKfiIIrVjXoWXPM6vkiHXheI=",
+
+"isCaptive": false,
+"returnedIP": "NOT RETRIEVABLE",
+"wifiConnectedInfo": {
+"bssid": "b8:f8:53:c0:1f:00",
+"ssid": "Sweethome",
+"numOfScanResults": 23,
+"linkSpeed": 433,
+"frequency": 5180,
+"rssi": -63,
+"capabilities": "[WPA2-PSK-CCMP][RSN-PSK-CCMP][ESS][WPS]",
+"centerFreq0": 5210,
+"centerFreq1": 0,
+"channelWidth": 2,
+"operatorFriendlyName": "",
+"venueName": "",
+"is80211mcResponder": false,
+"isPasspointNetwork": false
+},
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091636229,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+}
+},
+{
+"timestamp": 1731091664669,
+"eventId": "c89dd4f3-0d32-46fe-a6c5-9692eb1c91a4",
+"eventType": "CONNECTED",
+"did": "BjoAd37PDs07tMcI3B6vKfiIIrVjXoWXPM6vkiHXheI=",
+
+"isCaptive": false,
+"returnedIP": "NOT RETRIEVABLE",
+"wifiConnectedInfo": {
+"bssid": "b8:f8:53:c0:1f:00",
+"ssid": "Sweethome",
+"numOfScanResults": 19,
+"linkSpeed": 433,
+"frequency": 5180,
+"rssi": -63,
+"capabilities": "[WPA2-PSK-CCMP][RSN-PSK-CCMP][ESS][WPS]",
+"centerFreq0": 5210,
+"centerFreq1": 0,
+"channelWidth": 2,
+"operatorFriendlyName": "",
+"venueName": "",
+"is80211mcResponder": false,
+"isPasspointNetwork": false
+},
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091664920,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+}
+},
+{
+"timestamp": 1731091664479,
+"eventId": "c3bc38fd-8bb1-4557-b630-54adb391e1d4",
+"eventType": "CONNECTED",
+"did": "BjoAd37PDs07tMcI3B6vKfiIIrVjXoWXPM6vkiHXheI=",
+
+"isCaptive": false,
+"returnedIP": "NOT RETRIEVABLE",
+"wifiConnectedInfo": {
+"bssid": "b8:f8:53:c0:1f:00",
+"ssid": "Sweethome",
+"numOfScanResults": 19,
+"linkSpeed": 433,
+"frequency": 5180,
+"rssi": -63,
+"capabilities": "[WPA2-PSK-CCMP][RSN-PSK-CCMP][ESS][WPS]",
+"centerFreq0": 5210,
+"centerFreq1": 0,
+"channelWidth": 2,
+"operatorFriendlyName": "",
+"venueName": "",
+"is80211mcResponder": false,
+"isPasspointNetwork": false
+},
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091647444,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+}
+},
+{
+"timestamp": 1731091664618,
+"eventId": "de19244c-b78a-4bbe-8184-6180fdd02f4b",
+"eventType": "CONNECTED",
+"did": "BjoAd37PDs07tMcI3B6vKfiIIrVjXoWXPM6vkiHXheI=",
+
+"isCaptive": false,
+"returnedIP": "NOT RETRIEVABLE",
+"wifiConnectedInfo": {
+"bssid": "b8:f8:53:c0:1f:00",
+"ssid": "Sweethome",
+"numOfScanResults": 19,
+"linkSpeed": 433,
+"frequency": 5180,
+"rssi": -63,
+"capabilities": "[WPA2-PSK-CCMP][RSN-PSK-CCMP][ESS][WPS]",
+"centerFreq0": 5210,
+"centerFreq1": 0,
+"channelWidth": 2,
+"operatorFriendlyName": "",
+"venueName": "",
+"is80211mcResponder": false,
+"isPasspointNetwork": false
+},
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091664920,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+}
+}
+],
+"wifiDisconnectedEvents": [
+{
+"timestamp": 1731091622654,
+"eventId": "027c1515-b418-4c6e-94a6-0fc03a0c7ae7",
+"eventType": "DISCONNECTED",
+
+
+"mode": "A",
+"wifiDisconnectedInfo": {
+"bssid": "b8:f8:53:c0:1e:ff",
+"ssid": "Sweethome",
+"sessionWifiTx": 172646,
+"sessionWifiRx": 335163,
+"totalSessionTime": 7522
+},
+"location": null
+},
+{
+"timestamp": 1731091638082,
+"eventId": "c9b8acfc-a439-4944-9019-4deb95afaae5",
+"eventType": "DISCONNECTED",
+
+
+"mode": "A",
+"wifiDisconnectedInfo": {
+"bssid": "b8:f8:53:c0:1e:ff",
+"ssid": "Sweethome",
+"sessionWifiTx": 10774,
+"sessionWifiRx": 40487,
+"totalSessionTime": 2315
+},
+"location": null
+},
+{
+"timestamp": 1731091650181,
+"eventId": "00670391-80f9-45d6-b5ed-acc0efa812f1",
+"eventType": "DISCONNECTED",
+"did": "BjoAd37PDs07tMcI3B6vKfiIIrVjXoWXPM6vkiHXheI=",
+
+"mode": "A",
+"wifiDisconnectedInfo": {
+"bssid": "b8:f8:53:c0:1f:00",
+"ssid": "Sweethome",
+"sessionWifiTx": 18143,
+"sessionWifiRx": 41039,
+"totalSessionTime": 3030
+},
+"location": null
+},
+{
+"timestamp": 1731091667811,
+"eventId": "c89dd4f3-0d32-46fe-a6c5-9692eb1c91a4",
+"eventType": "DISCONNECTED",
+"did": "BjoAd37PDs07tMcI3B6vKfiIIrVjXoWXPM6vkiHXheI=",
+
+"mode": "A",
+"wifiDisconnectedInfo": {
+"bssid": "b8:f8:53:c0:1f:00",
+"ssid": "Sweethome",
+"sessionWifiTx": 16102,
+"sessionWifiRx": 61677,
+"totalSessionTime": 3142
+},
+"location": null
+}
+],
+"scanResults": [
+{
+"timestamp": 1731091615562,
+
+"mode": "C",
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091614415,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+},
+"results": [
+{
+"ssid": "",
+"bssid": "9a:9d:5d:d8:fb:80",
+"scantime": 1731091613712,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Xfinity Mobile",
+"bssid": "9a:9d:5d:d8:fb:81",
+"scantime": 1731091613712,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Sweethome-Guest",
+"bssid": "72:f8:53:c0:1e:ff",
+"scantime": 1731091613712,
+"rssi": -51,
+"level": 4
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:92",
+"scantime": 1731091613712,
+"rssi": -83,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2a",
+"scantime": 1731091613711,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2c",
+"scantime": 1731091613712,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "checkpoint",
+"bssid": "d8:6c:63:cd:ec:c3",
+"scantime": 1731091613712,
+"rssi": -74,
+"level": 2
+},
+{
+"ssid": "ZeeFam",
+"bssid": "78:67:0e:34:eb:ad",
+"scantime": 1731091613711,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "FiOS-N9TLT",
+"bssid": "48:5d:36:b0:30:76",
+"scantime": 1731091613712,
+"rssi": -88,
+"level": 1
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1f:00",
+"scantime": 1731091613712,
+"rssi": -67,
+"level": 2
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:fe",
+"scantime": 1731091613712,
+"rssi": -48,
+"level": 4
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:ff",
+"scantime": 1731091613711,
+"rssi": -61,
+"level": 3
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:96",
+"scantime": 1731091613711,
+"rssi": -83,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:94",
+"scantime": 1731091613712,
+"rssi": -83,
+"level": 1
+},
+{
+"ssid": "xfinitywifi",
+"bssid": "9a:9d:5d:d8:fb:87",
+"scantime": 1731091613712,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Sweethome-EXT-2.4G",
+"bssid": "1c:bf:ce:d1:6d:24",
+"scantime": 1731091613711,
+"rssi": -61,
+"level": 3
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d8:fb:85",
+"scantime": 1731091613712,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "Sweethome-EXT-5G",
+"bssid": "1c:bf:ce:d1:6d:26",
+"scantime": 1731091613712,
+"rssi": -69,
+"level": 2
+},
+{
+"ssid": "",
+"bssid": "9a:9d:5d:d8:fb:82",
+"scantime": 1731091613711,
+"rssi": -82,
+"level": 1
+}
+]
+},
+{
+"timestamp": 1731091615936,
+
+"mode": "C",
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091614415,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+},
+"results": [
+{
+"ssid": "",
+"bssid": "9a:9d:5d:d8:fb:80",
+"scantime": 1731091613712,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Xfinity Mobile",
+"bssid": "9a:9d:5d:d8:fb:81",
+"scantime": 1731091613711,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Sweethome-Guest",
+"bssid": "72:f8:53:c0:1e:ff",
+"scantime": 1731091613712,
+"rssi": -51,
+"level": 4
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:92",
+"scantime": 1731091613712,
+"rssi": -83,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2a",
+"scantime": 1731091613711,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2c",
+"scantime": 1731091613712,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "checkpoint",
+"bssid": "d8:6c:63:cd:ec:c3",
+"scantime": 1731091613712,
+"rssi": -74,
+"level": 2
+},
+{
+"ssid": "ZeeFam",
+"bssid": "78:67:0e:34:eb:ad",
+"scantime": 1731091613711,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "FiOS-N9TLT",
+"bssid": "48:5d:36:b0:30:76",
+"scantime": 1731091613712,
+"rssi": -88,
+"level": 1
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1f:00",
+"scantime": 1731091613711,
+"rssi": -67,
+"level": 2
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:fe",
+"scantime": 1731091613712,
+"rssi": -48,
+"level": 4
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:ff",
+"scantime": 1731091613712,
+"rssi": -61,
+"level": 3
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:96",
+"scantime": 1731091613711,
+"rssi": -83,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:94",
+"scantime": 1731091613711,
+"rssi": -83,
+"level": 1
+},
+{
+"ssid": "xfinitywifi",
+"bssid": "9a:9d:5d:d8:fb:87",
+"scantime": 1731091613712,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Sweethome-EXT-2.4G",
+"bssid": "1c:bf:ce:d1:6d:24",
+"scantime": 1731091613712,
+"rssi": -61,
+"level": 3
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d8:fb:85",
+"scantime": 1731091613711,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "Sweethome-EXT-5G",
+"bssid": "1c:bf:ce:d1:6d:26",
+"scantime": 1731091613712,
+"rssi": -69,
+"level": 2
+},
+{
+"ssid": "",
+"bssid": "9a:9d:5d:d8:fb:82",
+"scantime": 1731091613712,
+"rssi": -82,
+"level": 1
+}
+]
+},
+{
+"timestamp": 1731091615132,
+
+"mode": "C",
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091617999,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+},
+"results": [
+{
+"ssid": "",
+"bssid": "9a:9d:5d:d8:fb:80",
+"scantime": 1731091613711,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Xfinity Mobile",
+"bssid": "9a:9d:5d:d8:fb:81",
+"scantime": 1731091613712,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Sweethome-Guest",
+"bssid": "72:f8:53:c0:1e:ff",
+"scantime": 1731091613712,
+"rssi": -51,
+"level": 4
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:92",
+"scantime": 1731091613711,
+"rssi": -83,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2a",
+"scantime": 1731091613712,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2c",
+"scantime": 1731091613712,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "checkpoint",
+"bssid": "d8:6c:63:cd:ec:c3",
+"scantime": 1731091613712,
+"rssi": -74,
+"level": 2
+},
+{
+"ssid": "ZeeFam",
+"bssid": "78:67:0e:34:eb:ad",
+"scantime": 1731091613712,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "FiOS-N9TLT",
+"bssid": "48:5d:36:b0:30:76",
+"scantime": 1731091613712,
+"rssi": -88,
+"level": 1
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1f:00",
+"scantime": 1731091613711,
+"rssi": -67,
+"level": 2
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:fe",
+"scantime": 1731091613712,
+"rssi": -48,
+"level": 4
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:ff",
+"scantime": 1731091613712,
+"rssi": -61,
+"level": 3
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:96",
+"scantime": 1731091613712,
+"rssi": -83,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:94",
+"scantime": 1731091613711,
+"rssi": -83,
+"level": 1
+},
+{
+"ssid": "xfinitywifi",
+"bssid": "9a:9d:5d:d8:fb:87",
+"scantime": 1731091613711,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Sweethome-EXT-2.4G",
+"bssid": "1c:bf:ce:d1:6d:24",
+"scantime": 1731091613712,
+"rssi": -61,
+"level": 3
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d8:fb:85",
+"scantime": 1731091613712,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "Sweethome-EXT-5G",
+"bssid": "1c:bf:ce:d1:6d:26",
+"scantime": 1731091613711,
+"rssi": -69,
+"level": 2
+},
+{
+"ssid": "",
+"bssid": "9a:9d:5d:d8:fb:82",
+"scantime": 1731091613712,
+"rssi": -82,
+"level": 1
+}
+]
+},
+{
+"timestamp": 1731091635514,
+
+"mode": "C",
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091617999,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+},
+"results": [
+{
+"ssid": "Xfinity Mobile",
+"bssid": "9a:9d:5d:d8:fb:81",
+"scantime": 1731091634307,
+"rssi": -72,
+"level": 2
+},
+{
+"ssid": "Sweethome-Guest",
+"bssid": "72:f8:53:c0:1e:ff",
+"scantime": 1731091634305,
+"rssi": -48,
+"level": 4
+},
+{
+"ssid": "Verizon_Y3DHXL",
+"bssid": "78:67:0e:d8:7b:65",
+"scantime": 1731091634306,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2a",
+"scantime": 1731091634307,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid":
+"\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+"bssid": "4a:5d:36:b0:30:77",
+"scantime": 1731091634307,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2c",
+"scantime": 1731091634307,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "ZeeFam",
+"bssid": "78:67:0e:34:eb:ad",
+"scantime": 1731091634306,
+"rssi": -72,
+"level": 2
+},
+{
+"ssid": "FiOS-N9TLT",
+"bssid": "48:5d:36:b0:30:76",
+"scantime": 1731091634306,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1f:00",
+"scantime": 1731091634307,
+"rssi": -65,
+"level": 3
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:fe",
+"scantime": 1731091634306,
+"rssi": -48,
+"level": 4
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:ff",
+"scantime": 1731091634307,
+"rssi": -62,
+"level": 3
+},
+{
+"ssid": "Chua-Kasak",
+"bssid": "60:b7:6e:f2:9c:6d",
+"scantime": 1731091634306,
+"rssi": -74,
+"level": 2
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:96",
+"scantime": 1731091634307,
+"rssi": -83,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:94",
+"scantime": 1731091634307,
+"rssi": -89,
+"level": 0
+},
+{
+"ssid": "xfinitywifi",
+"bssid": "9a:9d:5d:d8:fb:87",
+"scantime": 1731091634307,
+"rssi": -72,
+"level": 2
+},
+{
+"ssid": "Sweethome-EXT-2.4G",
+"bssid": "1c:bf:ce:d1:6d:24",
+"scantime": 1731091634306,
+"rssi": -60,
+"level": 3
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d8:fb:85",
+"scantime": 1731091634306,
+"rssi": -71,
+"level": 2
+},
+{
+"ssid": "Sweethome-EXT-5G",
+"bssid": "1c:bf:ce:d1:6d:26",
+"scantime": 1731091634307,
+"rssi": -65,
+"level": 3
+},
+{
+"ssid": "E_0174_9164",
+"bssid": "6a:4e:05:b8:d1:0d",
+"scantime": 1731091634305,
+"rssi": -61,
+"level": 3
+}
+]
+},
+{
+"timestamp": 1731091635767,
+
+"mode": "C",
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091636173,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+},
+"results": [
+{
+"ssid": "Xfinity Mobile",
+"bssid": "9a:9d:5d:d8:fb:81",
+"scantime": 1731091634307,
+"rssi": -72,
+"level": 2
+},
+{
+"ssid": "Sweethome-Guest",
+"bssid": "72:f8:53:c0:1e:ff",
+"scantime": 1731091634305,
+"rssi": -48,
+"level": 4
+},
+{
+"ssid": "Verizon_Y3DHXL",
+"bssid": "78:67:0e:d8:7b:65",
+"scantime": 1731091634307,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2a",
+"scantime": 1731091634307,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid":
+"\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+"bssid": "4a:5d:36:b0:30:77",
+"scantime": 1731091634306,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2c",
+"scantime": 1731091634306,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "ZeeFam",
+"bssid": "78:67:0e:34:eb:ad",
+"scantime": 1731091634307,
+"rssi": -72,
+"level": 2
+},
+{
+"ssid": "FiOS-N9TLT",
+"bssid": "48:5d:36:b0:30:76",
+"scantime": 1731091634307,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1f:00",
+"scantime": 1731091634307,
+"rssi": -65,
+"level": 3
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:fe",
+"scantime": 1731091634305,
+"rssi": -48,
+"level": 4
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:ff",
+"scantime": 1731091634306,
+"rssi": -62,
+"level": 3
+},
+{
+"ssid": "Chua-Kasak",
+"bssid": "60:b7:6e:f2:9c:6d",
+"scantime": 1731091634307,
+"rssi": -74,
+"level": 2
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:96",
+"scantime": 1731091634307,
+"rssi": -83,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "82:da:c2:8c:26:94",
+"scantime": 1731091634307,
+"rssi": -89,
+"level": 0
+},
+{
+"ssid": "xfinitywifi",
+"bssid": "9a:9d:5d:d8:fb:87",
+"scantime": 1731091634307,
+"rssi": -72,
+"level": 2
+},
+{
+"ssid": "Sweethome-EXT-2.4G",
+"bssid": "1c:bf:ce:d1:6d:24",
+"scantime": 1731091634306,
+"rssi": -60,
+"level": 3
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d8:fb:85",
+"scantime": 1731091634306,
+"rssi": -71,
+"level": 2
+},
+{
+"ssid": "Sweethome-EXT-5G",
+"bssid": "1c:bf:ce:d1:6d:26",
+"scantime": 1731091634307,
+"rssi": -65,
+"level": 3
+},
+{
+"ssid": "E_0174_9164",
+"bssid": "6a:4e:05:b8:d1:0d",
+"scantime": 1731091634306,
+"rssi": -61,
+"level": 3
+}
+]
+},
+{
+"timestamp": 1731091647151,
+
+"mode": "C",
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091636229,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+},
+"results": [
+{
+"ssid": "Xfinity Mobile",
+"bssid": "9a:9d:5d:d8:fb:81",
+"scantime": 1731091645726,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "Sweethome-Guest",
+"bssid": "72:f8:53:c0:1e:ff",
+"scantime": 1731091645726,
+"rssi": -50,
+"level": 4
+},
+{
+"ssid": "msnan_EXT",
+"bssid": "28:87:ba:0f:af:52",
+"scantime": 1731091645725,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d1:fb:84",
+"scantime": 1731091645725,
+"rssi": -74,
+"level": 2
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2d",
+"scantime": 1731091645726,
+"rssi": -88,
+"level": 1
+},
+{
+"ssid": "Allheartup",
+"bssid": "d4:b9:2f:5c:7a:2f",
+"scantime": 1731091645726,
+"rssi": -88,
+"level": 1
+},
+{
+"ssid": "checkpoint",
+"bssid": "d8:6c:63:cd:ec:c3",
+"scantime": 1731091645726,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "ZeeFam",
+"bssid": "78:67:0e:34:eb:ad",
+"scantime": 1731091645726,
+"rssi": -69,
+"level": 2
+},
+{
+"ssid": "FiOS-N9TLT",
+"bssid": "48:5d:36:b0:30:76",
+"scantime": 1731091645725,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1f:00",
+"scantime": 1731091645726,
+"rssi": -59,
+"level": 3
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:fe",
+"scantime": 1731091645726,
+"rssi": -52,
+"level": 4
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:ff",
+"scantime": 1731091645726,
+"rssi": -66,
+"level": 3
+},
+{
+"ssid": "Chukasa-guest",
+"bssid": "62:b7:6e:f2:9c:6c",
+"scantime": 1731091645726,
+"rssi": -80,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "02:cb:7a:07:fa:42",
+"scantime": 1731091645725,
+"rssi": -83,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "40:47:5e:ef:37:c3",
+"scantime": 1731091645725,
+"rssi": -85,
+"level": 1
+},
+{
+"ssid": "FiOS-N9TLT",
+"bssid": "48:5d:36:b0:30:78",
+"scantime": 1731091645726,
+"rssi": -73,
+"level": 2
+},
+{
+"ssid": "",
+"bssid": "7a:f8:53:c0:1e:f8",
+"scantime": 1731091645726,
+"rssi": -66,
+"level": 3
+},
+{
+"ssid": "",
+"bssid": "02:cb:7a:07:fa:44",
+"scantime": 1731091645726,
+"rssi": -89,
+"level": 0
+},
+{
+"ssid": "xfinitywifi",
+"bssid": "9a:9d:5d:d8:fb:87",
+"scantime": 1731091645725,
+"rssi": -77,
+"level": 2
+},
+{
+"ssid": "Sweethome-EXT-2.4G",
+"bssid": "1c:bf:ce:d1:6d:24",
+"scantime": 1731091645726,
+"rssi": -64,
+"level": 3
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d8:fb:85",
+"scantime": 1731091645726,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "Sweethome-EXT-5G",
+"bssid": "1c:bf:ce:d1:6d:26",
+"scantime": 1731091645726,
+"rssi": -65,
+"level": 3
+},
+{
+"ssid": "E_0174_9164",
+"bssid": "6a:4e:05:b8:d1:0d",
+"scantime": 1731091645726,
+"rssi": -59,
+"level": 3
+}
+]
+},
+{
+"timestamp": 1731091664479,
+
+"mode": "C",
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091647444,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+},
+"results": [
+{
+"ssid": "Xfinity Mobile",
+"bssid": "9a:9d:5d:d8:fb:81",
+"scantime": 1731091662107,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "Sweethome-Guest",
+"bssid": "72:f8:53:c0:1e:ff",
+"scantime": 1731091662108,
+"rssi": -50,
+"level": 4
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2a",
+"scantime": 1731091662108,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "62:f8:53:c0:1f:02",
+"scantime": 1731091662108,
+"rssi": -62,
+"level": 3
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d1:fb:84",
+"scantime": 1731091662108,
+"rssi": -69,
+"level": 2
+},
+{
+"ssid": "Allheartup",
+"bssid": "d4:b9:2f:5c:7a:2f",
+"scantime": 1731091662108,
+"rssi": -88,
+"level": 1
+},
+{
+"ssid": "checkpoint",
+"bssid": "d8:6c:63:cd:ec:c3",
+"scantime": 1731091662107,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "ZeeFam",
+"bssid": "78:67:0e:34:eb:ad",
+"scantime": 1731091662108,
+"rssi": -69,
+"level": 2
+},
+{
+"ssid": "FiOS-N9TLT",
+"bssid": "48:5d:36:b0:30:76",
+"scantime": 1731091662109,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1f:00",
+"scantime": 1731091662108,
+"rssi": -62,
+"level": 3
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:fe",
+"scantime": 1731091662108,
+"rssi": -51,
+"level": 4
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:ff",
+"scantime": 1731091662107,
+"rssi": -66,
+"level": 3
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:32",
+"scantime": 1731091662108,
+"rssi": -88,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "7a:f8:53:c0:1e:f8",
+"scantime": 1731091662108,
+"rssi": -66,
+"level": 3
+},
+{
+"ssid": "xfinitywifi",
+"bssid": "9a:9d:5d:d8:fb:87",
+"scantime": 1731091662108,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "Sweethome-EXT-2.4G",
+"bssid": "1c:bf:ce:d1:6d:24",
+"scantime": 1731091662108,
+"rssi": -61,
+"level": 3
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d8:fb:85",
+"scantime": 1731091662108,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "Sweethome-EXT-5G",
+"bssid": "1c:bf:ce:d1:6d:26",
+"scantime": 1731091662107,
+"rssi": -65,
+"level": 3
+},
+{
+"ssid": "E_0174_9164",
+"bssid": "6a:4e:05:b8:d1:0d",
+"scantime": 1731091662107,
+"rssi": -58,
+"level": 3
+}
+]
+},
+{
+"timestamp": 1731091664669,
+
+"mode": "C",
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091664920,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+},
+"results": [
+{
+"ssid": "Xfinity Mobile",
+"bssid": "9a:9d:5d:d8:fb:81",
+"scantime": 1731091662107,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "Sweethome-Guest",
+"bssid": "72:f8:53:c0:1e:ff",
+"scantime": 1731091662108,
+"rssi": -50,
+"level": 4
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2a",
+"scantime": 1731091662108,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "62:f8:53:c0:1f:02",
+"scantime": 1731091662108,
+"rssi": -62,
+"level": 3
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d1:fb:84",
+"scantime": 1731091662108,
+"rssi": -69,
+"level": 2
+},
+{
+"ssid": "Allheartup",
+"bssid": "d4:b9:2f:5c:7a:2f",
+"scantime": 1731091662108,
+"rssi": -88,
+"level": 1
+},
+{
+"ssid": "checkpoint",
+"bssid": "d8:6c:63:cd:ec:c3",
+"scantime": 1731091662107,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "ZeeFam",
+"bssid": "78:67:0e:34:eb:ad",
+"scantime": 1731091662108,
+"rssi": -69,
+"level": 2
+},
+{
+"ssid": "FiOS-N9TLT",
+"bssid": "48:5d:36:b0:30:76",
+"scantime": 1731091662109,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1f:00",
+"scantime": 1731091662108,
+"rssi": -62,
+"level": 3
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:fe",
+"scantime": 1731091662108,
+"rssi": -51,
+"level": 4
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:ff",
+"scantime": 1731091662107,
+"rssi": -66,
+"level": 3
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:32",
+"scantime": 1731091662109,
+"rssi": -88,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "7a:f8:53:c0:1e:f8",
+"scantime": 1731091662108,
+"rssi": -66,
+"level": 3
+},
+{
+"ssid": "xfinitywifi",
+"bssid": "9a:9d:5d:d8:fb:87",
+"scantime": 1731091662108,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "Sweethome-EXT-2.4G",
+"bssid": "1c:bf:ce:d1:6d:24",
+"scantime": 1731091662108,
+"rssi": -61,
+"level": 3
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d8:fb:85",
+"scantime": 1731091662107,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "Sweethome-EXT-5G",
+"bssid": "1c:bf:ce:d1:6d:26",
+"scantime": 1731091662107,
+"rssi": -65,
+"level": 3
+},
+{
+"ssid": "E_0174_9164",
+"bssid": "6a:4e:05:b8:d1:0d",
+"scantime": 1731091662108,
+"rssi": -58,
+"level": 3
+}
+]
+},
+{
+"timestamp": 1731091664618,
+
+"mode": "C",
+"location": {
+"source": "lastknown",
+"latitude": 40.6768816,
+"longitude": -74.416391,
+"altitude": 110.9000015258789,
+"accuracy": 100.0,
+"time": 1731091664920,
+"provider": "fused",
+"speed": 0.0,
+"bearing": 0.0
+},
+"results": [
+{
+"ssid": "Xfinity Mobile",
+"bssid": "9a:9d:5d:d8:fb:81",
+"scantime": 1731091662108,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "Sweethome-Guest",
+"bssid": "72:f8:53:c0:1e:ff",
+"scantime": 1731091662108,
+"rssi": -50,
+"level": 4
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:2a",
+"scantime": 1731091662108,
+"rssi": -82,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "62:f8:53:c0:1f:02",
+"scantime": 1731091662107,
+"rssi": -62,
+"level": 3
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d1:fb:84",
+"scantime": 1731091662107,
+"rssi": -69,
+"level": 2
+},
+{
+"ssid": "Allheartup",
+"bssid": "d4:b9:2f:5c:7a:2f",
+"scantime": 1731091662109,
+"rssi": -88,
+"level": 1
+},
+{
+"ssid": "checkpoint",
+"bssid": "d8:6c:63:cd:ec:c3",
+"scantime": 1731091662108,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "ZeeFam",
+"bssid": "78:67:0e:34:eb:ad",
+"scantime": 1731091662108,
+"rssi": -69,
+"level": 2
+},
+{
+"ssid": "FiOS-N9TLT",
+"bssid": "48:5d:36:b0:30:76",
+"scantime": 1731091662109,
+"rssi": -84,
+"level": 1
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1f:00",
+"scantime": 1731091662107,
+"rssi": -62,
+"level": 3
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:fe",
+"scantime": 1731091662107,
+"rssi": -51,
+"level": 4
+},
+{
+"ssid": "Sweethome",
+"bssid": "b8:f8:53:c0:1e:ff",
+"scantime": 1731091662108,
+"rssi": -66,
+"level": 3
+},
+{
+"ssid": "",
+"bssid": "d4:b9:2f:5c:7a:32",
+"scantime": 1731091662109,
+"rssi": -88,
+"level": 1
+},
+{
+"ssid": "",
+"bssid": "7a:f8:53:c0:1e:f8",
+"scantime": 1731091662108,
+"rssi": -66,
+"level": 3
+},
+{
+"ssid": "xfinitywifi",
+"bssid": "9a:9d:5d:d8:fb:87",
+"scantime": 1731091662108,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "Sweethome-EXT-2.4G",
+"bssid": "1c:bf:ce:d1:6d:24",
+"scantime": 1731091662107,
+"rssi": -61,
+"level": 3
+},
+{
+"ssid": "allheart",
+"bssid": "9a:9d:5d:d8:fb:85",
+"scantime": 1731091662107,
+"rssi": -76,
+"level": 2
+},
+{
+"ssid": "Sweethome-EXT-5G",
+"bssid": "1c:bf:ce:d1:6d:26",
+"scantime": 1731091662108,
+"rssi": -65,
+"level": 3
+},
+{
+"ssid": "E_0174_9164",
+"bssid": "6a:4e:05:b8:d1:0d",
+"scantime": 1731091662108,
+"rssi": -58,
+"level": 3
+}
+]
+}
+]
+}

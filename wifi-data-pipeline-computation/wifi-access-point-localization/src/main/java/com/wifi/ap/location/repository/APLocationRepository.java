@@ -1,7 +1,7 @@
-package com.wifi.ap.location.estimation.repository;
+package com.wifi.ap.location.repository;
 
 import com.wifi.ap.location.estimation.MessageMacAddress;
-import com.wifi.ap.location.estimation.WifiAccessPointLocation;
+import com.wifi.ap.location.APLocation;
 import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 
@@ -14,7 +14,7 @@ import java.util.Set;
  * Repository interface for accessing WiFi access point data. Includes methods necessary for
  * efficient position calculation and health monitoring.
  */
-public interface WifiAccessPointLocationRepository {
+public interface APLocationRepository {
 
   /**
    * Find an access point by its MAC address. This is the primary method used by the positioning
@@ -23,7 +23,7 @@ public interface WifiAccessPointLocationRepository {
    * @param messageMacAddress MAC address of the access point
    * @return Optional containing the access point if found, empty otherwise
    */
-  Optional<WifiAccessPointLocation> findByMacAddress(MessageMacAddress messageMacAddress);
+  Optional<APLocation> findByMacAddress(MessageMacAddress messageMacAddress);
 
   /**
    * Find multiple access points by their MAC addresses in a single batch operation. This method
@@ -32,9 +32,9 @@ public interface WifiAccessPointLocationRepository {
    * @param messageMacAddresses Set of MAC addresses to look up
    * @return Map of MAC addresses to matching access points
    */
-  Map<MessageMacAddress, Optional<WifiAccessPointLocation>> findByMacAddresses(Set<MessageMacAddress> messageMacAddresses);
+  Map<MessageMacAddress, Optional<APLocation>> findByMacAddresses(Set<MessageMacAddress> messageMacAddresses);
 
-  void save(List<WifiAccessPointLocation> apLocations);
+  void save(List<APLocation> apLocations);
 
 
   /**

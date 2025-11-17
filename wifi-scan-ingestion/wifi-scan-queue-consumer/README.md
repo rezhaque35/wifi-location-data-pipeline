@@ -613,13 +613,17 @@ Tests use the `test` profile with:
 wifi-scan-queue-consumer/
 ├── scripts/
 │   ├── setup/                            # 🆕 Setup scripts directory
-│   │   ├── setup.sh                      # ⭐ Complete automated setup
+│   │   ├── setup.sh                      # ⭐ Complete automated setup (single service)
+│   │   ├── setup-ingestion-store-stage.sh # 🔄 Complete pipeline setup (both stages)
 │   │   ├── setup-local-kafka.sh         # Kafka environment setup
 │   │   ├── setup-aws-infrastructure.sh  # AWS infrastructure setup
 │   │   ├── generate-ssl-certs.sh        # SSL certificate generation
 │   │   ├── start-local-kafka.sh         # Start Kafka cluster
 │   │   ├── stop-local-kafka.sh          # Stop and cleanup
 │   │   ├── cleanup.sh                   # Complete infrastructure cleanup
+│   │   ├── cleanup-pipeline.sh          # 🔄 Pipeline cleanup (both stages)
+│   │   ├── monitor-pipeline.sh          # 🔄 Real-time pipeline monitoring
+│   │   ├── test-end-to-end.sh           # 🔄 End-to-end pipeline test
 │   │   ├── test-ssl-connection.sh        # 🔐 SSL connectivity test (moved from test/)
 │   │   ├── create-test-topic.sh          # 📝 Topic creation (moved from test/)
 │   │   ├── consume-test-messages.sh      # 📨 Message consumer (moved from test/)
@@ -741,6 +745,166 @@ scripts/
 ```
 
 **Note:** Both locations are kept in sync automatically by `generate-ssl-certs.sh`
+
+### 🔄 End-to-End Pipeline Setup Scripts
+
+The following scripts set up and manage the complete data pipeline (Ingestion + Store stages):
+
+| Script | Purpose | Usage | Duration |
+|--------|---------|-------|----------|
+| `setup/setup-ingestion-store-stage.sh` | **Complete pipeline setup** | `cd scripts/setup && ./setup-ingestion-store-stage.sh` | ~3-5 min |
+| `setup/monitor-pipeline.sh` | **Real-time pipeline monitoring** | `cd scripts/setup && ./monitor-pipeline.sh [--watch]` | Ongoing |
+| `setup/test-end-to-end.sh` | **End-to-end pipeline test** | `cd scripts/setup && ./test-end-to-end.sh` | ~2-3 min |
+| `setup/cleanup-pipeline.sh` | **Pipeline cleanup** | `cd scripts/setup && ./cleanup-pipeline.sh [--full]` | ~1-2 min |
+
+#### setup-ingestion-store-stage.sh
+
+**Purpose**: Complete automated setup for both ingestion and store stages of the data pipeline.
+
+**Data Flow**:
+```
+Kafka → Queue Consumer → Firehose (MVS) → S3 (wifi-scan-data-bucket)
+  ↓
+S3 Event → SQS (wifi-scan-events) → Transformer → Firehose → S3 (wifi-measurements-table)
+```
+
+**What it creates**:
+- ✅ Kafka cluster with SSL (ingestion stage)
+- ✅ LocalStack with AWS services (both stages)
+- ✅ 2 S3 buckets (wifi-scan-data-bucket, wifi-measurements-table)
+- ✅ 2 SQS queues (wifi-scan-events, wifi-scan-events-dlq)
+- ✅ 2 Firehose delivery streams (MVS-stream, wifi-measurements-stream)
+- ✅ S3 → SQS event notifications
+
+**Options**:
+```bash
+# Full setup
+./setup-ingestion-store-stage.sh
+
+# Clean before setup
+./setup-ingestion-store-stage.sh --cleanup
+
+# Force regenerate SSL certificates
+./setup-ingestion-store-stage.sh --force-certs
+
+# Skip specific stages
+./setup-ingestion-store-stage.sh --skip-ingestion  # Only setup store stage
+./setup-ingestion-store-stage.sh --skip-store      # Only setup ingestion stage
+```
+
+**After setup, start both services**:
+```bash
+# Terminal 1 - Queue Consumer
+cd wifi-scan-queue-consumer
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+
+# Terminal 2 - Transformer Service
+cd wifi-measurements-transformer-service
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+#### monitor-pipeline.sh
+
+**Purpose**: Real-time monitoring dashboard for the entire pipeline.
+
+**Monitors**:
+- 🐳 Docker containers (Kafka, LocalStack)
+- 💚 LocalStack health
+- 📨 Kafka topics
+- 🗄️ S3 bucket file counts
+- 📬 SQS queue metrics
+- 🔥 Firehose stream status
+- ☕ Java service status
+- 📈 Pipeline conversion rates
+
+**Usage**:
+```bash
+# One-time snapshot
+./monitor-pipeline.sh
+
+# Continuous monitoring (refresh every 5 seconds)
+./monitor-pipeline.sh --watch
+```
+
+**Example output**:
+```
+╔════════════════════════════════════════╗
+║  DATA PIPELINE MONITORING DASHBOARD   ║
+╚════════════════════════════════════════╝
+
+Pipeline Statistics:
+  📥 Ingested Files (S3): 142
+  📨 Pending Events (SQS): 0
+  📤 Processed Files (S3): 138
+  Conversion Rate: 97.18%
+```
+
+#### test-end-to-end.sh
+
+**Purpose**: Complete end-to-end validation of the data pipeline.
+
+**Test flow**:
+1. Checks prerequisites (Kafka, LocalStack, services)
+2. Sends test WiFi scan message to Kafka
+3. Waits for file in ingestion S3 bucket (60-90s)
+4. Checks for S3 event in SQS queue
+5. Waits for processed file in output S3 bucket (60-90s)
+6. Displays summary and validates success
+
+**Usage**:
+```bash
+# Ensure both services are running first
+./test-end-to-end.sh
+```
+
+**Expected latency**: 70-100 seconds (due to Firehose buffering)
+
+#### cleanup-pipeline.sh
+
+**Purpose**: Clean up pipeline resources.
+
+**Options**:
+```bash
+# Standard cleanup (stops services, cleans AWS resources)
+./cleanup-pipeline.sh
+
+# Full cleanup (removes all containers, volumes, certificates)
+./cleanup-pipeline.sh --full
+```
+
+**What it cleans**:
+- 🧹 Stops Java services
+- 🗑️ Deletes AWS resources (SQS, S3, Firehose)
+- 🛑 Stops Kafka cluster
+- 🛑 Stops LocalStack
+- 💥 (Full only) Removes Docker containers and volumes
+
+#### Quick Pipeline Workflow
+
+```bash
+# 1. Setup everything
+cd scripts/setup
+./setup-ingestion-store-stage.sh
+
+# 2. Start services (in separate terminals)
+# Terminal 1: cd wifi-scan-queue-consumer && mvn spring-boot:run -Dspring-boot.run.profiles=local
+# Terminal 2: cd wifi-measurements-transformer-service && mvn spring-boot:run -Dspring-boot.run.profiles=local
+
+# 3. Monitor pipeline
+./monitor-pipeline.sh --watch
+
+# 4. Test end-to-end (in another terminal)
+./test-end-to-end.sh
+
+# 5. Cleanup when done
+./cleanup-pipeline.sh
+```
+
+**Important Notes**:
+- ⏱️ Firehose buffering causes 60-90 second delays (expected)
+- 🔄 Both services must be running for end-to-end flow
+- 📦 Only 2 S3 buckets created (LocalStack doesn't support Iceberg)
+- 🧪 Test data flows through entire pipeline automatically
 
 ### Testing Scripts
 

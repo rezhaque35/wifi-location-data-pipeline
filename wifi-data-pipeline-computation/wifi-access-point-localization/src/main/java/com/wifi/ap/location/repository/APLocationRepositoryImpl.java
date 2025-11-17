@@ -1,7 +1,7 @@
-package com.wifi.ap.location.estimation.repository;
+package com.wifi.ap.location.repository;
 
 import com.wifi.ap.location.estimation.MessageMacAddress;
-import com.wifi.ap.location.estimation.WifiAccessPointLocation;
+import com.wifi.ap.location.APLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,7 +37,7 @@ import static java.util.stream.Collectors.toMap;
  */
 @Repository
 @Profile("!test") // Only active when not in test profile
-public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLocationRepository {
+public class APLocationRepositoryImpl implements APLocationRepository {
 
     // === BATCH OPERATION CONSTANTS ===
 
@@ -118,25 +118,25 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
     private static final String SLOW_RESPONSE_STATUS_MESSAGE =
             "Table response time exceeds threshold";
 
-    private static final Logger logger = LoggerFactory.getLogger(WifiAccessPointLocationRepositoryImpl.class);
-    private final DynamoDbTable<WifiAccessPointLocation> accessPointTable;
+    private static final Logger logger = LoggerFactory.getLogger(APLocationRepositoryImpl.class);
+    private final DynamoDbTable<APLocation> accessPointTable;
     private final DynamoDbEnhancedClient enhancedClient;
     private final String tableName;
 
-    public WifiAccessPointLocationRepositoryImpl(
+    public APLocationRepositoryImpl(
             DynamoDbEnhancedClient enhancedClient,
             @Value("${aws.dynamodb.table-name}") String tableName) {
         this.enhancedClient = enhancedClient;
         this.tableName = tableName;
         this.accessPointTable =
-                enhancedClient.table(tableName, TableSchema.fromBean(WifiAccessPointLocation.class));
+                enhancedClient.table(tableName, TableSchema.fromBean(APLocation.class));
         logger.info("Initialized WifiAccessPointLocationRepository with table: {}", tableName);
     }
 
     // === PUBLIC API LAYER ===
 
     @Override
-    public Optional<WifiAccessPointLocation> findByMacAddress(MessageMacAddress messageMacAddress) {
+    public Optional<APLocation> findByMacAddress(MessageMacAddress messageMacAddress) {
         validateMacAddress(messageMacAddress);
 
         logger.debug("Querying access point by partition key (MAC address): {}", messageMacAddress);
@@ -149,15 +149,15 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
     }
 
     @Override
-    public Map<MessageMacAddress, Optional<WifiAccessPointLocation>> findByMacAddresses(Set<MessageMacAddress> messageMacAddresses) {
+    public Map<MessageMacAddress, Optional<APLocation>> findByMacAddresses(Set<MessageMacAddress> messageMacAddresses) {
 
         try {
-            Map<String, WifiAccessPointLocation> consolidatedResults = new HashMap<>();
+            Map<String, APLocation> consolidatedResults = new HashMap<>();
             List<List<MessageMacAddress>> batches = partitionIntoBatches(messageMacAddresses);
 
 
             for (List<MessageMacAddress> batch : batches) {
-                Map<String, WifiAccessPointLocation> batchResults = processSingleBatch(batch);
+                Map<String, APLocation> batchResults = processSingleBatch(batch);
                 consolidatedResults.putAll(batchResults);
             }
 
@@ -171,12 +171,12 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
     }
 
     @Override
-    public void save(List<WifiAccessPointLocation> apLocations) {
+    public void save(List<APLocation> apLocations) {
         //TODO
 
     }
 
-    private Map<MessageMacAddress, Optional<WifiAccessPointLocation>> mapAccessPointsTo(Map<String, WifiAccessPointLocation> consolidatedResults, Set<MessageMacAddress> messageMacAddresses) {
+    private Map<MessageMacAddress, Optional<APLocation>> mapAccessPointsTo(Map<String, APLocation> consolidatedResults, Set<MessageMacAddress> messageMacAddresses) {
 
         return messageMacAddresses.stream().
                                   collect(toMap(identity(), messageMacAddress -> messageMacAddress.macAddress()
@@ -196,8 +196,8 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
      * @param messageMacAddressBatches List of MAC addresses to process
      * @return Map of MAC addresses to matching access points
      */
-    private Map<String, WifiAccessPointLocation> processSingleBatch(List<MessageMacAddress> messageMacAddressBatches) {
-        Map<String, WifiAccessPointLocation> batchResults = new HashMap<>();
+    private Map<String, APLocation> processSingleBatch(List<MessageMacAddress> messageMacAddressBatches) {
+        Map<String, APLocation> batchResults = new HashMap<>();
         BatchGetItemEnhancedRequest batchRequest = buildBatchRequest(messageMacAddressBatches);
 
         int retryCount = 0;
@@ -249,7 +249,7 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
      * @param messageMacAddress MAC address serving as partition key
      * @return WifiAccessPointLocation or null if not found
      */
-    private Optional<WifiAccessPointLocation> retrieveSingleAccessPoint(MessageMacAddress messageMacAddress) {
+    private Optional<APLocation> retrieveSingleAccessPoint(MessageMacAddress messageMacAddress) {
 
         return messageMacAddress.macAddress()
                                 .map(String::trim)
@@ -282,8 +282,8 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
      * @return Configured BatchGetItemEnhancedRequest
      */
     private BatchGetItemEnhancedRequest buildBatchRequest(List<MessageMacAddress> messageMacAddresses) {
-        ReadBatch.Builder<WifiAccessPointLocation> readBatchBuilder =
-                ReadBatch.builder(WifiAccessPointLocation.class)
+        ReadBatch.Builder<APLocation> readBatchBuilder =
+                ReadBatch.builder(APLocation.class)
                          .mappedTableResource(accessPointTable);
 
         messageMacAddresses.stream()
@@ -309,16 +309,16 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
      * @return BatchOperationResult containing results and unprocessed key status
      */
     private BatchOperationResult executeBatchOperation(BatchGetItemEnhancedRequest batchRequest) {
-        Map<String, WifiAccessPointLocation> results = new HashMap<>();
+        Map<String, APLocation> results = new HashMap<>();
         boolean hasUnprocessedKeys = false;
 
         BatchGetResultPageIterable resultPages = enhancedClient.batchGetItem(batchRequest);
 
         for (BatchGetResultPage page : resultPages) {
-            List<WifiAccessPointLocation> pageResults = page.resultsForTable(accessPointTable);
+            List<APLocation> pageResults = page.resultsForTable(accessPointTable);
 
             // Since table only has partition key, each MAC address maps to exactly one entry
-            for (WifiAccessPointLocation ap : pageResults) {
+            for (APLocation ap : pageResults) {
                 results.put(ap.getMacAddress(), ap);
             }
 
@@ -417,7 +417,7 @@ public class WifiAccessPointLocationRepositoryImpl implements WifiAccessPointLoc
      * @param hasUnprocessedKeys Whether the operation had unprocessed keys
      */
     private record BatchOperationResult(
-            Map<String, WifiAccessPointLocation> results, boolean hasUnprocessedKeys) {
+            Map<String, APLocation> results, boolean hasUnprocessedKeys) {
     }
 
     // === HEALTH CHECK METHODS ===

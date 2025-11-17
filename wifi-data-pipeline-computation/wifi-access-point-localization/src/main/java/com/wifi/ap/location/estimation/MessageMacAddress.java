@@ -1,4 +1,4 @@
-package com.wifi.ap.location.estimate;
+package com.wifi.ap.location.estimation;
 
 import software.amazon.awssdk.services.sqs.model.Message;
 

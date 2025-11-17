@@ -2,6 +2,7 @@ package com.wifi.ap.location.measurements.service;
 
 import com.wifi.ap.location.config.properties.AthenaConfigurationProperties;
 import com.wifi.ap.location.measurements.WifiMeasurement;
+import com.wifi.ap.location.measurements.WifiMeasurements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -28,9 +29,9 @@ import java.util.concurrent.TimeUnit;
  */
 @Service
 @EnableConfigurationProperties(AthenaConfigurationProperties.class)
-public class APMeasurementRetrievalService {
+public class MeasurementRetrievalService {
 
-    private static final Logger logger = LoggerFactory.getLogger(APMeasurementRetrievalService.class);
+    private static final Logger logger = LoggerFactory.getLogger(MeasurementRetrievalService.class);
 
     private final AthenaClient athenaClient;
     private final S3Client s3Client;
@@ -41,7 +42,7 @@ public class APMeasurementRetrievalService {
     private final QueryExecutionContext queryExecutionContext;
     private final ResultConfiguration resultConfiguration;
 
-    public APMeasurementRetrievalService(
+    public MeasurementRetrievalService(
             AthenaClient athenaClient,
             @Qualifier("athenaS3Client") S3Client s3Client,
             AthenaConfigurationProperties athenaConfig) {
@@ -73,12 +74,12 @@ public class APMeasurementRetrievalService {
      * @param macAddress The BSSID (MAC address) to query measurements for
      * @return List of WifiMeasurement records, empty if none found or on error
      */
-    public List<WifiMeasurement> lookup(String macAddress) {
-        if (macAddress == null || macAddress.trim()
-                                            .isEmpty()) {
-            logger.warn("Invalid MAC address provided: {}", macAddress);
-            return Collections.emptyList();
+    public Optional<WifiMeasurements> lookup(String macAddress) {
+        // Early return for invalid input
+        if (macAddress == null || macAddress.trim().isEmpty()) {
+            return Optional.empty();
         }
+
         Optional<String> queryId = Optional.empty();
         List<WifiMeasurement> wifiMeasurements = Collections.emptyList();
         try {
@@ -94,7 +95,7 @@ public class APMeasurementRetrievalService {
             queryId.filter(q -> athenaConfig.enableResultCleanup())
                    .ifPresent(q -> cleanupQueryResults(q, macAddress));
         }
-        return wifiMeasurements;
+        return wifiMeasurements.isEmpty() ? Optional.empty() : Optional.of(new WifiMeasurements(wifiMeasurements));
     }
 
     /**
@@ -198,14 +199,16 @@ public class APMeasurementRetrievalService {
                     case SUCCEEDED:
                         logger.debug("Query {} completed successfully", queryId);
                         return true;
-                    case FAILED:
-                    case CANCELLED:
+                    case FAILED, CANCELLED:
                         logger.error("Query {} failed with state: {}, reason: {}",
                                      queryId, status.state(), status.stateChangeReason());
                         return false;
-                    case QUEUED:
-                    case RUNNING:
+                    case QUEUED, RUNNING:
                         // Continue polling
+                        Thread.sleep(1000); // Poll every second
+                        break;
+                    default:
+                        logger.warn("Query {} has unknown state: {}", queryId, status.state());
                         Thread.sleep(1000); // Poll every second
                         break;
                 }
@@ -268,44 +271,90 @@ public class APMeasurementRetrievalService {
      */
     private Optional<WifiMeasurement> parseRowToMeasurement(Row row, String macAddress) {
         try {
+            List<Datum> data = row.data();
+            if (data == null || data.isEmpty()) {
+                return Optional.empty();
+            }
+
+            // Skip header rows - they have column names as values
+            String id = getStringValue(data, 0);
+            if (id == null || "id".equals(id)) {
+                // This is likely a header row, skip it
+                return Optional.empty();
+            }
+
             return Optional.of(WifiMeasurement.builder()
-                                              .id(row.getValueForField("id", String.class)
-                                                     .orElse(null))
-                                              .bssid(row.getValueForField("bssid", String.class)
-                                                        .orElse(null))
-                                              .measurementTimestamp(row.getValueForField("measurement_timestamp", Long.class)
-                                                                       .orElse(null))
-                                              .latitude(row.getValueForField("latitude", Double.class)
-                                                           .orElse(null))
-                                              .longitude(row.getValueForField("longitude", Double.class)
-                                                            .orElse(null))
-                                              .altitude(row.getValueForField("altitude", Double.class)
-                                                           .orElse(null))
-                                              .locationAccuracy(row.getValueForField("location_accuracy", Double.class)
-                                                                   .orElse(null))
-                                              .rssi(row.getValueForField("rssi", Integer.class)
-                                                       .orElse(null))
-                                              .frequency(row.getValueForField("frequency", Integer.class)
-                                                            .orElse(null))
-                                              .connectionStatus(row.getValueForField("connection_status", String.class)
-                                                                   .orElse(null))
-                                              .qualityWeight(row.getValueForField("quality_weight", Double.class)
-                                                                .orElse(null))
-                                              .linkSpeed(row.getValueForField("link_speed", Integer.class)
-                                                            .orElse(null))
-                                              .channelWidth(row.getValueForField("channel_width", Integer.class)
-                                                               .orElse(null))
-                                              .centerFreq0(row.getValueForField("center_freq0", Integer.class)
-                                                              .orElse(null))
-                                              .isGlobalOutlier(row.getValueForField("is_global_outlier", Boolean.class)
-                                                                  .orElse(null))
+                                              .id(id)
+                                              .bssid(getStringValue(data, 1))
+                                              .measurementTimestamp(getLongValue(data, 2))
+                                              .latitude(getDoubleValue(data, 3))
+                                              .longitude(getDoubleValue(data, 4))
+                                              .altitude(getDoubleValue(data, 5))
+                                              .locationAccuracy(getDoubleValue(data, 6))
+                                              .rssi(getIntegerValue(data, 7))
+                                              .frequency(getIntegerValue(data, 8))
+                                              .connectionStatus(getStringValue(data, 9))
+                                              .qualityWeight(getDoubleValue(data, 10))
+                                              .linkSpeed(getIntegerValue(data, 11))
+                                              .channelWidth(getIntegerValue(data, 12))
+                                              .centerFreq0(getIntegerValue(data, 13))
+                                              .isGlobalOutlier(getBooleanValue(data, 14))
                                               .build());
         } catch (Exception e) {
-            logger.warn("Failed to parse row with id {} for MAC {}: {}",
-                        row.getValueForField("id", String.class)
-                           .orElse("unknown"), macAddress, e.getMessage());
+            logger.warn("Failed to parse row for MAC {}: {}", macAddress, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    private String getStringValue(List<Datum> data, int index) {
+        if (index >= data.size() || data.get(index) == null) {
+            return null;
+        }
+        return data.get(index).varCharValue();
+    }
+
+    private Long getLongValue(List<Datum> data, int index) {
+        String value = getStringValue(data, index);
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private Double getDoubleValue(List<Datum> data, int index) {
+        String value = getStringValue(data, index);
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private Integer getIntegerValue(List<Datum> data, int index) {
+        String value = getStringValue(data, index);
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private Boolean getBooleanValue(List<Datum> data, int index) {
+        String value = getStringValue(data, index);
+        if (value == null || value.trim().isEmpty()) {
+            return false; // Default to false for null/empty values
+        }
+        return Boolean.parseBoolean(value);
     }
 
 

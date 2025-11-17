@@ -1,6 +1,6 @@
-package com.wifi.ap.location.health;
+package com.wifi.ap.location.application.health;
 
-import com.wifi.ap.location.estimate.repository.WifiAccessPointLocationRepository;
+import com.wifi.ap.location.repository.APLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.actuate.health.Health;
@@ -119,14 +119,14 @@ public class DynamoDBReadinessHealthIndicator implements HealthIndicator {
    * Repository for accessing WiFi access point data and performing health checks. This repository
    * abstracts the DynamoDB access and provides health validation methods.
    */
-  private final WifiAccessPointLocationRepository repository;
+  private final APLocationRepository repository;
 
   /**
    * Constructor for DynamoDB readiness health indicator.
    *
    * @param repository The WiFi access point repository for health validation
    */
-  public DynamoDBReadinessHealthIndicator(WifiAccessPointLocationRepository repository) {
+  public DynamoDBReadinessHealthIndicator(APLocationRepository repository) {
     this.repository = repository;
     logger.info("Initialized DynamoDB readiness health indicator with repository-based approach");
   }
@@ -174,7 +174,7 @@ public class DynamoDBReadinessHealthIndicator implements HealthIndicator {
 
     try {
       // Delegate health checking to repository layer
-      WifiAccessPointLocationRepository.HealthCheckResult result = repository.validateTableHealth();
+      APLocationRepository.HealthCheckResult result = repository.validateTableHealth();
 
       // Calculate total response time (repository time + overhead)
       long endTime = System.nanoTime();

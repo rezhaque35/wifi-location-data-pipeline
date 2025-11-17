@@ -1,7 +1,7 @@
 // wifi-measurements-transformer-service/src/main/java/com/wifi/measurements/transformer/service/SqsMonitoringService.java
-package com.wifi.ap.location.listener;
+package com.wifi.ap.location.application.listener;
 
-import com.wifi.ap.location.estimate.MessageProcessingResult;
+import com.wifi.ap.location.estimation.MessageProcessingResult;
 import io.micrometer.core.instrument.Counter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

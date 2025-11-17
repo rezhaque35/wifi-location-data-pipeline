@@ -1,4 +1,4 @@
-package com.wifi.ap.location.estimate.config;
+package com.wifi.ap.location.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

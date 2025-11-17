@@ -1,4 +1,6 @@
 package com.wifi.ap.location.measurements.math;
 
-public record WiFiMeasurementDistance() {
+import com.wifi.ap.location.measurements.WifiMeasurement;
+
+public record WiFiMeasurementDistance(WifiMeasurement measurement, double distance) {
 }

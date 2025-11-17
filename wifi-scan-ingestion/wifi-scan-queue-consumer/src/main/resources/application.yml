@@ -85,6 +85,7 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
 kafka:
+ # bootstrap-servers: somewhere/host:9096
   bootstrap-servers: localhost:9093
   consumer:
     group-id: wifi-scan-consumer-dev
@@ -107,8 +108,11 @@ kafka:
     enabled: true
     protocol: SSL
     keystore:
+#      location: scripts/kafka/somewhere/kafka.keystore.p12
       location: scripts/kafka/secrets/kafka.keystore.p12
+#      password: 123456
       password: kafka123
+ #     type: PKCS20
       type: PKCS12
     truststore:
       location: scripts/kafka/secrets/kafka.truststore.p12
